@@ -1,5 +1,5 @@
 # 造价通 - 一键启动器 start.exe 线上构建
-# push 到 main 后,GitHub 云端 runner 自动 build,产出 start.exe 作为 artifact 供下载
+# push 到 main 后 GitHub 云端自动 build,产出 start.exe 作为 artifact 供下载
 name: Build Launcher
 
 on:
@@ -21,13 +21,17 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          cache-dependency-path: launcher/go.sum
+          cache: false
 
-      - name: Build start.exe
+      - name: Tidy and resolve deps
         working-directory: launcher
         run: |
           go mod tidy
-          go build -ldflags="-s -w -H windowsgui" -o start.exe .
+          go mod download
+
+      - name: Build start.exe
+        working-directory: launcher
+        run: go build -ldflags="-s -w -H windowsgui" -o start.exe .
 
       - name: Verify
         working-directory: launcher
