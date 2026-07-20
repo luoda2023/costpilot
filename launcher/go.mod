@@ -7,4 +7,4 @@ require (
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
 )
 
-require github.com/akavel/rsrc v0.0.0-20190827185533-5acba0d046b0 // indirect
+require github.com/akavel/rsrc v0.0.0-20210312141401-936343600d57 // indirect
