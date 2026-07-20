@@ -1,6 +1,6 @@
 r"""
 造价通 - 8 类文本格式谱入库
-从 H:\AI-model\文本编制模板库\ 下的 8 个格式谱 .md
+从 data/source/文本编制模板库/ 下的 8 个格式谱 .md
 拆为:
   - YAML 章节骨架(从 ## 与 ### 推断)
   - JSON 字段字典(从 ___、{{...}} 占位 + 必含项提取)
@@ -71,7 +71,7 @@ def extract_skeleton_yaml(md_text: str, type_name: str) -> str:
     return "\n".join(yaml_lines)
 
 
-def extract_fields(md_text: str) -> list:
+def extract_fields(md_text: str) -> tuple:
     """
     提取字段定义:
     - 模板中的 {{field_key}} 占位
@@ -85,8 +85,11 @@ def extract_fields(md_text: str) -> list:
     common = [
         ("project_name", "项目名称", "text", True, None, None),
         ("region", "项目所在地", "select", True, None,
-         ["北京市","上海市","天津市","重庆市","广东省","浙江省","江苏省","四川省","山东省","湖北省","湖南省","福建省","河北省","山西省","辽宁省","安徽省","江西省","河南省","海南省","贵州省","云南省","陕西省","甘肃省","青海省","内蒙古","广西","宁夏","新疆","西藏"]),
-        ("stage", "工程阶段", "select", True, "估算", ["估算","概算","预算","结算"]),
+         ["北京市", "上海市", "天津市", "重庆市", "广东省", "浙江省", "江苏省",
+          "四川省", "山东省", "湖北省", "湖南省", "福建省", "河北省", "山西省",
+          "辽宁省", "安徽省", "江西省", "河南省", "海南省", "贵州省", "云南省",
+          "陕西省", "甘肃省", "青海省", "内蒙古", "广西", "宁夏", "新疆", "西藏"]),
+        ("stage", "工程阶段", "select", True, "估算", ["估算", "概算", "预算", "结算"]),
         ("compiled_by", "编制人", "text", False, None, None),
         ("compiled_at", "编制日期", "date", False, None, None),
         ("reviewed_by", "审核人", "text", False, None, None),
@@ -95,7 +98,7 @@ def extract_fields(md_text: str) -> list:
     for key, label, ftype, required, default, options in common:
         if key not in seen_keys:
             fields.append({"field_key": key, "field_label": label, "field_type": ftype,
-                            "required": required, "default_value": default, "options": options})
+                           "required": required, "default_value": default, "options": options})
             seen_keys.add(key)
 
     # 2) 提取 {{...}} 占位
@@ -103,7 +106,7 @@ def extract_fields(md_text: str) -> list:
     for ph in placeholders:
         if ph not in seen_keys:
             fields.append({"field_key": ph, "field_label": ph, "field_type": "text",
-                            "required": False, "default_value": "", "options": None})
+                           "required": False, "default_value": "", "options": None})
             seen_keys.add(ph)
 
     # 3) 提取 ___ 下划线占位
@@ -127,14 +130,14 @@ def extract_fields(md_text: str) -> list:
         ],
         2: [  # 施工组织设计
             ("duration", "总工期(天)", "number", True, None, None),
-            ("quality_target", "质量目标", "select", False, "合格", ["合格","优良","鲁班奖"]),
+            ("quality_target", "质量目标", "select", False, "合格", ["合格", "优良", "鲁班奖"]),
             ("safety_target", "安全目标", "text", False, "零事故", None),
             ("major_methods", "主要施工方法", "richtext", True, None, None),
         ],
         3: [  # 专项施工方案
             ("scheme_name", "方案名称", "text", True, None, None),
-            ("risk_level", "危险等级", "select", False, "一般", ["一般","较大","重大"]),
-            ("calc_required", "是否含计算书", "select", False, "否", ["是","否"]),
+            ("risk_level", "危险等级", "select", False, "一般", ["一般", "较大", "重大"]),
+            ("calc_required", "是否含计算书", "select", False, "否", ["是", "否"]),
         ],
         4: [  # 技术交底
             ("process_name", "工艺名称", "text", True, None, None),
@@ -167,12 +170,6 @@ def extract_fields(md_text: str) -> list:
             ("reserve", "预备费(万元)", "number", False, None, None),
         ],
     }
-
-    for key, label, ftype, required, default, options in type_specific.get(0, []):
-        pass  # 不会执行
-    for type_id, type_fields in type_specific.items():
-        # 在使用时按 type_id 调用(下面 main 里)
-        pass
 
     return fields, type_specific
 
@@ -209,16 +206,15 @@ def main():
                 tt.name = name
                 tt.doc_type = doc_type
                 tt.description = desc
-        session.commit()
+            session.commit()
         print(f"  [OK] {len(TEMPLATE_TYPES)} 个类型已就位")
 
         print("\n[3/3] 解析并入库 8 个格式谱...")
         for tid, name, _, _ in TEMPLATE_TYPES:
-            md_path = PROJECT_ROOT.parent / "文本编制模板库" / FORMATION_FILES[tid]
+            md_path = PROJECT_ROOT / "data" / "source" / "文本编制模板库" / FORMATION_FILES[tid]
             if not md_path.exists():
                 print(f"  [WARN] 文件不存在: {md_path}")
                 continue
-
             md_text = md_path.read_text(encoding="utf-8")
             yaml_skeleton = extract_skeleton_yaml(md_text, name)
             fields, type_specific = extract_fields(md_text)
@@ -251,12 +247,11 @@ def main():
                 tf = TemplateField(
                     template_id=t.id, field_key=f["field_key"], field_label=f["field_label"],
                     field_type=f["field_type"], required=f["required"],
-                    default_value=f["default_value"], options=f["options"],
+                    default_value=f.get("default_value"), options=f.get("options"),
                 )
                 session.add(tf)
             session.commit()
             print(f"  [OK] {name}: 模板 + {len(fields)} 个字段已入库")
-
     finally:
         session.close()
 

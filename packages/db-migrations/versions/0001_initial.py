@@ -214,9 +214,9 @@ def upgrade():
             sa.Column("page", sa.Integer),
             sa.Column("chunk_text", sa.Text, nullable=False),
             sa.Column("embedding_id", sa.String(64)),
-            sa.Column("extra_metadata", sa.JSON, name="metadata"),
-            sa.Column("created_at", sa.DateTime, server_default=sa.func.now()),
-        )
+ sa.Column("metadata", sa.JSON),
+ sa.Column("created_at", sa.DateTime, server_default=sa.func.now()),
+ )
 
     # 协同与开放 余下 2 张表
     if not _has_table("t_audit_log"):

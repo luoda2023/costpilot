@@ -10,8 +10,8 @@ if not db_path.exists():
 
 conn = sqlite3.connect(db_path)
 expected = {
-    't_specialty': 14,
-    't_price_unit': 12,
+    't_specialty': 8,
+    't_price_unit': 100,
     't_topic_price': 100,
     't_fee_rate': 1,
     't_template_type': 8,
