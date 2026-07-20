@@ -50,22 +50,11 @@ jobs:
       - name: Init database with seed data
         shell: bash
         run: |
-          # 1. 准备 data/sqlite 目录
           mkdir -p data/sqlite
-          # 2. 执行迁移建表
           alembic upgrade head
-          # 3. 导入 17,864 条价格 + 370 专题 + 16 费率 + 8 模板 + 92 字段
           python scripts/import_prices_to_db.py || true
           python scripts/import_templates_to_db.py || true
-          # 4. 验证
-          python -c "
-import sqlite3
-c = sqlite3.connect('data/sqlite/造价通.db')
-for t in ['t_specialty','t_price_unit','t_topic_price','t_fee_rate','t_template_type','t_template','t_template_field']:
-    n = c.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
-    print(f'  {t}: {n}')
-c.close()
-          "
+          python scripts/verify_seed.py
 
       - name: Install root npm deps
         run: npm install --no-audit --no-fund
@@ -84,8 +73,7 @@ c.close()
 
       - name: List output
         shell: pwsh
-        run: |
-          Get-ChildItem dist-electron -Recurse | Format-Table Name,Length,FullName
+        run: Get-ChildItem dist-electron -Recurse | Format-Table Name,Length,FullName
 
       - name: Upload Setup.exe
         uses: actions/upload-artifact@v4
