@@ -1,0 +1,106 @@
+# 造价通 - 一键安装包构建 (GitHub Actions 云端跑,产出 Setup.exe)
+# 用户在 Actions 页手动 Run,约 15 分钟后下载 Artifacts/costpilot-setup-exe
+# 装完后双击桌面图标即可启动造价通,无需装 Python/Node
+name: Build Desktop Installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (默认 0.2.1)'
+        required: false
+        default: '0.2.1'
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build costpilot-server.exe (PyInstaller)
+        shell: cmd
+        run: scripts\build_server.bat
+
+      - name: Verify server.exe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist\costpilot-server.exe)) { throw "server.exe missing" }
+          $sz = (Get-Item dist\costpilot-server.exe).Length / 1MB
+          Write-Host "server.exe size: $sz MB"
+
+      - name: Init database with seed data
+        shell: bash
+        run: |
+          # 1. 准备 data/sqlite 目录
+          mkdir -p data/sqlite
+          # 2. 执行迁移建表
+          alembic upgrade head
+          # 3. 导入 17,864 条价格 + 370 专题 + 16 费率 + 8 模板 + 92 字段
+          python scripts/import_prices_to_db.py || true
+          python scripts/import_templates_to_db.py || true
+          # 4. 验证
+          python -c "
+import sqlite3
+c = sqlite3.connect('data/sqlite/造价通.db')
+for t in ['t_specialty','t_price_unit','t_topic_price','t_fee_rate','t_template_type','t_template','t_template_field']:
+    n = c.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0]
+    print(f'  {t}: {n}')
+c.close()
+          "
+
+      - name: Install root npm deps
+        run: npm install --no-audit --no-fund
+
+      - name: Install web npm deps
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+
+      - name: Build web (Vite production)
+        working-directory: apps/web
+        run: npx vite build
+
+      - name: Build Electron Setup.exe
+        shell: pwsh
+        run: npm run build:win
+
+      - name: List output
+        shell: pwsh
+        run: |
+          Get-ChildItem dist-electron -Recurse | Format-Table Name,Length,FullName
+
+      - name: Upload Setup.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: costpilot-setup-exe
+          path: |
+            dist-electron/*.exe
+            dist-electron/latest.yml
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload unpacked dir (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: costpilot-unpacked
+          path: dist-electron/win-unpacked/**
+          if-no-files-found: error
+          retention-days: 7

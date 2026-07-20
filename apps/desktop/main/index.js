@@ -21,38 +21,53 @@ let pythonServer = null;
 
 /**
  * 启动 Python FastAPI 子进程
+ *
+ * 打包后: 用 PyInstaller 产出的 costpilot-server.exe,无需用户装 Python
+ * 开发期: 用 python -m uvicorn
  */
 function startPythonServer() {
-  let cmd, args;
-  if (process.platform === 'win32') {
-    cmd = 'python';
-    args = ['-m', 'uvicorn', 'packages.server.api.app:app',
-            '--host', '127.0.0.1', '--port', String(SERVER_PORT)];
-  } else {
-    cmd = 'python3';
-    args = ['-m', 'uvicorn', 'packages.server.api.app:app',
-            '--host', '127.0.0.1', '--port', String(SERVER_PORT)];
-  }
+ let cmd, args, cwd;
 
-  const cwd = app.isPackaged
-    ? path.join(process.resourcesPath, 'app')
-    : path.join(__dirname, '..', '..');
+ if (app.isPackaged) {
+ // 打包模式: 跑 costpilot-server.exe (PyInstaller onefile)
+ if (process.platform === 'win32') {
+ cmd = path.join(process.resourcesPath, 'app', 'costpilot-server.exe');
+ args = ['--host', '127.0.0.1', '--port', String(SERVER_PORT)];
+ } else {
+ // mac/linux 暂未实现PyInstaller 打包,降级到 python3
+ cmd = 'python3';
+ args = ['-m', 'uvicorn', 'packages.server.api.app:app',
+ '--host', '127.0.0.1', '--port', String(SERVER_PORT)];
+ }
+ cwd = path.join(process.resourcesPath, 'app');
+ } else {
+ // 开发模式: 直接调 python
+ if (process.platform === 'win32') {
+ cmd = 'python';
+ } else {
+ cmd = 'python3';
+ }
+ args = ['-m', 'uvicorn', 'packages.server.api.app:app',
+ '--host', '127.0.0.1', '--port', String(SERVER_PORT)];
+ cwd = path.join(__dirname, '..', '..');
+ }
 
-  pythonServer = spawn(cmd, args, {
-    cwd,
-    env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+ pythonServer = spawn(cmd, args, {
+ cwd,
+ env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+ stdio: ['ignore', 'pipe', 'pipe'],
+ windowsHide: true,
+ });
 
-  pythonServer.stdout.on('data', (data) => {
-    console.log(`[python] ${data.toString().trim()}`);
-  });
-  pythonServer.stderr.on('data', (data) => {
-    console.error(`[python err] ${data.toString().trim()}`);
-  });
-  pythonServer.on('exit', (code) => {
-    console.log(`Python server exited with code ${code}`);
-  });
+ pythonServer.stdout.on('data', (data) => {
+ console.log(`[server] ${data.toString().trim()}`);
+ });
+ pythonServer.stderr.on('data', (data) => {
+ console.error(`[server err] ${data.toString().trim()}`);
+ });
+ pythonServer.on('exit', (code) => {
+ console.log(`Server exited with code ${code}`);
+ });
 }
 
 /**
@@ -84,6 +99,33 @@ function waitForServer(maxAttempts = 30) {
     };
     check();
   });
+}
+
+/**
+ * 首次启动确保 config.yaml / 数据库初始目录存在
+ * 打包模式: cwd = process.resourcesPath/app, 在此建 data/sqlite 目录
+ */
+function ensureRuntimeFiles() {
+  let baseDir;
+  if (app.isPackaged) {
+    baseDir = path.join(process.resourcesPath, 'app');
+  } else {
+    baseDir = path.join(__dirname, '..', '..');
+  }
+  // 1. config.yaml 不存在则从 config.example.yaml 复制
+  const cfgPath = path.join(baseDir, 'config.yaml');
+  const cfgExamplePath = path.join(baseDir, 'config.example.yaml');
+  if (!fs.existsSync(cfgPath) && fs.existsSync(cfgExamplePath)) {
+    fs.copyFileSync(cfgExamplePath, cfgPath);
+    console.log('[init] 已从 config.example.yaml 复制为 config.yaml');
+  }
+  // 2. data/sqlite 目录
+  const sqliteDir = path.join(baseDir, 'data', 'sqlite');
+  if (!fs.existsSync(sqliteDir)) {
+    fs.mkdirSync(sqliteDir, { recursive: true });
+    console.log(`[init] 已创建目录 ${sqliteDir}`);
+  }
+  return baseDir;
 }
 
 /**
@@ -193,26 +235,27 @@ if (!gotLock) {
     }
   });
 
-  app.whenReady().then(async () => {
-    if (isDev) {
-      // 开发模式 FastAPI 自己 npm dev:server 起, 不用 Electron 再起一遍
-      createWindow();
-      createMenu();
-    } else {
-      startPythonServer();
-      try {
-        await waitForServer();
-        createWindow();
-        createMenu();
-      } catch (err) {
-        console.error('Failed to start server:', err);
-        // 仍创建窗口,显示错误页
-        createWindow();
-        createMenu();
-        mainWindow?.webContents.send('server:error', err.message);
-      }
-    }
-  });
+app.whenReady().then(async () => {
+ensureRuntimeFiles();   // 首次启动确保 config.yaml / data/sqlite 就位
+if (isDev) {
+ // 开发模式 FastAPI 自己 npm dev:server 起, 不用 Electron 再起一遍
+ createWindow();
+ createMenu();
+} else {
+ startPythonServer();
+ try {
+ await waitForServer();
+ createWindow();
+ createMenu();
+ } catch (err) {
+ console.error('Failed to start server:', err);
+ // 仍创建窗口,显示错误页
+ createWindow();
+ createMenu();
+ mainWindow?.webContents.send('server:error', err.message);
+ }
+}
+});
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {

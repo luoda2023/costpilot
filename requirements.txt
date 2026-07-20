@@ -1,0 +1,15 @@
+# 造价通 后端 Python 依赖
+sqlalchemy>=2.0
+alembic>=1.13
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+openpyxl>=3.1
+python-docx>=1.1
+pyyaml>=6.0
+requests>=2.31
+
+# 可选: RAG 知识库(拖大小,默认不装;需要时取消注释)
+# chromadb>=0.4
+# sentence-transformers>=2.5
+# pdfplumber>=0.10

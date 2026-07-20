@@ -1,0 +1,45 @@
+# 造价通 - 一键启动器 start.exe 线上构建
+# push 到 main 分支后,GitHub 云端 runner 自动 build,产出 start.exe 作为 artifact 供下载
+name: Build Launcher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'launcher/**'
+      - '.github/workflows/build-launcher.yml'
+  workflow_dispatch:  # 也支持手动触发
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest   # GitHub 提供的 Windows 云 runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: launcher/go.sum
+
+      - name: Build start.exe
+        working-directory: launcher
+        run: |
+          go mod tidy
+          go build -ldflags="-s -w -H windowsgui" -o start.exe .
+
+      - name: Verify
+        working-directory: launcher
+        shell: pwsh
+        run: |
+          Get-ChildItem start.exe | Format-List
+          (Get-Item start.exe).Length / 1MB | ForEach-Object { Write-Host "size: $_ MB" }
+
+      - name: Upload start.exe as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: costpilot-start-exe
+          path: launcher/start.exe
+          if-no-files-found: error
+          retention-days: 90

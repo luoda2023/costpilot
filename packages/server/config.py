@@ -12,13 +12,23 @@
     3. 全局默认值
 """
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict
 from dataclasses import dataclass, field
 
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+def _resolve_project_root() -> Path:
+    """打包后 PyInstaller onefile: PROJECT_ROOT = exe 同目录
+    开发模式: PROJECT_ROOT = 包上一级(项目根)
+    """
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # PyInstaller onefile: 数据库 / config 写到 exe 同目录
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent.parent.parent
+
+PROJECT_ROOT = _resolve_project_root()
 CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 
 
