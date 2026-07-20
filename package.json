@@ -1,0 +1,59 @@
+{
+  "name": "costpilot",
+  "version": "0.1.0",
+  "description": "CostPilot - construction cost intelligent assistant",
+  "private": true,
+  "author": "CostPilot",
+  "license": "MIT",
+  "main": "apps/desktop/main/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:server": "python -m uvicorn packages.server.api.app:app --host 127.0.0.1 --port 8765 --reload",
+    "dev:renderer": "cd apps/web && npm run dev",
+    "dev:electron": "wait-on http://127.0.0.1:8765/docs && electron .",
+    "build:web": "cd apps/web && npm run build",
+    "build:win": "npm run build:web && electron-builder --win --x64",
+    "build:mac": "npm run build:web && electron-builder --mac",
+    "build:linux": "npm run build:web && electron-builder --linux",
+    "import:prices": "python scripts/import_prices_to_db.py",
+    "db:migrate": "alembic upgrade head",
+    "db:reset": "python -c \"import sys; sys.path.insert(0,'.'); from packages.server.db.database import reset_db; reset_db()\""
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0",
+    "vite": "^5.3.0"
+  },
+  "build": {
+    "appId": "com.costpilot.desktop",
+    "productName": "CostPilot",
+    "files": [
+      "apps/desktop/**/*",
+      "apps/web/dist/**/*",
+      "packages/**/*",
+      "data/sqlite/**/*"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "apps/desktop/build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "apps/desktop/build/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}
