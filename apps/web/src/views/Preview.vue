@@ -107,12 +107,12 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 
-// 全格式预览组件(按需引入,减小首屏体积)
-import VueOfficePDF from '@vue-office/pdf'
-import VueOfficeDocx from '@vue-office/docx'
-import VueOfficeExcel from '@vue-office/excel'
-import '@vue-office/docx/lib/index.css'
-import '@vue-office/excel/lib/index.css'
+// 全格式预览组件(必须显式引 /lib/v3 子路径,此包是 v2/v3 双版本)
+import VueOfficePDF from '@vue-office/pdf/lib/v3'
+import VueOfficeDocx from '@vue-office/docx/lib/v3'
+import VueOfficeExcel from '@vue-office/excel/lib/v3'
+import '@vue-office/docx/lib/v3/index.css'
+import '@vue-office/excel/lib/v3/index.css'
 
 const apiUrl = '/api/v1'
 const rootPath = 'H:/AI-model'
