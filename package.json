@@ -31,7 +31,6 @@
 "productName": "CostPilot",
 "files": [
 "apps/desktop/**/*",
-"apps/web/dist/**/*",
 "packages/**/*",
 "costpilot-server.exe",
 "alembic.ini",
@@ -49,6 +48,14 @@
 {
 "from": "data/sqlite",
 "to": "app/data/sqlite"
+},
+{
+"from": "apps/web/dist",
+"to": "app/web/dist"
+},
+{
+"from": "config.example.yaml",
+"to": "app/config.example.yaml"
 }
 ],
 "directories": {

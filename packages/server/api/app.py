@@ -1,6 +1,9 @@
 """造价通 - FastAPI 主入口"""
+import sys
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from packages.server.db.database import init_db
 
 # 显式导入 router(避免子模块导入失败)
@@ -35,14 +38,11 @@ def on_startup():
     init_db()
 
 
-@app.get("/")
-def root():
-    return {
-        "name": "造价通 CostPilot API",
-        "version": "0.1.0",
-        "docs": "/docs",
-    }
-
+# ============================================================
+# 重要: 所有 API 路由必须在 mount('/') 之前注册!
+# Starlette 的 StaticFiles mount 会 catch-all 所有请求,
+# 如果 mount 先注册, API 路由永远收不到请求。
+# ============================================================
 
 app.include_router(health_router, prefix="/health", tags=["健康检查"])
 app.include_router(prices_router, prefix="/api/v1/prices", tags=["价格库"])
@@ -67,3 +67,37 @@ app.include_router(quotes_router, prefix="/api/v1/quotes", tags=["报价生成"]
 # 知识库 RAG
 from packages.server.api.knowledge import router as knowledge_router
 app.include_router(knowledge_router, prefix="/api/v1/kb", tags=["知识库 RAG"])
+
+
+@app.get("/api/status")
+def api_status():
+    """纯 API 信息端点"""
+    return {
+        "name": "造价通 CostPilot API",
+        "version": "0.1.0",
+        "docs": "/docs",
+    }
+
+
+# ============================================================
+# 最后: 挂载前端静态文件(生产模式)
+# 后端托管前端 SPA, 让 Electron 从 http://127.0.0.1:8765 加载
+# 而不是从 file:// 协议加载, 这样 /api 请求同源正常
+# ============================================================
+def _static_dir() -> Path:
+    """打包后: exe 同目录/web/dist; 开发模式: 项目根/apps/web/dist"""
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # PyInstaller onefile, 静态文件在 exe 旁边
+        base = Path(sys.executable).resolve().parent
+        return base / "web" / "dist"
+    else:
+        # 开发模式: packages/server/api/ -> 4 次 parent 到项目根
+        return Path(__file__).resolve().parent.parent.parent.parent / "apps" / "web" / "dist"
+
+
+static_path = _static_dir()
+if static_path.exists():
+    app.mount("/", StaticFiles(directory=str(static_path), html=True), name="frontend")
+    print(f"[app] 前端静态文件已挂载: {static_path}")
+else:
+    print(f"[app] 前端静态目录不存在(开发模式正常): {static_path}")

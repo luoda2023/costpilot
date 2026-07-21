@@ -1,57 +1,58 @@
 """AI 配置管理 API
 
 供前端"系统设置"页面:
-  - GET  /api/v1/ai/config         查看当前 AI 配置(api_key 脱敏)
-  - GET  /api/v1/ai/providers      列出内置 Provider
-  - POST /api/v1/ai/test            测试连接
-  - POST /api/v1/ai/switch          切换 provider + 重置客户端
+  - GET  /api/v1/ai/config 查看当前 AI 配置(api_key 脱敏)
+  - GET  /api/v1/ai/providers 列出内置 Provider
+  - POST /api/v1/ai/test 测试连接
+  - POST /api/v1/ai/switch 切换 provider + 重置客户端(持久化到 config.yaml)
 """
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+import yaml
 
-from packages.server.config import get_config, reload_config
+from packages.server.config import get_config, reload_config, CONFIG_PATH
 from packages.server.ai.client import get_ai_client, reset_ai_client, AIClientError, AIConfigError
 
 router = APIRouter()
 
 
 class AIConfigOut(BaseModel):
- provider: str
- base_url: str
- model: str
- temperature: float
- max_tokens: int
- timeout: int
- api_key_set: bool # 是否已设置(不返回明文)
- api_key_preview: str  # 脱敏预览
- lobechat_url: str = "http://localhost:3210"
+    provider: str
+    base_url: str
+    model: str
+    temperature: float
+    max_tokens: int
+    timeout: int
+    api_key_set: bool  # 是否已设置(不返回明文)
+    api_key_preview: str  # 脱敏预览
+    lobechat_url: str = "http://localhost:3210"
 
 
 class SwitchIn(BaseModel):
- provider: Optional[str] = None
- base_url: Optional[str] = None
- api_key: Optional[str] = None
- model: Optional[str] = None
- lobechat_url: Optional[str] = None
+    provider: Optional[str] = None
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+    lobechat_url: Optional[str] = None
 
 
 @router.get("/config", response_model=AIConfigOut)
 def get_ai_config():
- """查看当前 AI 配置(api_key 脱敏)"""
- cfg = get_config().ai.resolved()
- key = cfg["api_key"]
- return AIConfigOut(
- provider=cfg["provider"],
- base_url=cfg["base_url"],
- model=cfg["model"],
- temperature=cfg["temperature"],
- max_tokens=cfg["max_tokens"],
- timeout=cfg["timeout"],
- api_key_set=bool(key),
- api_key_preview=(key[:6] + "***" + key[-4:]) if len(key) > 10 else ("***" if key else ""),
- lobechat_url=cfg.get("lobechat_url", "http://localhost:3210"),
- )
+    """查看当前 AI 配置(api_key 脱敏)"""
+    cfg = get_config().ai.resolved()
+    key = cfg["api_key"]
+    return AIConfigOut(
+        provider=cfg["provider"],
+        base_url=cfg["base_url"],
+        model=cfg["model"],
+        temperature=cfg["temperature"],
+        max_tokens=cfg["max_tokens"],
+        timeout=cfg["timeout"],
+        api_key_set=bool(key),
+        api_key_preview=(key[:6] + "***" + key[-4:]) if len(key) > 10 else ("***" if key else ""),
+        lobechat_url=cfg.get("lobechat_url", "http://localhost:3210"),
+    )
 
 
 @router.get("/providers")
@@ -84,9 +85,9 @@ def test_ai_connection():
 
 @router.post("/switch")
 def switch_provider(s: SwitchIn):
-    """切换 provider / 配置项后立即生效(写入运行时,不改 config.yaml)
+    """切换 provider / 配置项后立即生效(写入 config.yaml 持久化)
 
-    注: 持久化需用户手动编辑 config.yaml;这里只切换运行时
+    同时写入 config.yaml 存盘,重启后不丢失。
     """
     overrides = {}
     if s.provider:
@@ -98,12 +99,30 @@ def switch_provider(s: SwitchIn):
     if s.model:
         overrides["model"] = s.model
 
+    if CONFIG_PATH.exists():
+        raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    else:
+        raw = {}
+
+    if "ai" not in raw:
+        raw["ai"] = {}
+    if s.provider:
+        raw["ai"]["provider"] = s.provider
+    if s.base_url:
+        raw["ai"]["base_url"] = s.base_url
+    if s.api_key:
+        raw["ai"]["api_key"] = s.api_key
+    if s.model:
+        raw["ai"]["model"] = s.model
+
+    CONFIG_PATH.write_text(yaml.dump(raw, allow_unicode=True, default_flow_style=False), encoding="utf-8")
+
     reset_ai_client()
     try:
         client = get_ai_client(**overrides)
         return {
             "ok": True,
-            "msg": f"已切换到 {client.provider} / {client.model}",
+            "msg": f"已切换到 {client.provider} / {client.model} (已保存到 config.yaml)",
             "current": {
                 "provider": client.provider,
                 "base_url": client.base_url,
