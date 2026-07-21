@@ -1,5 +1,5 @@
 <template>
-  <div class="workspace">
+  <div class="workspace" v-loading="loading" element-loading-text="正在加载数据...">
     <!-- 概览卡片 -->
     <el-row :gutter="16" class="stat-row">
       <el-col :span="6">
@@ -144,6 +144,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PricesAPI, ProjectsAPI } from '@/api'
 
+const loading = ref(true)
 const stats = ref({})
 const projects = ref([])
 const serverOk = ref(false)
@@ -156,11 +157,13 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
 
 async function loadStats() {
   try {
-    const r = await PricesAPI.stats()
-    stats.value = r
-    serverOk.value = true
+ const r = await PricesAPI.stats()
+ stats.value = r
+ serverOk.value = true
   } catch (e) {
-    serverOk.value = false
+ serverOk.value = false
+  } finally {
+ loading.value = false
   }
 }
 

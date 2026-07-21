@@ -58,7 +58,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from './api'
+import axios from 'axios'
 
 const route = useRoute()
 const serverStatus = ref('unknown')
@@ -75,10 +75,10 @@ const activeMenu = computed(() => {
 
 async function checkServer() {
   try {
-    const r = await api.get('/health')
-    if (r.data?.status === 'ok') serverStatus.value = 'ok'
+ const r = await axios.get('/health')
+ if (r.data?.status === 'ok') serverStatus.value = 'ok'
   } catch {
-    serverStatus.value = 'error'
+ serverStatus.value = 'error'
   }
 }
 
