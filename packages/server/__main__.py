@@ -7,25 +7,28 @@
 """
 import sys
 import os
+import argparse
+import uvicorn
 
-# PyInstaller 打包后, 数据库 / config.yaml 放在 sys._MEIPASS 或可执行文件同目录
+
 def _setup_paths():
-    if getattr(sys, "_MEIPASS", None):
-        # PyInstaller onefile 解压到 _MEIPASS, 但写文件要去 exe 同目录
+    """确保 Python 能找到 packages.* 模块"""
+    if getattr(sys, "frozen", False) and hasattr(sys, '_MEIPASS'):
+        # PyInstaller onefile: 工作目录为 exe 所在目录
         base = os.path.dirname(sys.executable)
     else:
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    # 把项目根加到 sys.path 让 import packages.* 能跑
     if base not in sys.path:
         sys.path.insert(0, base)
-    # 切到工程根, alembic / config.yaml 路径才正确
     os.chdir(base)
     return base
 
+
 _setup_paths()
 
-import argparse
-import uvicorn
+# 直接 import app 对象 (不用字符串传参, 避免 PyInstaller frozen 环境模块解析问题)
+from packages.server.api.app import app
+
 
 def main():
     parser = argparse.ArgumentParser(description="造价通 后端服务")
@@ -34,12 +37,13 @@ def main():
     args = parser.parse_args()
     print(f"造价通后端启动: http://{args.host}:{args.port}")
     uvicorn.run(
-        "packages.server.api.app:app",
+        app,
         host=args.host,
         port=args.port,
         log_level="info",
         reload=False,
     )
+
 
 if __name__ == "__main__":
     main()

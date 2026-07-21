@@ -89,19 +89,18 @@ rag:
 # ====================================================================================
 # 资料库根路径(向量化时扫描)
 # ====================================================================================
+# 注意: 请将以下路径改为你本机实际存放造价资料的目录
+# 首次使用建议留空, 等配置好 AI Key 后再回来设置
 knowledge_sources:
-  - path: "H:/AI-model/价格信息库"
-    description: "17,864 条综合单价 + 370 专题 + 16 费率"
-    file_types: ["md", "xlsx", "pdf"]
-  - path: "H:/AI-model/文本编制模板库"
-    description: "8 类文本格式谱"
-    file_types: ["md"]
-  - path: "H:/AI-model/查询存档"
-    description: "操作手册与复核报告"
-    file_types: ["md"]
-  - path: "H:/AI-model/我的资源"
-    description: "21,000+ 原文件:规范/图集/合同/方案/结算书"
-    file_types: ["pdf", "docx", "xlsx", "md"]
+  # - path: "D:/造价资料/价格信息库"
+  #   description: "综合单价 + 专题 + 费率"
+  #   file_types: ["md", "xlsx", "pdf"]
+  # - path: "D:/造价资料/文本编制模板库"
+  #   description: "各类文本格式谱"
+  #   file_types: ["md"]
+  # - path: "D:/造价资料/查询存档"
+  #   description: "操作手册与复核报告"
+  #   file_types: ["md"]
     skip_dirs: ["临时", "temp", "~$"]   # 跳过这些目录
 
 
