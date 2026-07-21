@@ -1,116 +1,347 @@
 <template>
   <div class="chat-page">
-    <div class="chat-header">
-      <div>
-        <span class="title">AI 助手</span>
-        <el-tag size="small" type="success" v-if="ready" effect="plain">LobeChat 已就绪</el-tag>
-        <el-tag size="small" type="warning" v-else effect="plain">正在加载 LobeChat ...</el-tag>
+    <!-- 左侧会话列表 -->
+    <div class="session-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title">会话</span>
+        <el-button size="small" type="primary" @click="newSession" :icon="Plus">新建</el-button>
       </div>
-      <div>
-        <el-tooltip content="LobeChat 在新窗口打开">
-          <el-button size="small" @click="openInNew">↗ 新窗口</el-button>
-        </el-tooltip>
-        <el-tooltip content="刷新 iframe">
-        <el-button size="small" @click="reload">⟳ 刷新</el-button>
-        </el-tooltip>
-        <el-tooltip content="LobeChat 的模型/Key 在它自己的设置页填">
-          <el-button size="small" type="primary" link>使用说明</el-button>
-        </el-tooltip>
+      <div class="session-list">
+        <div
+          v-for="s in sessions"
+          :key="s.id"
+          class="session-item"
+          :class="{ active: s.id === currentId }"
+          @click="switchSession(s.id)"
+        >
+          <el-icon :size="14"><Message /></el-icon>
+          <span class="session-title">{{ s.title || '新会话' }}</span>
+        </div>
+        <el-empty v-if="sessions.length === 0" description="暂无会话" :image-size="60" />
       </div>
     </div>
-    <div class="chat-frame-wrap" v-loading="!ready">
-      <iframe
-        ref="frame"
-        :src="lobeUrl"
-        class="chat-frame"
-        allow="clipboard-read; clipboard-write"
-        @load="onLoad"
-      />
-    </div>
 
-    <!-- 兜底:如果 LobeChat 未启动,给出指引 -->
-    <el-dialog v-model="showHelp" title="AI 助手未就绪 - 启动指引" width="600">
-      <el-alert type="warning" :closable="false" show-icon
-        title="检测到 LobeChat 服务未启动"
-        description="造价通的 AI 聊天 UI 采用开源项目 LobeChat 嵌入。请按下列步骤启动,或让运维同学部署一份共享实例。"/>
-      <pre class="help-pre">
-# 方式 1: Docker 一键启动(推荐)
-docker run -d --name lobechat \
-  -p 3210:3210 \
-  -e OPENAI_API_KEY=sk-your-key \
-  -e OPENAI_PROXY_URL=https://api.deepseek.com/v1 \
-  -e DEFAULT_AGENT_CONFIG=deepseek \
-  lobehub/lobe-chat
+    <!-- 右侧聊天区 -->
+    <div class="chat-main">
+      <!-- 消息列表 -->
+      <div class="message-list" ref="msgListRef">
+        <div v-if="!currentId" class="welcome">
+          <el-icon :size="48" color="#409eff"><ChatLineSquare /></el-icon>
+          <h3>造价通 AI 助手</h3>
+          <p>可以问我：查询价格、费率、模板，或生成报价、文本</p>
+          <el-button type="primary" @click="newSession">开始新对话</el-button>
+        </div>
 
-# 方式 2: Node 自部署
-git clone https://github.com/lobehub/lobe-chat
-cd lobe-chat
-pnpm install
-pnpm dev   # 监听 localhost:3010
+        <template v-else>
+          <div v-if="loading" class="loading-wrap">
+            <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+          </div>
 
-# 方式 3: 直接用官方 SaaS
-# 访问 https://chat-preview.lobehub.com 在线版,无需部署
-</pre>
-      <div style="margin-top:12px;color:#606266">
-        LobeChat 启动后,在它的"设置 → 语言模型"里填入 base_url 和 api_key,
-        即可在造价通内嵌聊天框里使用所有 OpenAI 兼容 API (DeepSeek / 通义 / 智谱 / KIMI / OpenAI)。
+          <div
+            v-for="(msg, i) in messages"
+            :key="i"
+            class="message-row"
+            :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
+          >
+            <div class="avatar">
+              <el-icon v-if="msg.role === 'user'" :size="18"><UserFilled /></el-icon>
+              <el-icon v-else :size="18" color="#409eff"><Monitor /></el-icon>
+            </div>
+            <div class="bubble" :class="msg.role">
+              <div class="msg-content" v-html="renderMarkdown(msg.content)"></div>
+            </div>
+          </div>
+        </template>
       </div>
-      <template #footer>
-        <el-button @click="showHelp = false">关闭</el-button>
-        <el-button type="primary" @click="reload">重试连接</el-button>
-      </template>
-    </el-dialog>
+
+      <!-- 输入框 -->
+      <div class="input-area" v-if="currentId">
+        <el-input
+          v-model="inputText"
+          type="textarea"
+          :rows="3"
+          placeholder="输入问题，例如：查一下钢质防火门的综合单价"
+          :disabled="sending"
+          @keydown.enter.ctrl="send"
+        />
+        <div class="input-actions">
+          <span class="hint">Ctrl+Enter 发送</span>
+          <el-button type="primary" :loading="sending" @click="send" :icon="Promotion">
+            发送
+          </el-button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+import { ref, onMounted, nextTick, watch } from 'vue'
+import { ChatAPI } from '@/api'
+import {
+  Plus, Message, ChatLineSquare, UserFilled,
+  Monitor, Loading, Promotion,
+} from '@element-plus/icons-vue'
 
-// LobeChat 地址(优先读后端 config 里的 ai.lobechat_url,否则默认 http://localhost:3210)
-const defaultUrl = 'http://localhost:3210'
-const lobeUrl = ref(defaultUrl)
-const ready = ref(false)
-const showHelp = ref(false)
-const frame = ref(null)
+const sessions = ref([])
+const currentId = ref(null)
+const messages = ref([])
+const inputText = ref('')
+const loading = ref(false)
+const sending = ref(false)
+const msgListRef = ref(null)
 
-async function loadLobeUrl() {
+// 简易 Markdown 渲染（只处理基本格式，后续可换 marked）
+function renderMarkdown(text) {
+  if (!text) return ''
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  // 代码块
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+  // 行内代码
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+  // 加粗
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  // 换行
+  html = html.replace(/\n/g, '<br>')
+  return html
+}
+
+async function loadSessions() {
   try {
-    const r = await axios.get('/api/v1/ai/config')
-    // 后端允许在 config.yaml 配 ai.lobechat_url
-    if (r.data.lobechat_url) lobeUrl.value = r.data.lobechat_url
-  } catch {}
-  // 健康探测
-  try {
-    await fetch(lobeUrl.value, { mode: 'no-cors' })
-    ready.value = true
-  } catch {
-    showHelp.value = true
+    sessions.value = await ChatAPI.listSessions()
+  } catch (e) {
+    console.error('加载会话失败', e)
   }
 }
 
-function onLoad() {
-  ready.value = true
+async function newSession() {
+  try {
+    const s = await ChatAPI.createSession()
+    sessions.value.unshift(s)
+    currentId.value = s.id
+    messages.value = []
+  } catch (e) {
+    console.error('创建会话失败', e)
+  }
 }
 
-function reload() {
-  ready.value = false
-  showHelp.value = false
-  if (frame.value) frame.value.src = lobeUrl.value
+async function switchSession(id) {
+  currentId.value = id
+  loading.value = true
+  try {
+    messages.value = await ChatAPI.messages(id)
+    await nextTick()
+    scrollToBottom()
+  } catch (e) {
+    console.error('加载消息失败', e)
+  } finally {
+    loading.value = false
+  }
 }
 
-function openInNew() {
-  window.open(lobeUrl.value, '_blank')
+async function send() {
+  const text = inputText.value.trim()
+  if (!text || !currentId.value || sending.value) return
+
+  inputText.value = ''
+  sending.value = true
+
+  // 立即显示用户消息
+  messages.value.push({ role: 'user', content: text })
+  // 占位 AI 回复
+  messages.value.push({ role: 'assistant', content: '...', _loading: true })
+  await nextTick()
+  scrollToBottom()
+
+  try {
+    const result = await ChatAPI.send(currentId.value, text)
+    // 替换占位
+    messages.value[messages.value.length - 1] = result
+  } catch (e) {
+    messages.value[messages.value.length - 1] = {
+      role: 'assistant',
+      content: `[发送失败] ${e.message || '请检查网络或 AI 配置'}`,
+    }
+  } finally {
+    sending.value = false
+    await nextTick()
+    scrollToBottom()
+  }
 }
 
-onMounted(loadLobeUrl)
+function scrollToBottom() {
+  if (msgListRef.value) {
+    msgListRef.value.scrollTop = msgListRef.value.scrollHeight
+  }
+}
+
+watch(currentId, () => {
+  // 切换会话时滚动到底部
+  nextTick(scrollToBottom)
+})
+
+onMounted(() => {
+  loadSessions()
+})
 </script>
 
 <style scoped>
-.chat-page { display:flex; flex-direction:column; height: 80vh; background:#fff; padding:8px; border-radius:4px; }
-.chat-header { display:flex; justify-content:space-between; align-items:center; padding: 4px 8px 8px; border-bottom:1px solid #ebeef5; }
-.chat-header .title { font-size:14px; font-weight:bold; margin-right:8px; }
-.chat-frame-wrap { flex:1; position:relative; margin-top:8px; border:1px solid #ebeef5; border-radius:4px; overflow:hidden; }
-.chat-frame { width:100%; height:100%; border:0; display:block; }
-.help-pre { background:#f4f4f5; padding:12px; border-radius:4px; font-size:11px; line-height:1.5; overflow:auto; }
+.chat-page {
+  display: flex;
+  height: calc(100vh - 120px);
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* 左侧会话列表 */
+.session-sidebar {
+  width: 220px;
+  min-width: 220px;
+  border-right: 1px solid #ebeef5;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+}
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #ebeef5;
+}
+.sidebar-title {
+  font-weight: bold;
+  font-size: 14px;
+}
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.session-item:hover {
+  background: #e8f4ff;
+}
+.session-item.active {
+  background: #d9ecff;
+  color: #409eff;
+}
+.session-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 右侧聊天主区 */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #909399;
+}
+.welcome h3 {
+  margin: 12px 0 8px;
+  color: #303133;
+}
+.loading-wrap {
+  text-align: center;
+  padding: 40px;
+}
+
+.message-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.user-row {
+  flex-direction: row-reverse;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.bubble.user {
+  background: #409eff;
+  color: #fff;
+}
+.bubble.assistant {
+  background: #f0f2f5;
+  color: #303133;
+}
+.bubble.assistant :deep(pre) {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 12px;
+}
+.bubble.assistant :deep(code) {
+  background: #e8e8e8;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.bubble.assistant :deep(pre code) {
+  background: transparent;
+  padding: 0;
+}
+.msg-content {
+  word-break: break-word;
+}
+
+/* 输入区 */
+.input-area {
+  border-top: 1px solid #ebeef5;
+  padding: 12px 16px;
+}
+.input-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.hint {
+  color: #c0c4cc;
+  font-size: 12px;
+}
 </style>
