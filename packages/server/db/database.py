@@ -9,7 +9,17 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 def _db_path() -> Path:
-    """打包后: 数据库放到 exe 同目录/data/sqlite;开发模式: 项目根/data/sqlite"""
+    """数据库文件路径
+
+    ⚠ 卸载重装不丢数据的关键:
+      ① 优先使用 COSTPILOT_DATA_DIR 环境变量(由 Electron 主进程设置)
+      ② 打包后: exe 同目录/data/sqlite(旧版兼容)
+      ③ 开发模式: 项目根/data/sqlite
+    """
+    data_dir = os.environ.get("COSTPILOT_DATA_DIR")
+    if data_dir:
+        return Path(data_dir) / "data" / "sqlite" / "造价通.db"
+
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         base = Path(sys.executable).resolve().parent
     else:

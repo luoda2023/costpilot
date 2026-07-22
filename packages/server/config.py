@@ -1,15 +1,15 @@
 """
 造价通 - 配置加载器
 
-读取项目根目录的 config.yaml, 提供全局访问入口:
-    from packages.server.config import get_config
-    cfg = get_config()
-    cfg.ai.base_url / cfg.ai.api_key / cfg.ai.model
+读取 config.yaml, 提供全局访问入口:
+ from packages.server.config import get_config
+ cfg = get_config()
+ cfg.ai.base_url / cfg.ai.api_key / cfg.ai.model
 
-配置合并优先级(高 -> 低):
-    1. 显式 ai.base_url / ai.api_key / ai.model          (用户填的)
-    2. presets[provider]                                  (内置 Provider 默认)
-    3. 全局默认值
+配置优先级(高 -> 低):
+ 1. 环境变量 COSTPILOT_DATA_DIR/config.yaml (由 Electron 设置, 卸载重装不丢)
+ 2. 可执行文件同目录/config.yaml (旧版兼容)
+ 3. 项目根/config.yaml (开发模式)
 """
 import os
 import sys
@@ -19,17 +19,27 @@ from dataclasses import dataclass, field
 
 import yaml
 
-def _resolve_project_root() -> Path:
-    """打包后 PyInstaller onefile: PROJECT_ROOT = exe 同目录
-    开发模式: PROJECT_ROOT = 包上一级(项目根)
-    """
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        # PyInstaller onefile: 数据库 / config 写到 exe 同目录
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent.parent.parent
 
-PROJECT_ROOT = _resolve_project_root()
-CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+def _resolve_config_path() -> Path:
+    """确定 config.yaml 的查找路径
+
+    ⚠ 卸载重装不丢配置的关键:
+      ① 优先使用 COSTPILOT_DATA_DIR 环境变量(由 Electron 主进程设置)
+      ② 打包后: exe 同目录(旧版兼容)
+      ③ 开发模式: 项目根
+    """
+    data_dir = os.environ.get("COSTPILOT_DATA_DIR")
+    if data_dir:
+        return Path(data_dir) / "config.yaml"
+
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return Path(sys.executable).resolve().parent / "config.yaml"
+
+    # 开发模式
+    return Path(__file__).resolve().parent.parent.parent / "config.yaml"
+
+
+CONFIG_PATH = _resolve_config_path()
 
 
 @dataclass
@@ -106,7 +116,6 @@ def get_config() -> AppConfig:
 def load_config() -> AppConfig:
     """读取并解析 config.yaml"""
     if not CONFIG_PATH.exists():
-        # 配置文件缺失,fallback 到默认(开发期容错)
         return AppConfig()
 
     raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
@@ -161,19 +170,19 @@ if __name__ == "__main__":
     print("=" * 60)
     print("配置文件加载自:", CONFIG_PATH)
     print("=" * 60)
-    print(f"AI Provider:    {ai['provider']}")
-    print(f"AI base_url:    {ai['base_url']}")
-    print(f"AI model:       {ai['model']}")
-    print(f"AI api_key:     {'已设置' if ai['api_key'] else '⚠ 未设置'}")
+    print(f"AI Provider: {ai['provider']}")
+    print(f"AI base_url: {ai['base_url']}")
+    print(f"AI model: {ai['model']}")
+    print(f"AI api_key: {'已设置' if ai['api_key'] else '⚠ 未设置'}")
     print(f"AI temperature: {ai['temperature']}")
     print()
     print(f"RAG embedding:  {cfg.rag.embedding_model}")
-    print(f"RAG dims:       {cfg.rag.embedding_dim}")
+    print(f"RAG dims: {cfg.rag.embedding_dim}")
     print(f"RAG chunk_size: {cfg.rag.chunk_size}")
-    print(f"RAG top_k:      {cfg.rag.top_k}")
+    print(f"RAG top_k: {cfg.rag.top_k}")
     print()
-    print(f"数据库:         {cfg.database.url}")
-    print(f"监听:           {cfg.server.host}:{cfg.server.port}")
+    print(f"数据库: {cfg.database.url}")
+    print(f"监听: {cfg.server.host}:{cfg.server.port}")
     print()
     print(f"知识库源:")
     for s in cfg.knowledge_sources:

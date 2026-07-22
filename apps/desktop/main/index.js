@@ -16,6 +16,9 @@ const SERVER_URL = 'http://127.0.0.1:8765';
 const SERVER_PORT = 8765;
 const isDev = !app.isPackaged;
 
+// 用户数据目录: %APPDATA%/costpilot (卸载重装不丢配置/数据库)
+const USER_DATA_DIR = path.join(app.getPath('appData'), 'costpilot');
+
 // 关闭 GPU 硬件加速 - 解决花屏/闪屏问题(部分显卡与 Chromium 渲染冲突)
 app.disableHardwareAcceleration();
 
@@ -55,11 +58,15 @@ function startPythonServer() {
  cwd = path.join(__dirname, '..', '..');
  }
 
- pythonServer = spawn(cmd, args, {
- cwd,
- env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
- stdio: ['ignore', 'pipe', 'pipe'],
- windowsHide: true,
+pythonServer = spawn(cmd, args, {
+	 cwd,
+	 env: {
+ ...process.env,
+ PYTHONIOENCODING: 'utf-8',
+ COSTPILOT_DATA_DIR: USER_DATA_DIR, // 告诉 Python 服务端用户数据目录
+ },
+	 stdio: ['ignore', 'pipe', 'pipe'],
+	 windowsHide: true,
  });
 
  pythonServer.stdout.on('data', (data) => {
@@ -105,30 +112,52 @@ function waitForServer(maxAttempts = 30) {
 }
 
 /**
- * 首次启动确保 config.yaml / 数据库初始目录存在
- * 打包模式: cwd = process.resourcesPath/app, 在此建 data/sqlite 目录
+ * 首次启动: 确保 config.yaml / 数据库在 USER_DATA_DIR 存在
+ * %APPDATA%/costpilot/ 卸载重装不丢
  */
 function ensureRuntimeFiles() {
-  let baseDir;
-  if (app.isPackaged) {
- baseDir = path.join(process.resourcesPath, 'app');
-  } else {
- baseDir = path.join(__dirname, '..', '..');
+  // 1. 创建用户数据目录
+  if (!fs.existsSync(USER_DATA_DIR)) {
+    fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+    console.log(`[init] 已创建用户数据目录 ${USER_DATA_DIR}`);
   }
-  // 1. config.yaml 不存在则从 config.example.yaml 复制
-  const cfgPath = path.join(baseDir, 'config.yaml');
-  const cfgExamplePath = path.join(baseDir, 'config.example.yaml');
+
+  // 2. config.yaml 不存在则从 config.example.yaml 复制
+  const cfgPath = path.join(USER_DATA_DIR, 'config.yaml');
+  const cfgExamplePath = (() => {
+    if (app.isPackaged) {
+      return path.join(process.resourcesPath, 'app', 'config.example.yaml');
+    }
+    return path.join(__dirname, '..', '..', 'config.example.yaml');
+  })();
   if (!fs.existsSync(cfgPath) && fs.existsSync(cfgExamplePath)) {
- fs.copyFileSync(cfgExamplePath, cfgPath);
- console.log('[init] 已从 config.example.yaml 复制为 config.yaml');
+    fs.copyFileSync(cfgExamplePath, cfgPath);
+    console.log(`[init] 已复制 config.example.yaml → ${cfgPath}`);
   }
-  // 2. data/sqlite 目录
-  const sqliteDir = path.join(baseDir, 'data', 'sqlite');
+
+  // 3. data/sqlite 目录
+  const sqliteDir = path.join(USER_DATA_DIR, 'data', 'sqlite');
   if (!fs.existsSync(sqliteDir)) {
- fs.mkdirSync(sqliteDir, { recursive: true });
- console.log(`[init] 已创建目录 ${sqliteDir}`);
+    fs.mkdirSync(sqliteDir, { recursive: true });
+    console.log(`[init] 已创建数据库目录 ${sqliteDir}`);
   }
-  return baseDir;
+
+  // 4. 种子数据库 造价通.db 不存在则从 extraResources 复制
+  const dbPath = path.join(sqliteDir, '造价通.db');
+  if (!fs.existsSync(dbPath)) {
+    const seedDbPath = (() => {
+      if (app.isPackaged) {
+        return path.join(process.resourcesPath, 'app', 'data', 'sqlite', '造价通.db');
+      }
+      return path.join(__dirname, '..', '..', 'data', 'sqlite', '造价通.db');
+    })();
+    if (fs.existsSync(seedDbPath)) {
+      fs.copyFileSync(seedDbPath, dbPath);
+      console.log(`[init] 已复制种子数据库 → ${dbPath}`);
+    } else {
+      console.warn(`[init] 种子数据库不存在: ${seedDbPath}`);
+    }
+  }
 }
 
 /**
