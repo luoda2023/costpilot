@@ -50,14 +50,16 @@ jobs:
           Copy-Item dist\costpilot-server.exe -Destination costpilot-server.exe -Force
           Write-Host "已复制到根目录: costpilot-server.exe"
 
-      - name: Init database with seed data
-        shell: bash
-        run: |
-          mkdir -p data/sqlite
-          alembic upgrade head
-          python scripts/import_prices_to_db.py || true
-          python scripts/import_templates_to_db.py || true
-          python scripts/verify_seed.py
+- name: Init database with seed data
+   shell: bash
+   env:
+     PYTHONIOENCODING: utf-8
+   run: |
+     mkdir -p data/sqlite
+     alembic upgrade head
+     python scripts/import_prices_to_db.py
+     python scripts/import_templates_to_db.py
+     python scripts/verify_seed.py
 
       - name: Install root npm deps
         run: npm install --no-audit --no-fund
