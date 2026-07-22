@@ -11,10 +11,35 @@
 不绑模型: AI 由 config.yaml 选择(DeepSeek/Qwen/智谱/...)
 """
 import json
+import re
 from typing import List, Dict, Optional, Any
 
 from packages.server.ai.prompts import build_messages, SYSTEM_PROMPT
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
+
+
+def _extract_keywords(text: str) -> str:
+    """从用户问题中提取价格查询关键词
+
+    去掉"查一下/查询/帮我查/价格/单价/综合单价/是多少/多少钱/多少"等前缀后缀,
+    如果没提取到,返回原文本。
+    """
+    # 常见查询前缀
+    text = re.sub(
+        r'^(查一下|查询|帮我查|帮我查一下|我想查|我要查|看看|搜一下|搜索)\s*',
+        '', text
+    )
+    # 常见查询后缀
+    text = re.sub(
+        r'(的(综合单价|单价|价格|市场价|信息价|报价|多少钱|是多少)|'
+        r'(综合单价|单价|价格|多少钱)是多少|'
+        r'是多少钱|多少钱一个|价格多少|报价多少)\s*$',
+        '', text
+    )
+    # 去掉标点
+    text = re.sub(r'[，。！？、：；""''【】（）]', '', text)
+    return text.strip() or ''
+
 
 
 def _format_context(semantic_hits: List[Dict], structured_hits: List[Dict]) -> str:
@@ -62,10 +87,13 @@ def answer(
     structured_hits = []
 
     if use_rag:
+        # 提取关键词用于检索
+        keywords = _extract_keywords(user_text)
+
         # 1. 语义检索
         try:
             from packages.server.ai.rag import search as rag_search
-            semantic_hits = rag_search(user_text, top_k=top_k)
+            semantic_hits = rag_search(keywords, top_k=top_k)
         except RuntimeError as e:
             # RAG 未就绪,降级为纯 LLM
             pass
@@ -75,19 +103,25 @@ def answer(
         # 2. 结构化查 SQL 价格库
         try:
             from packages.server.db.database import SessionLocal
-            from packages.server.db.models import PriceUnit
+            from packages.server.db.models import PriceUnit, Specialty
             db = SessionLocal()
             try:
-                q = f"%{user_text}%"
-                rows = db.query(PriceUnit).filter(PriceUnit.item_name.like(q)).limit(top_k).all()
+                q = f"%{keywords}%"
+                rows = (
+                    db.query(PriceUnit, Specialty.name)
+                    .join(Specialty, PriceUnit.specialty_id == Specialty.id)
+                    .filter(PriceUnit.item_name.like(q))
+                    .limit(top_k)
+                    .all()
+                )
                 structured_hits = [
                     {
                         "item_name": r.item_name,
-                        "specialty": r.specialty.name if r.specialty else None,
+                        "specialty": spec_name,
                         "unit": r.unit, "price": r.price,
                         "region": r.region, "source_file": r.source_file,
                     }
-                    for r in rows
+                    for r, spec_name in rows
                 ]
             finally:
                 db.close()
