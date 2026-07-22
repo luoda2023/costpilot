@@ -46,20 +46,19 @@ jobs:
           if (-not (Test-Path dist\costpilot-server.exe)) { throw "server.exe missing" }
           $sz = (Get-Item dist\costpilot-server.exe).Length / 1MB
           Write-Host "server.exe size: $sz MB"
-          # electron-builder 配置从根目录装载 costpilot-server.exe,这里复制过去
           Copy-Item dist\costpilot-server.exe -Destination costpilot-server.exe -Force
           Write-Host "已复制到根目录: costpilot-server.exe"
 
-- name: Init database with seed data
- shell: bash
- env:
- PYTHONIOENCODING: utf-8
- run: |
- mkdir -p data/sqlite
- alembic upgrade head
- python scripts/import_prices_to_db.py
- python scripts/import_templates_to_db.py
- python scripts/verify_seed.py
+      - name: Init database with seed data
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: |
+          mkdir -p data/sqlite
+          alembic upgrade head
+          python scripts/import_prices_to_db.py
+          python scripts/import_templates_to_db.py
+          python scripts/verify_seed.py
 
       - name: Install root npm deps
         run: npm install --no-audit --no-fund
@@ -75,8 +74,6 @@ jobs:
       - name: Build Electron Setup.exe
         shell: pwsh
         env:
-          # electron-builder 24 在 CI 检测到 GH_TOKEN 才不报"publish needs token"错
-          # 设成内置 GITHUB_TOKEN 即可,publish 默认不会真去 publish (package.json 没 publish 配置)
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build:win
 
