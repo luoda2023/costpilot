@@ -16,6 +16,9 @@ const SERVER_URL = 'http://127.0.0.1:8765';
 const SERVER_PORT = 8765;
 const isDev = !app.isPackaged;
 
+// 关闭 GPU 硬件加速 - 解决花屏/闪屏问题(部分显卡与 Chromium 渲染冲突)
+app.disableHardwareAcceleration();
+
 let mainWindow = null;
 let pythonServer = null;
 
