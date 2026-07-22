@@ -50,7 +50,7 @@ jobs:
           Copy-Item dist\costpilot-server.exe -Destination costpilot-server.exe -Force
           Write-Host "已复制到根目录: costpilot-server.exe"
 
-- name: Init database with seed data
+ - name: Init database with seed data
    shell: bash
    env:
      PYTHONIOENCODING: utf-8
