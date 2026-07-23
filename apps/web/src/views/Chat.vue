@@ -84,6 +84,34 @@
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { ChatAPI } from '@/api'
 import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promotion } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js'
+
+// 初始化 markdown-it 渲染器
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+  highlight: (str, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return `<pre class="code-block"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
+      } catch {}
+    }
+    // 无语言识别，自动检测
+    try {
+      const result = hljs.highlightAuto(str)
+      return `<pre class="code-block"><code class="hljs">${result.value}</code></pre>`
+    } catch {}
+    return `<pre class="code-block"><code>${md.utils.escapeHtml(str)}</code></pre>`
+  }
+})
+
+// 自定义引用样式
+md.renderer.rules.blockquote_open = () => '<blockquote class="md-quote">\n'
+md.renderer.rules.table_open = () => '<div class="md-table-wrap"><table class="md-table">\n'
+md.renderer.rules.table_close = () => '</table></div>\n'
 
 const sessions = ref([])
 const currentId = ref(null)
@@ -95,20 +123,7 @@ const msgListRef = ref(null)
 
 function renderMarkdown(text) {
   if (!text) return ''
-  let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/### (.+)/g, '<h4>$1</h4>')
-  html = html.replace(/## (.+)/g, '<h3>$1</h3>')
-  html = html.replace(/^---+/gm, '<hr>')
-  html = html.replace(/\n/g, '<br>')
-  html = html.replace(/\|(.+?)\|/g, (m) => {
-    const cells = m.split('|').filter(c => c.trim())
-    if (cells.length <= 1) return m
-    return `<span class="inline-table">${cells.map(c => `<span class="inline-cell">${c.trim()}</span>`).join('')}</span>`
-  })
-  return html
+  return md.render(text)
 }
 
 async function loadSessions() {
@@ -214,16 +229,64 @@ padding: 8px 16px; background: #f0f5ff; border: 1px solid #d9ecff; border-radius
 .avatar.user { background: #409eff; color: #fff; }
 .avatar.assistant { background: #f0f2f5; }
 .bubble {
-  max-width: 72%; padding: 10px 14px; border-radius: 8px; font-size: 14px; line-height: 1.6;
+  max-width: 76%; padding: 12px 16px; border-radius: 8px; font-size: 14px; line-height: 1.6;
 }
 .bubble.user { background: #409eff; color: #fff; border-bottom-right-radius: 2px; }
 .bubble.assistant { background: #f0f2f5; color: #303133; border-bottom-left-radius: 2px; }
-.bubble.assistant :deep(pre) { background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
-.bubble.assistant :deep(code) { background: #e8e8e8; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
-.bubble.assistant :deep(pre code) { background: transparent; padding: 0; }
-.bubble.assistant :deep(h3) { font-size: 16px; margin: 8px 0 4px; }
-.bubble.assistant :deep(h4) { font-size: 14px; margin: 6px 0 4px; }
 .msg-content { word-break: break-word; }
+
+/* 消息内容中的 Markdown 样式 */
+.msg-content :deep(p) { margin: 0 0 8px 0; }
+.msg-content :deep(p:last-child) { margin-bottom: 0; }
+.msg-content :deep(h1),
+.msg-content :deep(h2),
+.msg-content :deep(h3),
+.msg-content :deep(h4) { margin: 12px 0 6px; color: #1a2332; font-weight: 600; }
+.msg-content :deep(h1) { font-size: 18px; }
+.msg-content :deep(h2) { font-size: 16px; }
+.msg-content :deep(h3) { font-size: 15px; }
+.msg-content :deep(h4) { font-size: 14px; }
+.msg-content :deep(strong) { font-weight: 600; color: #1a2332; }
+.msg-content :deep(em) { font-style: italic; }
+.msg-content :deep(a) { color: #409eff; text-decoration: none; }
+.msg-content :deep(a:hover) { text-decoration: underline; }
+.msg-content :deep(ul),
+.msg-content :deep(ol) { margin: 4px 0 8px; padding-left: 20px; }
+.msg-content :deep(li) { margin-bottom: 2px; }
+.msg-content :deep(hr) { border: none; border-top: 1px solid #e0e0e0; margin: 12px 0; }
+.msg-content :deep(blockquote) {
+  border-left: 3px solid #409eff; margin: 8px 0; padding: 6px 12px; background: rgba(64,158,255,0.05); border-radius: 0 4px 4px 0;
+}
+.msg-content :deep(blockquote p) { margin: 0; }
+
+/* 表格 */
+.msg-content :deep(.md-table-wrap) { overflow-x: auto; margin: 8px 0; }
+.msg-content :deep(.md-table) {
+  border-collapse: collapse; width: 100%; font-size: 13px; border: 1px solid #e0e0e0;
+}
+.msg-content :deep(.md-table th) {
+  background: #f5f7fa; padding: 6px 10px; border: 1px solid #e0e0e0; text-align: left; font-weight: 600; white-space: nowrap;
+}
+.msg-content :deep(.md-table td) {
+  padding: 6px 10px; border: 1px solid #e0e0e0;
+}
+.msg-content :deep(.md-table tr:nth-child(even)) { background: #fafafa; }
+.msg-content :deep(.md-table tr:hover) { background: #f0f5ff; }
+
+/* 代码 */
+.msg-content :deep(code) {
+  background: #e8e8e8; padding: 2px 6px; border-radius: 3px; font-size: 12px; font-family: 'Consolas','Courier New',monospace;
+}
+.msg-content :deep(pre.code-block) {
+  background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; font-size: 12px; line-height: 1.5;
+}
+.msg-content :deep(pre.code-block code) {
+  background: transparent; padding: 0; color: inherit; font-size: inherit;
+}
+.msg-content :deep(pre.code-block .hljs) { background: transparent; }
+.msg-content :deep(img) {
+  max-width: 100%; border-radius: 4px; margin: 8px 0;
+}
 
 /* 输入区 */
 .input-area { border-top: 1px solid #ebeef5; padding: 12px 16px; }
