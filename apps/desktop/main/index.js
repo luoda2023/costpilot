@@ -130,7 +130,7 @@ function ensureRuntimeFiles() {
 }
 
 /**
- * 创建主窗口 - 立即显示，不等待服务器
+ * 创建主窗口 - 加载本地 Vue 构建产物，无需等待服务器
  */
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -140,7 +140,7 @@ function createWindow() {
  minHeight: 720,
  title: '造价通',
  show: false,
- backgroundColor: '#1a2332', // 与 splash 页面深色背景一致，消除跳转闪光
+ backgroundColor: '#f5f7fa',
  webPreferences: {
  preload: path.join(__dirname, '..', 'preload', 'index.js'),
  contextIsolation: true,
@@ -148,19 +148,27 @@ function createWindow() {
  },
   });
 
-  // 窗口准备好立即显示，不等服务器
+  // 窗口准备好立即显示
   mainWindow.once('ready-to-show', () => {
  mainWindow.show();
   });
 
-  // 生产模式：先加载本地 splash 页面（瞬间显示），自动轮询服务器
-  // 开发模式：直接加载 Vite dev server
-  if (isDev) {
+  // 直接从本地加载 Vue 构建产物，不需要经过 Python 服务器
+  // 这样窗口一开就显示真实应用，无跳转无闪烁
+  const distPath = (() => {
+ if (app.isPackaged) {
+ return path.join(process.resourcesPath, 'app', 'web', 'dist');
+ }
+ return path.join(__dirname, '..', '..', 'web', 'dist');
+  })();
+  const indexHtml = path.join(distPath, 'index.html');
+
+  if (fs.existsSync(indexHtml)) {
+ mainWindow.loadFile(indexHtml);
+  } else if (isDev) {
+ // 开发模式加载 Vite dev server
  mainWindow.loadURL('http://localhost:5173');
  mainWindow.webContents.openDevTools();
-  } else {
- const splashPath = path.join(__dirname, '..', 'splash.html');
- mainWindow.loadFile(splashPath);
   }
 
   // 外部链接用系统浏览器打开
@@ -175,40 +183,30 @@ function createWindow() {
 }
 
 /**
- * 后台等待服务器就绪，然后跳转到真实应用
- * 注意：splash.html 不带 JS 自动跳转，避免竞争条件
+ * 后台等待服务器就绪（仅日志，不再跳转页面）
+ * 前端直接从本地加载，无需等待服务器
  */
 function waitForServerAndNotify() {
   let attempts = 0;
-  const maxAttempts = 60; // 最长等 30 秒
+  const maxAttempts = 60;
   const check = () => {
- attempts++;
- const req = http.get(`${SERVER_URL}/health`, (res) => {
- if (res.statusCode === 200) {
- console.log('[app] 后端服务已就绪，200ms后跳转');
- // 等 200ms 确保静态文件也准备好，再跳转
- setTimeout(() => {
- if (mainWindow && !mainWindow.isDestroyed()) {
- mainWindow.loadURL(`${SERVER_URL}/`);
- }
- }, 200);
- } else if (attempts < maxAttempts) {
- setTimeout(check, 500);
- }
- });
- req.on('error', () => {
- if (attempts < maxAttempts) {
- setTimeout(check, 500);
- }
- });
- req.setTimeout(1000, () => {
- req.destroy();
- if (attempts < maxAttempts) {
- setTimeout(check, 500);
- }
- });
- };
- check();
+    attempts++;
+    const req = http.get(`${SERVER_URL}/health`, (res) => {
+      if (res.statusCode === 200) {
+        console.log('[app] 后端服务已就绪');
+      } else if (attempts < maxAttempts) {
+        setTimeout(check, 500);
+      }
+    });
+    req.on('error', () => {
+      if (attempts < maxAttempts) setTimeout(check, 500);
+    });
+    req.setTimeout(1000, () => {
+      req.destroy();
+      if (attempts < maxAttempts) setTimeout(check, 500);
+    });
+  };
+  check();
 }
 
 /**

@@ -305,14 +305,14 @@ async function exportExcel() {
   exportingX.value = true
   try {
     const r = await api.post('/v1/quotes/export/excel', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo } })
-    ElMessage.success(`Excel 已生成 (${r.size_kb} KB)`); window.open('/api' + r.download_url, '_blank')
+    ElMessage.success(`Excel 已生成 (${r.size_kb} KB)`); window.open('http://127.0.0.1:8765/api' + r.download_url, '_blank')
   } catch { ElMessage.error('导出失败') } finally { exportingX.value = false }
 }
 async function exportWord() {
   exportingW.value = true
   try {
     const r = await api.post('/v1/quotes/export/word', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo } })
-    ElMessage.success(`Word 已生成 (${r.size_kb} KB)`); window.open('/api' + r.download_url, '_blank')
+    ElMessage.success(`Word 已生成 (${r.size_kb} KB)`); window.open('http://127.0.0.1:8765/api' + r.download_url, '_blank')
   } catch { ElMessage.error('导出失败') } finally { exportingW.value = false }
 }
 async function loadSpecialties() { try { specialties.value = await PricesAPI.specialties() } catch {} }

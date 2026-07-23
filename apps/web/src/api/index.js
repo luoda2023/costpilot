@@ -3,8 +3,11 @@
  */
 import axios from 'axios'
 
-// API 基址 - Electron 通过 vite proxy 转发到本地 FastAPI
-const BASE = '/api'
+// 当从 file:// 协议加载时，/api 会变成 file:///api，必须用绝对地址
+// 检测当前协议，自动选择 base URL
+const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:'
+const API_HOST = 'http://127.0.0.1:8765'
+const BASE = isFileProtocol ? `${API_HOST}/api` : '/api'
 
 const http = axios.create({
   baseURL: BASE,
