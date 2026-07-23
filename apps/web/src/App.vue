@@ -74,6 +74,9 @@ html, body, #app {
   margin: 0;
   padding: 0;
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-container {
@@ -96,10 +99,10 @@ html, body, #app {
 .logo {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 15px;
+  gap: 8px;
+  font-size: 16px;
   font-weight: 600;
-  margin-right: 24px;
+  margin-right: 32px;
   white-space: nowrap;
   color: #e8eaed;
 }
@@ -114,8 +117,8 @@ html, body, #app {
   color: #9aa0a6;
   height: 48px;
   line-height: 48px;
-  font-size: 13px;
-  padding: 0 14px;
+  font-size: 14px;
+  padding: 0 16px;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
@@ -146,4 +149,15 @@ html, body, #app {
 .el-menu--horizontal {
   border-bottom: none !important;
 }
+
+/* 全局 Element Plus 尺寸统一 */
+.el-card__body { padding: 16px; }
+.el-table .cell { line-height: 1.5; }
+.el-table--small { font-size: 13px; }
+.el-tag { line-height: 1.4; }
+.el-button--small { font-size: 13px; }
+.el-form-item__label { font-size: 14px; line-height: 1.5; }
+.el-dialog__body { padding: 20px; }
+.el-descriptions__cell { font-size: 13px; }
+.el-empty__description p { font-size: 14px; line-height: 1.5; }
 </style>

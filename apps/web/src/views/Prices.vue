@@ -126,6 +126,7 @@ onMounted(() => { loadList(); loadTopics(); loadFees() })
 <style scoped>
 .prices-page { background:#fff; border-radius:8px; }
 .prices-tabs { border-radius:8px; }
+.prices-tabs :deep(.el-tabs__item) { font-size:14px; line-height:1.5; }
 .search-bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
 .search-input { flex:1; min-width:280px; }
 .result-tag { flex-shrink:0; }

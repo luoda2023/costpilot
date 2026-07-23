@@ -196,11 +196,11 @@ onMounted(loadSessions)
 
 /* 欢迎页 */
 .welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #909399; }
-.welcome h3 { margin: 12px 0 6px; color: #303133; font-size: 20px; }
-.welcome-desc { color: #909399; margin-bottom: 20px; }
-.welcome-suggestions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 24px; }
+.welcome h3 { margin: 12px 0 6px; color: #303133; font-size: 18px; line-height:1.4; }
+.welcome-desc { color: #909399; margin-bottom: 16px; font-size:14px; }
+.welcome-suggestions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
 .suggestion-item {
-  padding: 8px 16px; background: #f0f5ff; border: 1px solid #d9ecff; border-radius: 20px; color: #409eff; cursor: pointer; font-size: 13px; transition: all 0.2s;
+padding: 8px 16px; background: #f0f5ff; border: 1px solid #d9ecff; border-radius: 20px; color: #409eff; cursor: pointer; font-size: 14px; transition: all 0.2s; line-height:1.5;
 }
 .suggestion-item:hover { background: #409eff; color: #fff; }
 
