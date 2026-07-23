@@ -206,23 +206,28 @@ const fileInputRef = ref(null)
 
  if (!rawRows.length) { ElMessage.warning('未解析到有效数据，请检查 Excel 列名'); return }
 
- // 发送到后端 AI 匹配
- const result = await api.post('/v1/quotes/ai-match', { rows: rawRows })
+// 发送到后端 AI 匹配
+	 const result = await api.post('/v1/quotes/ai-match', { rows: rawRows })
 
- // 将匹配结果填入表格
- const matched = result.matched || []
- rows.value.push(...matched)
+	 // 将匹配结果填入表格
+	 const matched = result.matched || []
+	 rows.value.push(...matched)
 
- const stats = result.stats || {}
- const msg = `成功导入 ${stats.total || matched.length} 行`
- + (stats.matched ? `，匹配 ${stats.matched} 行` : '')
- + (stats.ai_matched ? `（AI 匹配 ${stats.ai_matched} 行）` : '')
- + (stats.unmatched ? `，未匹配 ${stats.unmatched} 行` : '')
- ElMessage.success(msg)
+	 const stats = result.stats || {}
+	 const matchedRows = stats.matched ?? 0
+	 const aiMatchedRows = stats.ai_matched ?? 0
+	 const unmatchedRows = stats.unmatched ?? 0
+	 const totalRows = stats.total ?? matched.length
 
- if (stats.unmatched > 0) {
- ElMessage.info('未匹配的行已保留原始数据，可手动修改或从价格库搜索')
- }
+	 let msg = `成功导入 ${totalRows} 行`
+	 if (matchedRows > 0) msg += `，匹配 ${matchedRows} 行`
+	 if (aiMatchedRows > 0) msg += `（AI 辅助 ${aiMatchedRows} 行）`
+	 if (unmatchedRows > 0) msg += `，未匹配 ${unmatchedRows} 行`
+	 ElMessage.success(msg)
+
+	 if (unmatchedRows > 0) {
+	 ElMessage.info('未匹配的行已保留原始数据，可手动修改或从价格库搜索')
+	 }
  } catch (err) {
  ElMessage.error('导入失败: ' + (err.message || '格式错误'))
  } finally {

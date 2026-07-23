@@ -92,7 +92,14 @@ async function loadProviders() {
 async function loadCurrent() {
   const r = await axios.get(apiUrl + '/ai/config')
   current.value = r.data
-  Object.assign(form, { provider: r.data.provider, base_url: r.data.base_url, model: r.data.model, temperature: r.data.temperature, max_tokens: r.data.max_tokens })
+  Object.assign(form, {
+    provider: r.data.provider,
+    base_url: r.data.base_url,
+    model: r.data.model,
+    temperature: r.data.temperature,
+    max_tokens: r.data.max_tokens,
+    // api_key 不回显，保持空字符串；用户不修改则不发送
+  })
 }
 async function loadKbStats() {
   try {

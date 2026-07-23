@@ -157,7 +157,6 @@ def ai_match_import(
 
     results = []
     fuzzy_rows = []  # 需要 AI 精匹配的行
-    fuzzy_indices = {}  # idx -> index in fuzzy_rows
 
     for idx, row in enumerate(payload.rows):
         name = row.item_name.strip()
@@ -193,7 +192,6 @@ def ai_match_import(
                 'unit': row.unit,
                 'candidates': [],
             })
-            fuzzy_indices[idx] = len(fuzzy_rows) - 1
             continue
 
         # Step 3: 评分排序
@@ -237,13 +235,15 @@ def ai_match_import(
                 'unit': row.unit,
                 'candidates': candidate_list,
             })
-            fuzzy_indices[idx] = len(fuzzy_rows) - 1
 
-    # Step 4: AI 批量精匹配
+    # Step 4: AI 批量精匹配 + SQL 回退
     ai_matched = {}
+    ai_available = False
     if fuzzy_rows:
+        # 尝试 AI 匹配
         try:
             client = get_ai_client()
+            ai_available = True
             prompt = _generate_ai_prompt(fuzzy_rows)
             resp = client.chat(messages=[
                 {"role": "system", "content": "你是一个造价工程师,负责匹配清单项目到价格库综合单价。请严格按照格式输出。"},
@@ -252,9 +252,39 @@ def ai_match_import(
             ai_text = resp.get("content", "")
             ai_matched = _parse_ai_response(ai_text, fuzzy_rows)
         except (AIClientError, AIConfigError):
-            pass  # AI 不可用, 保留未匹配状态
+            ai_available = False  # AI 不可用
 
-    # 填充 AI 匹配结果
+        # 对 AI 未匹配或 AI 不可用的行，SQL 回退：取评分最高候选
+        for frow in fuzzy_rows:
+            idx = frow['idx']
+            if idx in ai_matched and ai_matched[idx].get('matched_price_id'):
+                continue  # AI 匹配成功
+            # SQL 回退
+            candidates = frow.get('candidates', [])
+            if not candidates:
+                continue
+            scored_candidates = []
+            for c in candidates:
+                score = _score_item(frow['name'], c['name'], frow['unit'], c['unit'])
+                scored_candidates.append((score, c))
+            scored_candidates.sort(key=lambda x: x[0], reverse=True)
+            best_score, best_c = scored_candidates[0]
+            if best_score >= 10:
+                price_val = 0
+                try:
+                    price_str = str(best_c['price']).split(' ')[0]
+                    price_val = float(price_str.replace(',', '').replace('元', ''))
+                except ValueError:
+                    price_val = 0
+                ai_matched[idx] = {
+                    'matched_item_name': best_c['name'],
+                    'matched_price_id': best_c['id'],
+                    'unit': best_c['unit'],
+                    'price': price_val,
+                    'specialty': best_c['specialty'],
+                }
+
+    # 填充匹配结果
     for frow in fuzzy_rows:
         idx = frow['idx']
         name = frow['name']
@@ -270,8 +300,8 @@ def ai_match_import(
                 specialty=match.get('specialty', ''),
                 matched_price_id=match['matched_price_id'],
                 matched_item_name=match.get('matched_item_name', ''),
-                confidence="low",
-                remark=f"AI匹配: {match.get('matched_item_name', '')}"
+                confidence="medium" if not ai_available else "low",
+                remark=f"匹配: {match.get('matched_item_name', '')}"
             ))
         else:
             # 无匹配, 保留原始数据

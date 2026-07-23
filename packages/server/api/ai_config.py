@@ -104,14 +104,14 @@ def switch_provider(s: SwitchIn):
     if "ai" not in raw:
         raw["ai"] = {}
 
-    # 2. 写入新值
+    # 2. 写入新值（只写非空值，避免前端空字符串覆盖已保存密钥）
     if s.provider is not None:
         raw["ai"]["provider"] = s.provider
-    if s.base_url is not None:
+    if s.base_url:
         raw["ai"]["base_url"] = s.base_url
-    if s.api_key is not None:
+    if s.api_key:
         raw["ai"]["api_key"] = s.api_key
-    if s.model is not None:
+    if s.model:
         raw["ai"]["model"] = s.model
     if s.temperature is not None:
         raw["ai"]["temperature"] = s.temperature
@@ -119,7 +119,7 @@ def switch_provider(s: SwitchIn):
         raw["ai"]["max_tokens"] = s.max_tokens
     if s.timeout is not None:
         raw["ai"]["timeout"] = s.timeout
-    if s.lobechat_url is not None:
+    if s.lobechat_url:
         raw["ai"]["lobechat_url"] = s.lobechat_url
 
     CONFIG_PATH.write_text(yaml.dump(raw, allow_unicode=True, default_flow_style=False), encoding="utf-8")
