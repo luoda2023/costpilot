@@ -81,35 +81,9 @@ pythonServer = spawn(cmd, args, {
 }
 
 /**
- * 健康检查 - 等待 FastAPI 起来
+ * 健康检查(已废弃) - 替换为 waitForServerAndNotify
  */
-function waitForServer(maxAttempts = 30) {
-  return new Promise((resolve, reject) => {
- let attempts = 0;
- const check = () => {
- attempts++;
- const req = http.get(`${SERVER_URL}/health`, (res) => {
- if (res.statusCode === 200) {
- resolve();
- } else if (attempts < maxAttempts) {
- setTimeout(check, 500);
- } else {
- reject(new Error('Server not responding'));
- }
- });
- req.on('error', () => {
- if (attempts < maxAttempts) setTimeout(check, 500);
- else reject(new Error('Server not responding'));
- });
- req.setTimeout(1000, () => {
- req.destroy();
- if (attempts < maxAttempts) setTimeout(check, 500);
- else reject(new Error('Server not responding'));
- });
- };
- check();
-  });
-}
+function waitForServer() { return Promise.resolve(); }
 
 /**
  * 首次启动: 确保 config.yaml / 数据库在 USER_DATA_DIR 存在
@@ -161,7 +135,7 @@ function ensureRuntimeFiles() {
 }
 
 /**
- * 创建主窗口
+ * 创建主窗口 - 立即显示，不等待服务器
  */
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -170,7 +144,7 @@ function createWindow() {
  minWidth: 1024,
  minHeight: 720,
  title: '造价通',
- show: false, // 先隐藏,等 ready-to-show 再显示,消除白屏闪
+ show: false,
  backgroundColor: '#f5f7fa',
  webPreferences: {
  preload: path.join(__dirname, '..', 'preload', 'index.js'),
@@ -179,18 +153,19 @@ function createWindow() {
  },
   });
 
-  // 窗口准备好再显示,消除花屏
+  // 窗口准备好立即显示，不等服务器
   mainWindow.once('ready-to-show', () => {
  mainWindow.show();
   });
 
+  // 生产模式：先加载本地 splash 页面（瞬间显示），自动轮询服务器
+  // 开发模式：直接加载 Vite dev server
   if (isDev) {
- // 开发模式加载 Vite dev server
  mainWindow.loadURL('http://localhost:5173');
  mainWindow.webContents.openDevTools();
   } else {
- // 生产模式: 后端已挂载前端静态文件,从 http:// 加载, 这样 /api 请求同源正常
- mainWindow.loadURL(`${SERVER_URL}/`);
+ const splashPath = path.join(__dirname, '..', 'splash.html');
+ mainWindow.loadFile(splashPath);
   }
 
   // 外部链接用系统浏览器打开
@@ -202,16 +177,42 @@ function createWindow() {
   mainWindow.on('closed', () => {
  mainWindow = null;
   });
+}
 
-  // 启动后通知前端服务已就绪
-  mainWindow.webContents.on('did-finish-load', async () => {
- try {
- await waitForServer();
+/**
+ * 后台等待服务器就绪，然后通知前端并跳转
+ */
+function waitForServerAndNotify() {
+  let attempts = 0;
+  const maxAttempts = 60; // 最长等 30 秒
+  const check = () => {
+ attempts++;
+ const req = http.get(`${SERVER_URL}/health`, (res) => {
+ if (res.statusCode === 200) {
+ console.log('[app] 后端服务已就绪');
+ if (mainWindow && !mainWindow.isDestroyed()) {
+ // 通知前端
  mainWindow.webContents.send('server:ready', SERVER_URL);
- } catch (err) {
- mainWindow.webContents.send('server:error', err.message);
+ // 如果当前还在 splash 页，跳转到真实应用
+ mainWindow.loadURL(`${SERVER_URL}/`);
  }
-  });
+ } else if (attempts < maxAttempts) {
+ setTimeout(check, 500);
+ }
+ });
+ req.on('error', () => {
+ if (attempts < maxAttempts) {
+ setTimeout(check, 500);
+ }
+ });
+ req.setTimeout(1000, () => {
+ req.destroy();
+ if (attempts < maxAttempts) {
+ setTimeout(check, 500);
+ }
+ });
+ };
+ check();
 }
 
 /**
@@ -234,25 +235,17 @@ if (!gotLock) {
  }
   });
 
-app.whenReady().then(async () => {
+app.whenReady().then(() => {
 ensureRuntimeFiles(); // 首次启动确保 config.yaml / data/sqlite 就位
-if (isDev) {
- // 开发模式 FastAPI 自己 npm dev:server 起, 不用 Electron 再起一遍
- createWindow();
- createMenu();
-} else {
+
+// 窗口立即显示，不等待服务器
+createWindow();
+createMenu();
+
+if (!isDev) {
+ // 生产模式：后台启动 Python 服务器，前端自己轮询等待
  startPythonServer();
- try {
- await waitForServer();
- createWindow();
- createMenu();
- } catch (err) {
- console.error('Failed to start server:', err);
- // 仍创建窗口,显示错误页
- createWindow();
- createMenu();
- mainWindow?.webContents.send('server:error', err.message);
- }
+ waitForServerAndNotify();
 }
 });
 

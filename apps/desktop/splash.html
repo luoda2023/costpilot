@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>造价通 CostPilot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #1a2332;
+      color: #e8eaed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .splash {
+      text-align: center;
+    }
+    .logo-icon {
+      width: 64px;
+      height: 64px;
+      background: #409eff;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 32px;
+      color: #fff;
+      font-weight: bold;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .sub {
+      color: #9aa0a6;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(64,158,255,0.2);
+      border-top: 3px solid #409eff;
+      border-radius: 50%;
+      margin: 0 auto;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #9aa0a6;
+    }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="logo-icon">C</div>
+    <h1>造价通</h1>
+    <div class="sub">CostPilot · 建设工程造价平台</div>
+    <div class="spinner"></div>
+    <div class="status" id="status">正在启动服务...</div>
+  </div>
+  <script>
+    const SERVER_URL = 'http://127.0.0.1:8765';
+    const status = document.getElementById('status');
+
+    function check() {
+      fetch(SERVER_URL + '/health')
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'ok') {
+            window.location.href = SERVER_URL + '/';
+          } else {
+            status.textContent = '服务响应异常，正在重试...';
+            setTimeout(check, 800);
+          }
+        })
+        .catch(() => {
+          status.textContent = '正在连接后端服务...';
+          setTimeout(check, 800);
+        });
+    }
+
+    // 最多等 30 秒
+    let attempts = 0;
+    const origCheck = check;
+    check = function() {
+      attempts++;
+      if (attempts > 40) {
+        status.textContent = '服务启动超时，请检查配置后重启';
+        return;
+      }
+      origCheck();
+    };
+
+    setTimeout(check, 500);
+  </script>
+</body>
+</html>
