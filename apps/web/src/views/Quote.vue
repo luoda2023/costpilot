@@ -7,11 +7,13 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">工程量清单</span>
-              <div class="header-actions">
-                <el-button size="small" @click="addEmptyRow">+ 添加行</el-button>
-                <el-button size="small" @click="fillFromPriceSearch">从价格库匹配</el-button>
-                <el-button size="small" type="danger" @click="clearRows" :disabled="!rows.length">清空</el-button>
-              </div>
+<div class="header-actions">
+ <el-button size="small" @click="addEmptyRow">+ 添加行</el-button>
+ <el-button size="small" @click="fillFromPriceSearch">从价格库匹配</el-button>
+ <el-button size="small" type="success" @click="triggerImport">导入 Excel</el-button>
+ <el-button size="small" type="danger" @click="clearRows" :disabled="!rows.length">清空</el-button>
+ <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelected" />
+ </div>
             </div>
           </template>
 
@@ -143,6 +145,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, PricesAPI } from '@/api'
+import * as XLSX from 'xlsx'
 
 const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
 const specialties = ref([])
@@ -151,6 +154,88 @@ const rows = ref([{ item_name: '', specialty: '', unit: 'm³', qty: 0, price: 0 
 const result = ref(null)
 const composing = ref(false); const exportingX = ref(false); const exportingW = ref(false)
 const searchDialog = ref(false); const searchKw = ref(''); const searchResults = ref([])
+const importing = ref(false)
+const fileInputRef = ref(null)
+
+// 价格缓存，用于 Excel 导入时自动匹配单位/单价
+let priceCache = null
+async function getPriceCache() {
+  if (!priceCache) {
+    try {
+      const all = await PricesAPI.list({ limit: 99999 })
+      priceCache = all
+    } catch { priceCache = [] }
+  }
+  return priceCache
+}
+
+function triggerImport() {
+  fileInputRef.value?.click()
+}
+
+async function onFileSelected(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  importing.value = true
+  try {
+    const data = await file.arrayBuffer()
+    const wb = XLSX.read(data, { type: 'array', codepage: 65001 })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
+    if (!json.length) { ElMessage.warning('Excel 为空，请检查'); return }
+
+    // 获取价格库缓存
+    const cache = await getPriceCache()
+    const imported = []
+
+    for (const item of json) {
+      // 自动识别列名（中文/英文）
+      const name = item['项目名称'] || item['项目名'] || item['名称'] || item['name'] || item['item_name'] || item['Name'] || ''
+      const qtyStr = item['工程量'] || item['数量'] || item['qty'] || item['Qty'] || item['QTY'] || ''
+      const unitRaw = item['单位'] || item['unit'] || item['Unit'] || ''
+      const specialtyRaw = item['专业'] || item['specialty'] || item['Specialty'] || ''
+      const priceRaw = item['综合单价'] || item['单价'] || item['价格'] || item['price'] || item['Price'] || ''
+
+      if (!name) continue
+
+      // 尝试从价格库匹配
+      let matchedUnit = unitRaw
+      let matchedPrice = parseFloat(priceRaw) || 0
+      let matchedSpecialty = specialtyRaw
+
+      // 模糊匹配：取项目名前几个字
+      const searchKey = name.slice(0, 6)
+      const match = cache.find(c =>
+        c.item_name.includes(searchKey) || searchKey.includes(c.item_name.slice(0, 4))
+      )
+      if (match) {
+        matchedUnit = match.unit || matchedUnit
+        matchedPrice = matchedPrice || parseFloat(String(match.price).split(' ')[0]) || 0
+        matchedSpecialty = match.specialty || matchedSpecialty
+      }
+
+      const qty = parseFloat(qtyStr) || 0
+      imported.push({
+        item_name: name,
+        specialty: matchedSpecialty,
+        unit: matchedUnit,
+        qty,
+        price: matchedPrice,
+      })
+    }
+
+    if (!imported.length) { ElMessage.warning('未解析到有效数据，请检查 Excel 列名'); return }
+
+    // 追加到现有表格
+    rows.value.push(...imported)
+    ElMessage.success(`成功导入 ${imported.length} 行数据，其中 ${imported.filter(r => r.price > 0).length} 行已匹配单价`)
+  } catch (err) {
+    ElMessage.error('导入失败: ' + (err.message || '格式错误'))
+  } finally {
+    importing.value = false
+    e.target.value = '' // 清空文件选择器
+  }
+}
 
 function addEmptyRow() { rows.value.push({ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }) }
 function clearRows() {
