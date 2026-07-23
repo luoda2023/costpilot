@@ -81,11 +81,6 @@ pythonServer = spawn(cmd, args, {
 }
 
 /**
- * 健康检查(已废弃) - 替换为 waitForServerAndNotify
- */
-function waitForServer() { return Promise.resolve(); }
-
-/**
  * 首次启动: 确保 config.yaml / 数据库在 USER_DATA_DIR 存在
  * %APPDATA%/costpilot/ 卸载重装不丢
  */
@@ -145,7 +140,7 @@ function createWindow() {
  minHeight: 720,
  title: '造价通',
  show: false,
- backgroundColor: '#f5f7fa',
+ backgroundColor: '#1a2332', // 与 splash 页面深色背景一致，消除跳转闪光
  webPreferences: {
  preload: path.join(__dirname, '..', 'preload', 'index.js'),
  contextIsolation: true,
@@ -180,7 +175,8 @@ function createWindow() {
 }
 
 /**
- * 后台等待服务器就绪，然后通知前端并跳转
+ * 后台等待服务器就绪，然后跳转到真实应用
+ * 注意：splash.html 不带 JS 自动跳转，避免竞争条件
  */
 function waitForServerAndNotify() {
   let attempts = 0;
@@ -189,13 +185,13 @@ function waitForServerAndNotify() {
  attempts++;
  const req = http.get(`${SERVER_URL}/health`, (res) => {
  if (res.statusCode === 200) {
- console.log('[app] 后端服务已就绪');
+ console.log('[app] 后端服务已就绪，200ms后跳转');
+ // 等 200ms 确保静态文件也准备好，再跳转
+ setTimeout(() => {
  if (mainWindow && !mainWindow.isDestroyed()) {
- // 通知前端
- mainWindow.webContents.send('server:ready', SERVER_URL);
- // 如果当前还在 splash 页，跳转到真实应用
  mainWindow.loadURL(`${SERVER_URL}/`);
  }
+ }, 200);
  } else if (attempts < maxAttempts) {
  setTimeout(check, 500);
  }
