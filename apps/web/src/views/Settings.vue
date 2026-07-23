@@ -106,25 +106,39 @@ function onProviderChange(name) {
 }
 async function testConnection() {
   testing.value = true
+  testResult.value = null
   try {
+    // 先切换配置并保存，再测试连接
     const r = await axios.post(apiUrl + '/ai/switch', form)
-    if (r.data.ok) { const t = await axios.post(apiUrl + '/ai/test'); testResult.value = t.data }
-    else testResult.value = { ok: false, msg: r.data.msg }
-  } catch (e) { testResult.value = { ok: false, msg: e.response?.data?.detail || e.message } }
-  finally { testing.value = false }
+    if (r.data.ok) {
+      const t = await axios.post(apiUrl + '/ai/test')
+      testResult.value = t.data
+    } else {
+      testResult.value = { ok: false, msg: r.data.msg }
+    }
+  } catch (e) {
+    testResult.value = { ok: false, msg: e.response?.data?.detail || e.message }
+  } finally { testing.value = false }
 }
 async function applyChange() {
   applying.value = true
   try {
     const r = await axios.post(apiUrl + '/ai/switch', form)
-    if (r.data.ok) { ElMessage.success(`已切换: ${r.data.current.provider} / ${r.data.current.model}`); await loadCurrent() }
-    else ElMessage.error(r.data.msg)
+    if (r.data.ok) {
+      ElMessage.success(`已切换: ${r.data.current.provider} / ${r.data.current.model}`)
+      await loadCurrent()
+    } else {
+      ElMessage.error(r.data.msg)
+    }
   } finally { applying.value = false }
 }
 async function reloadYaml() {
   reloading.value = true
-  try { await axios.post(apiUrl + '/ai/reload'); ElMessage.success('config.yaml 已重载'); await loadCurrent() }
-  finally { reloading.value = false }
+  try {
+    await axios.post(apiUrl + '/ai/reload')
+    ElMessage.success('config.yaml 已重载')
+    await loadCurrent()
+  } finally { reloading.value = false }
 }
 onMounted(() => { loadProviders(); loadCurrent(); loadKbStats() })
 </script>

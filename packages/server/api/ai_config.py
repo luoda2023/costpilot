@@ -34,6 +34,9 @@ class SwitchIn(BaseModel):
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     model: Optional[str] = None
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = None
+    timeout: Optional[int] = None
     lobechat_url: Optional[str] = None
 
 
@@ -87,18 +90,12 @@ def test_ai_connection():
 def switch_provider(s: SwitchIn):
     """切换 provider / 配置项后立即生效(写入 config.yaml 持久化)
 
-    同时写入 config.yaml 存盘,重启后不丢失。
+    ① 写入 config.yaml 存盘
+    ② 重新加载配置缓存 reload_config()
+    ③ 重置 AI 客户端单例 reset_ai_client()
+    ④ 创建新客户端验证配置
     """
-    overrides = {}
-    if s.provider:
-        overrides["provider"] = s.provider
-    if s.base_url:
-        overrides["base_url"] = s.base_url
-    if s.api_key:
-        overrides["api_key"] = s.api_key
-    if s.model:
-        overrides["model"] = s.model
-
+    # 1. 读取当前配置
     if CONFIG_PATH.exists():
         raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
     else:
@@ -106,20 +103,34 @@ def switch_provider(s: SwitchIn):
 
     if "ai" not in raw:
         raw["ai"] = {}
-    if s.provider:
+
+    # 2. 写入新值
+    if s.provider is not None:
         raw["ai"]["provider"] = s.provider
-    if s.base_url:
+    if s.base_url is not None:
         raw["ai"]["base_url"] = s.base_url
-    if s.api_key:
+    if s.api_key is not None:
         raw["ai"]["api_key"] = s.api_key
-    if s.model:
+    if s.model is not None:
         raw["ai"]["model"] = s.model
+    if s.temperature is not None:
+        raw["ai"]["temperature"] = s.temperature
+    if s.max_tokens is not None:
+        raw["ai"]["max_tokens"] = s.max_tokens
+    if s.timeout is not None:
+        raw["ai"]["timeout"] = s.timeout
+    if s.lobechat_url is not None:
+        raw["ai"]["lobechat_url"] = s.lobechat_url
 
     CONFIG_PATH.write_text(yaml.dump(raw, allow_unicode=True, default_flow_style=False), encoding="utf-8")
 
+    # 3. 重新加载配置缓存 + 重置客户端
+    reload_config()
     reset_ai_client()
+
+    # 4. 创建新客户端验证
     try:
-        client = get_ai_client(**overrides)
+        client = get_ai_client()
         return {
             "ok": True,
             "msg": f"已切换到 {client.provider} / {client.model} (已保存到 config.yaml)",
