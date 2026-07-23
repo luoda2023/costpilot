@@ -3,8 +3,8 @@
     <!-- 顶部导航 -->
     <el-header class="app-header">
       <div class="logo">
-        <el-icon :size="24"><Coin /></el-icon>
-        <span>造价通 CostPilot</span>
+        <el-icon :size="20"><Coin /></el-icon>
+        <span>造价通</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -41,11 +41,6 @@
           <span>系统设置</span>
         </el-menu-item>
       </el-menu>
-      <div class="header-right">
-        <el-tag size="small" :type="serverStatus === 'ok' ? 'success' : 'danger'">
-          {{ serverStatus === 'ok' ? 'API 已连接' : 'API 未连接' }}
-        </el-tag>
-      </div>
     </el-header>
 
     <!-- 主体 -->
@@ -61,7 +56,6 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 
 const route = useRoute()
-const serverStatus = ref('unknown')
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/prices')) return '/prices'
@@ -71,24 +65,6 @@ const activeMenu = computed(() => {
   if (route.path.startsWith('/chat')) return '/chat'
   if (route.path.startsWith('/settings')) return '/settings'
   return '/workspace'
-})
-
-async function checkServer() {
-  try {
- const r = await axios.get('/health')
- if (r.data?.status === 'ok') serverStatus.value = 'ok'
-  } catch {
- serverStatus.value = 'error'
-  }
-}
-
-onMounted(() => {
-  checkServer()
-  // 监听 electron 服务端通知
-  if (window.costpilot) {
-    window.costpilot.onServerReady(() => checkServer())
-    window.costpilot.onServerError(() => { serverStatus.value = 'error' })
-  }
 })
 </script>
 
@@ -102,48 +78,72 @@ html, body, #app {
 
 .app-container {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-header {
   display: flex;
   align-items: center;
-  background: #2c3e50;
+  background: #1a2332;
   color: white;
-  padding: 0 24px;
+  padding: 0 16px;
+  height: 48px !important;
+  min-height: 48px;
+  flex-shrink: 0;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: bold;
-  margin-right: 40px;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-right: 24px;
   white-space: nowrap;
+  color: #e8eaed;
 }
 
 .top-menu {
   background: transparent;
-  border: none;
+  border: none !important;
   flex: 1;
 }
 
 .top-menu .el-menu-item {
-  color: #c0c4cc;
+  color: #9aa0a6;
+  height: 48px;
+  line-height: 48px;
+  font-size: 13px;
+  padding: 0 14px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.top-menu .el-menu-item:hover {
+  color: #e8eaed;
+  background: rgba(255,255,255,0.06);
 }
 
 .top-menu .el-menu-item.is-active {
   color: white;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.header-right {
-  margin-left: auto;
+  border-bottom-color: #409eff;
+  background: transparent;
 }
 
 .app-main {
-  padding: 16px;
+  flex: 1;
+  padding: 12px;
   background: #f5f7fa;
   overflow: auto;
+}
+
+/* 去除 Element Plus 默认边框 */
+.el-menu--horizontal > .el-menu-item:not(.is-disabled):focus,
+.el-menu--horizontal > .el-menu-item:not(.is-disabled):hover {
+  background: transparent;
+}
+.el-menu--horizontal {
+  border-bottom: none !important;
 }
 </style>
