@@ -127,7 +127,14 @@ async function loadStats() {
       { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
       { label: 'API 状态', value: '正常', icon: Connection, bg: '#67c23a', cls: 'ok' },
     ]
-  } catch { statCards.value[3] = { label: 'API 状态', value: '异常', icon: Connection, bg: '#f56c6c', cls: 'err' } }
+  } catch {
+    statCards.value = [
+      { label: '总价格条目', value: '-', icon: PriceTag, bg: '#909399', cls: '' },
+      { label: '市政专题', value: '-', icon: Location, bg: '#909399', cls: '' },
+      { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
+      { label: 'API 状态', value: '异常', icon: Connection, bg: '#f56c6c', cls: 'err' },
+    ]
+  }
   finally { loading.value = false }
 }
 

@@ -87,9 +87,9 @@ import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promo
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 
-// 初始化 markdown-it 渲染器
+// 初始化 markdown-it 渲染器（html: false 防止 XSS）
 const md = new MarkdownIt({
-  html: true,
+  html: false,
   linkify: true,
   typographer: true,
   breaks: true,
@@ -140,7 +140,9 @@ async function newSession() {
 }
 
 async function quickAsk(text) {
-  if (!currentId.value) await newSession()
+  if (!currentId.value) {
+    try { await newSession() } catch { ElMessage.error('创建会话失败'); return }
+  }
   if (currentId.value) {
     inputText.value = text
     await send()

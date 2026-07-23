@@ -150,7 +150,7 @@ import * as XLSX from 'xlsx'
 const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
 const specialties = ref([])
 const projectInfo = reactive({ name: '未命名项目', region: '北京市', stage: '预算', tax_method: '一般计税' })
-const rows = ref([{ item_name: '', specialty: '', unit: 'm³', qty: 0, price: 0 }])
+const rows = ref([{ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }])
 const result = ref(null)
 const composing = ref(false); const exportingX = ref(false); const exportingW = ref(false)
 const searchDialog = ref(false); const searchKw = ref(''); const searchResults = ref([])
@@ -169,6 +169,24 @@ async function getPriceCache() {
   return priceCache
 }
 
+/** 安全提取数字：移除中文/逗号/空格，只取有效数字 */
+function safeParseNum(v) {
+  if (v === null || v === undefined || v === '') return 0
+  if (typeof v === 'number') return isNaN(v) ? 0 : v
+  const cleaned = String(v).replace(/[^\d.\-eE+]/g, '').trim()
+  const n = parseFloat(cleaned)
+  return isNaN(n) ? 0 : n
+}
+
+/** 安全提取价格：可能含"元/m³"等后缀 */
+function safeParsePrice(v) {
+  if (v === null || v === undefined || v === '') return 0
+  if (typeof v === 'number') return isNaN(v) ? 0 : v
+  const cleaned = String(v).split(' ')[0].replace(/[^\d.\-]/g, '')
+  const n = parseFloat(cleaned)
+  return isNaN(n) ? 0 : n
+}
+
 function triggerImport() {
   fileInputRef.value?.click()
 }
@@ -179,7 +197,7 @@ async function onFileSelected(e) {
   importing.value = true
   try {
     const data = await file.arrayBuffer()
-    const wb = XLSX.read(data, { type: 'array', codepage: 65001 })
+    const wb = XLSX.read(data, { type: 'array' })
     const ws = wb.Sheets[wb.SheetNames[0]]
     const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
     if (!json.length) { ElMessage.warning('Excel 为空，请检查'); return }
@@ -198,23 +216,40 @@ async function onFileSelected(e) {
 
       if (!name) continue
 
-      // 尝试从价格库匹配
+      // 尝试从价格库匹配（评分制，取最高分）
       let matchedUnit = unitRaw
-      let matchedPrice = parseFloat(priceRaw) || 0
+      let matchedPrice = safeParsePrice(priceRaw)
       let matchedSpecialty = specialtyRaw
 
-      // 模糊匹配：取项目名前几个字
-      const searchKey = name.slice(0, 6)
-      const match = cache.find(c =>
-        c.item_name.includes(searchKey) || searchKey.includes(c.item_name.slice(0, 4))
-      )
-      if (match) {
-        matchedUnit = match.unit || matchedUnit
-        matchedPrice = matchedPrice || parseFloat(String(match.price).split(' ')[0]) || 0
-        matchedSpecialty = match.specialty || matchedSpecialty
+      // 提取项目名中的关键词：取连续中文/字母/数字
+      const keywords = name.match(/[\u4e00-\u9fa5a-zA-Z0-9]+/g) || []
+      let bestScore = 0
+      let bestMatch = null
+
+      for (const c of cache) {
+        let score = 0
+        const cName = c.item_name || ''
+        // 完全匹配最高分
+        if (cName === name) { score = 100; bestMatch = c; break }
+        // 项目名包含价格库名称 或 价格库名称包含项目名
+        if (cName.includes(name)) score += 50
+        if (name.includes(cName)) score += 50
+        // 关键词匹配
+        for (const kw of keywords) {
+          if (kw.length >= 2 && cName.includes(kw)) score += 10
+        }
+        // 单位一致加分
+        if (c.unit && unitRaw && c.unit === unitRaw) score += 5
+        if (score > bestScore) { bestScore = score; bestMatch = c }
       }
 
-      const qty = parseFloat(qtyStr) || 0
+      if (bestMatch && bestScore >= 10) {
+        matchedUnit = bestMatch.unit || matchedUnit
+        matchedPrice = matchedPrice || safeParsePrice(bestMatch.price)
+        matchedSpecialty = bestMatch.specialty || matchedSpecialty
+      }
+
+      const qty = safeParseNum(qtyStr)
       imported.push({
         item_name: name,
         specialty: matchedSpecialty,
@@ -228,7 +263,8 @@ async function onFileSelected(e) {
 
     // 追加到现有表格
     rows.value.push(...imported)
-    ElMessage.success(`成功导入 ${imported.length} 行数据，其中 ${imported.filter(r => r.price > 0).length} 行已匹配单价`)
+    const matchedCount = imported.filter(r => r.price > 0).length
+    ElMessage.success(`成功导入 ${imported.length} 行，其中 ${matchedCount} 行已匹配单价`)
   } catch (err) {
     ElMessage.error('导入失败: ' + (err.message || '格式错误'))
   } finally {
@@ -248,11 +284,13 @@ async function doSearch() {
   catch { ElMessage.error('查询失败') }
 }
 function addFromSearch(row) {
-  rows.value.push({ item_name: row.item_name, specialty: row.specialty || '', unit: row.unit, qty: 1, price: parseFloat(row.price.split(' ')[0]) || 0 })
+  rows.value.push({ item_name: row.item_name, specialty: row.specialty || '', unit: row.unit || '', qty: 1, price: safeParsePrice(row.price) })
   ElMessage.success(`已加入: ${row.item_name}`)
 }
 async function compose() {
-  if (rows.value.some(r => !r.item_name || r.qty <= 0)) { ElMessage.warning('请完善项目名和工程量'); return }
+  if (rows.value.some(r => !r.item_name || r.qty <= 0)) { ElMessage.warning('请完善所有行的项目名称和工程量'); return }
+  if (rows.value.some(r => !r.unit)) { ElMessage.warning('请完善所有行的单位'); return }
+  if (rows.value.some(r => r.price <= 0)) { ElMessage.warning('请完善所有行的综合单价'); return }
   composing.value = true
   try {
     result.value = await api.post('/v1/quotes/compose', {
