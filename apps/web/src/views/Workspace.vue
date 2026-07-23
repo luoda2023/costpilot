@@ -2,120 +2,74 @@
   <div class="workspace" v-loading="loading" element-loading-text="正在加载数据...">
     <!-- 概览卡片 -->
     <el-row :gutter="16" class="stat-row">
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-label">总价格条目</div>
-            <div class="stat-value">{{ stats.total_prices ?? '-' }}</div>
-            <el-icon class="stat-icon"><PriceTag /></el-icon>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-label">市政专题</div>
-            <div class="stat-value">{{ stats.total_topics ?? '-' }}</div>
-            <el-icon class="stat-icon"><Location /></el-icon>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-label">项目数</div>
-            <div class="stat-value">{{ projects.length }}</div>
-            <el-icon class="stat-icon"><Folder /></el-icon>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
-          <div class="stat-card">
-            <div class="stat-label">API 状态</div>
-            <div class="stat-value" :class="serverOk ? 'ok' : 'err'">
-              {{ serverOk ? '正常' : '异常' }}
+      <el-col :span="6" v-for="card in statCards" :key="card.label">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-inner">
+            <div class="stat-left">
+              <div class="stat-label">{{ card.label }}</div>
+              <div class="stat-value" :class="card.cls">{{ card.value }}</div>
             </div>
-            <el-icon class="stat-icon"><Connection /></el-icon>
+            <div class="stat-icon-wrap" :style="{ background: card.bg }">
+              <el-icon :size="22" color="#fff"><component :is="card.icon" /></el-icon>
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 快速入口 -->
-    <el-card shadow="never" class="quick-card">
-      <template #header>
-        <span>快速入口</span>
-      </template>
+    <el-card shadow="never" class="section-card">
+      <template #header><span class="section-title">快速入口</span></template>
       <el-row :gutter="16">
-        <el-col :span="6">
-          <el-button type="primary" size="large" style="width:100%" @click="$router.push('/prices')">
-            <el-icon><Search /></el-icon>&nbsp;查询综合单价
-          </el-button>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="success" size="large" style="width:100%" @click="$router.push('/text-gen')">
-            <el-icon><Document /></el-icon>&nbsp;生成文本
-          </el-button>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="warning" size="large" style="width:100%" @click="$router.push('/preview')">
-            <el-icon><Files /></el-icon>&nbsp;预览文件
-          </el-button>
-        </el-col>
-        <el-col :span="6">
-          <el-button type="info" size="large" style="width:100%" @click="$router.push('/chat')">
-            <el-icon><ChatDotRound /></el-icon>&nbsp;问 AI 助手
+        <el-col :span="6" v-for="item in quickLinks" :key="item.label">
+          <el-button :type="item.type" size="large" class="quick-btn" @click="$router.push(item.path)">
+            <el-icon><component :is="item.icon" /></el-icon>
+            <span>{{ item.label }}</span>
           </el-button>
         </el-col>
       </el-row>
     </el-card>
 
     <!-- 各专业条数 -->
-    <el-card shadow="never" class="quick-card">
-      <template #header>
-        <span>各专业价格条数</span>
-      </template>
-      <el-row :gutter="16">
-        <el-col :span="6" v-for="(count, name) in stats.by_specialty" :key="name" class="specialty-cell">
-          <el-tag type="info" size="large" effect="plain">
-            {{ name }} : {{ count }}
-          </el-tag>
-        </el-col>
-      </el-row>
+    <el-card shadow="never" class="section-card">
+      <template #header><span class="section-title">专业概览</span></template>
+      <div class="specialty-grid">
+        <div v-for="(count, name) in stats.by_specialty" :key="name" class="specialty-item">
+          <span class="spec-name">{{ name }}</span>
+          <span class="spec-count">{{ count }}</span>
+        </div>
+      </div>
     </el-card>
 
     <!-- 项目列表 -->
-    <el-card shadow="never" class="quick-card">
+    <el-card shadow="never" class="section-card">
       <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span>最近项目</span>
-          <el-button type="primary" size="small" @click="newProjectDialog = true">新建项目</el-button>
+        <div class="card-header">
+          <span class="section-title">最近项目</span>
+          <el-button size="small" type="primary" @click="newProjectDialog = true">+ 新建</el-button>
         </div>
       </template>
-      <el-table :data="projects" stripe empty-text="暂无项目，点击右上角 新建项目">
+      <el-table :data="projects" stripe empty-text="暂无项目，点击右上角新建">
         <el-table-column prop="name" label="项目名" min-width="200" />
-        <el-table-column prop="region" label="地区" width="120" />
-        <el-table-column prop="stage" label="阶段" width="100" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag size="small">{{ row.status }}</el-tag>
-          </template>
+        <el-table-column prop="region" label="地区" width="100" />
+        <el-table-column prop="stage" label="阶段" width="90" />
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
+        <el-table-column prop="created_at" label="创建时间" width="170">
           <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <!-- 新建项目对话框 -->
-    <el-dialog v-model="newProjectDialog" title="新建项目" width="500">
-      <el-form :model="newProject" label-width="100">
+    <el-dialog v-model="newProjectDialog" title="新建项目" width="500" :close-on-click-modal="false">
+      <el-form :model="newProject" label-width="90">
         <el-form-item label="项目名" required>
-          <el-input v-model="newProject.name" placeholder="例如：某高层住宅 1# 楼估算" />
+          <el-input v-model="newProject.name" placeholder="如：某高层住宅 1# 楼估算" />
         </el-form-item>
         <el-form-item label="地区" required>
-          <el-select v-model="newProject.region" placeholder="选择项目所在地" style="width:100%">
+          <el-select v-model="newProject.region" placeholder="选择" style="width:100%">
             <el-option v-for="r in regions" :key="r" :label="r" :value="r" />
           </el-select>
         </el-form-item>
@@ -140,44 +94,50 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PricesAPI, ProjectsAPI } from '@/api'
+import { PriceTag, Location, Folder, Connection, Search, Document, Files, ChatDotRound } from '@element-plus/icons-vue'
 
 const loading = ref(true)
 const stats = ref({})
 const projects = ref([])
-const serverOk = ref(false)
 const newProjectDialog = ref(false)
 const creating = ref(false)
 const newProject = reactive({ name: '', region: '', stage: '估算', note: '' })
-const regions = ['北京市', '上海市', '天津市', '重庆市', '广东省', '浙江省', '江苏省', '四川省', '山东省', '湖北省', '湖南省', '福建省', '河北省', '山西省', '辽宁省', '吉林省', '黑龙江省', '安徽省', '江西省', '河南省', '海南省', '贵州省', '云南省', '陕西省', '甘肃省', '青海省', '内蒙古', '广西', '宁夏', '新疆', '西藏']
+const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
+
+const statCards = ref([])
+const quickLinks = [
+  { label: '查询综合单价', icon: Search, path: '/prices', type: 'primary' },
+  { label: '生成文本', icon: Document, path: '/text-gen', type: 'success' },
+  { label: '预览文件', icon: Files, path: '/preview', type: 'warning' },
+  { label: 'AI 助手', icon: ChatDotRound, path: '/chat', type: 'info' },
+]
 
 const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
 
 async function loadStats() {
   try {
- const r = await PricesAPI.stats()
- stats.value = r
- serverOk.value = true
-  } catch (e) {
- serverOk.value = false
-  } finally {
- loading.value = false
-  }
+    const r = await PricesAPI.stats()
+    stats.value = r
+    statCards.value = [
+      { label: '总价格条目', value: r.total_prices ?? '-', icon: PriceTag, bg: '#409eff', cls: '' },
+      { label: '市政专题', value: r.total_topics ?? '-', icon: Location, bg: '#67c23a', cls: '' },
+      { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
+      { label: 'API 状态', value: '正常', icon: Connection, bg: '#67c23a', cls: 'ok' },
+    ]
+  } catch { statCards.value[3] = { label: 'API 状态', value: '异常', icon: Connection, bg: '#f56c6c', cls: 'err' } }
+  finally { loading.value = false }
 }
 
 async function loadProjects() {
-  try {
-    projects.value = await ProjectsAPI.list()
-  } catch (e) {
-    // 项目加载失败不致命，静默
-  }
+  try { projects.value = await ProjectsAPI.list() } catch {}
 }
 
 async function createProject() {
   if (!newProject.name || !newProject.region || !newProject.stage) {
-    ElMessage.warning('请填写完整：名称 / 地区 / 阶段')
+    ElMessage.warning('请填写完整')
     return
   }
   creating.value = true
@@ -189,39 +149,29 @@ async function createProject() {
     await loadProjects()
   } catch (e) {
     ElMessage.error('创建失败：' + (e.response?.data?.detail || e.message))
-  } finally {
-    creating.value = false
-  }
+  } finally { creating.value = false }
 }
 
-onMounted(() => {
-  loadStats()
-  loadProjects()
-})
+onMounted(() => { loadStats(); loadProjects() })
 </script>
 
 <style scoped>
-.workspace { display:flex; flex-direction:column; gap:16px; }
-
-.stat-row { margin-bottom: 0; }
-
-.stat-card {
-  position: relative;
-  padding: 4px 0;
-}
-.stat-label { font-size: 14px; color: #909399; }
-.stat-value { font-size: 28px; font-weight: bold; margin-top: 8px; color: #303133; }
-.stat-value.ok { color: #67c23a; }
-.stat-value.err { color: #f56c6c; }
-.stat-icon {
-  position: absolute;
-  right: 0;
-  top: 0;
-  font-size: 40px;
-  opacity: 0.15;
-  color: #409eff;
-}
-
-.quick-card { margin-top: 16px; }
-.specialty-cell { padding: 6px 0; }
+.workspace { display:flex; flex-direction:column; gap:14px; }
+.stat-row { margin-bottom:0; }
+.stat-card { border-radius:8px; }
+.stat-inner { display:flex; align-items:center; justify-content:space-between; }
+.stat-left { flex:1; }
+.stat-label { font-size:13px; color:#909399; margin-bottom:4px; }
+.stat-value { font-size:26px; font-weight:700; color:#303133; }
+.stat-value.ok { color:#67c23a; }
+.stat-value.err { color:#f56c6c; }
+.stat-icon-wrap { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.section-card { border-radius:8px; margin-top:0; }
+.section-title { font-size:15px; font-weight:600; color:#303133; }
+.card-header { display:flex; justify-content:space-between; align-items:center; }
+.quick-btn { width:100%; height:56px; font-size:15px; display:flex; align-items:center; gap:6px; border-radius:8px; }
+.specialty-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.specialty-item { display:flex; justify-content:space-between; padding:8px 12px; background:#f5f7fa; border-radius:6px; }
+.spec-name { color:#606266; font-size:13px; }
+.spec-count { color:#303133; font-weight:600; font-size:14px; }
 </style>
