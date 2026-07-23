@@ -64,6 +64,10 @@ app.include_router(ai_config_router, prefix="/api/v1/ai", tags=["AI 配置"])
 from packages.server.api.quotes import router as quotes_router
 app.include_router(quotes_router, prefix="/api/v1/quotes", tags=["报价生成"])
 
+# AI 智能导入匹配
+from packages.server.api.ai_match import router as ai_match_router
+app.include_router(ai_match_router, prefix="/api/v1/quotes", tags=["报价生成"])
+
 # 知识库 RAG
 from packages.server.api.knowledge import router as knowledge_router
 app.include_router(knowledge_router, prefix="/api/v1/kb", tags=["知识库 RAG"])

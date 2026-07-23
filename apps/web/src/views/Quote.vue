@@ -157,121 +157,79 @@ const searchDialog = ref(false); const searchKw = ref(''); const searchResults =
 const importing = ref(false)
 const fileInputRef = ref(null)
 
-// 价格缓存，用于 Excel 导入时自动匹配单位/单价
-let priceCache = null
-async function getPriceCache() {
-  if (!priceCache) {
-    try {
-      const all = await PricesAPI.list({ limit: 99999 })
-      priceCache = all
-    } catch { priceCache = [] }
-  }
-  return priceCache
-}
-
 /** 安全提取数字：移除中文/逗号/空格，只取有效数字 */
-function safeParseNum(v) {
-  if (v === null || v === undefined || v === '') return 0
-  if (typeof v === 'number') return isNaN(v) ? 0 : v
-  const cleaned = String(v).replace(/[^\d.\-eE+]/g, '').trim()
-  const n = parseFloat(cleaned)
-  return isNaN(n) ? 0 : n
-}
+	function safeParseNum(v) {
+ if (v === null || v === undefined || v === '') return 0
+ if (typeof v === 'number') return isNaN(v) ? 0 : v
+ const cleaned = String(v).replace(/[^\d.\-eE+]/g, '').trim()
+ const n = parseFloat(cleaned)
+ return isNaN(n) ? 0 : n
+	}
 
-/** 安全提取价格：可能含"元/m³"等后缀 */
-function safeParsePrice(v) {
-  if (v === null || v === undefined || v === '') return 0
-  if (typeof v === 'number') return isNaN(v) ? 0 : v
-  const cleaned = String(v).split(' ')[0].replace(/[^\d.\-]/g, '')
-  const n = parseFloat(cleaned)
-  return isNaN(n) ? 0 : n
-}
+	/** 安全提取价格：可能含"元/m³"等后缀 */
+	function safeParsePrice(v) {
+ if (v === null || v === undefined || v === '') return 0
+ if (typeof v === 'number') return isNaN(v) ? 0 : v
+ const cleaned = String(v).split(' ')[0].replace(/[^\d.\-]/g, '')
+ const n = parseFloat(cleaned)
+ return isNaN(n) ? 0 : n
+	}
 
-function triggerImport() {
-  fileInputRef.value?.click()
-}
+	function triggerImport() {
+ fileInputRef.value?.click()
+	}
 
-async function onFileSelected(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  importing.value = true
-  try {
-    const data = await file.arrayBuffer()
-    const wb = XLSX.read(data, { type: 'array' })
-    const ws = wb.Sheets[wb.SheetNames[0]]
-    const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
-    if (!json.length) { ElMessage.warning('Excel 为空，请检查'); return }
+	async function onFileSelected(e) {
+ const file = e.target.files?.[0]
+ if (!file) return
+ importing.value = true
+ try {
+ const data = await file.arrayBuffer()
+ const wb = XLSX.read(data, { type: 'array' })
+ const ws = wb.Sheets[wb.SheetNames[0]]
+ const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
+ if (!json.length) { ElMessage.warning('Excel 为空，请检查'); return }
 
-    // 获取价格库缓存
-    const cache = await getPriceCache()
-    const imported = []
+ // 解析 Excel 行
+ const rawRows = []
+ for (const item of json) {
+ const name = item['项目名称'] || item['项目名'] || item['名称'] || item['name'] || item['item_name'] || item['Name'] || ''
+ if (!name) continue
+ rawRows.push({
+ item_name: name,
+ qty: safeParseNum(item['工程量'] || item['数量'] || item['qty'] || item['Qty'] || item['QTY'] || ''),
+ unit: item['单位'] || item['unit'] || item['Unit'] || '',
+ specialty: item['专业'] || item['specialty'] || item['Specialty'] || '',
+ price: safeParsePrice(item['综合单价'] || item['单价'] || item['价格'] || item['price'] || item['Price'] || ''),
+ })
+ }
 
-    for (const item of json) {
-      // 自动识别列名（中文/英文）
-      const name = item['项目名称'] || item['项目名'] || item['名称'] || item['name'] || item['item_name'] || item['Name'] || ''
-      const qtyStr = item['工程量'] || item['数量'] || item['qty'] || item['Qty'] || item['QTY'] || ''
-      const unitRaw = item['单位'] || item['unit'] || item['Unit'] || ''
-      const specialtyRaw = item['专业'] || item['specialty'] || item['Specialty'] || ''
-      const priceRaw = item['综合单价'] || item['单价'] || item['价格'] || item['price'] || item['Price'] || ''
+ if (!rawRows.length) { ElMessage.warning('未解析到有效数据，请检查 Excel 列名'); return }
 
-      if (!name) continue
+ // 发送到后端 AI 匹配
+ const result = await api.post('/v1/quotes/ai-match', { rows: rawRows })
 
-      // 尝试从价格库匹配（评分制，取最高分）
-      let matchedUnit = unitRaw
-      let matchedPrice = safeParsePrice(priceRaw)
-      let matchedSpecialty = specialtyRaw
+ // 将匹配结果填入表格
+ const matched = result.matched || []
+ rows.value.push(...matched)
 
-      // 提取项目名中的关键词：取连续中文/字母/数字
-      const keywords = name.match(/[\u4e00-\u9fa5a-zA-Z0-9]+/g) || []
-      let bestScore = 0
-      let bestMatch = null
+ const stats = result.stats || {}
+ const msg = `成功导入 ${stats.total || matched.length} 行`
+ + (stats.matched ? `，匹配 ${stats.matched} 行` : '')
+ + (stats.ai_matched ? `（AI 匹配 ${stats.ai_matched} 行）` : '')
+ + (stats.unmatched ? `，未匹配 ${stats.unmatched} 行` : '')
+ ElMessage.success(msg)
 
-      for (const c of cache) {
-        let score = 0
-        const cName = c.item_name || ''
-        // 完全匹配最高分
-        if (cName === name) { score = 100; bestMatch = c; break }
-        // 项目名包含价格库名称 或 价格库名称包含项目名
-        if (cName.includes(name)) score += 50
-        if (name.includes(cName)) score += 50
-        // 关键词匹配
-        for (const kw of keywords) {
-          if (kw.length >= 2 && cName.includes(kw)) score += 10
-        }
-        // 单位一致加分
-        if (c.unit && unitRaw && c.unit === unitRaw) score += 5
-        if (score > bestScore) { bestScore = score; bestMatch = c }
-      }
-
-      if (bestMatch && bestScore >= 10) {
-        matchedUnit = bestMatch.unit || matchedUnit
-        matchedPrice = matchedPrice || safeParsePrice(bestMatch.price)
-        matchedSpecialty = bestMatch.specialty || matchedSpecialty
-      }
-
-      const qty = safeParseNum(qtyStr)
-      imported.push({
-        item_name: name,
-        specialty: matchedSpecialty,
-        unit: matchedUnit,
-        qty,
-        price: matchedPrice,
-      })
-    }
-
-    if (!imported.length) { ElMessage.warning('未解析到有效数据，请检查 Excel 列名'); return }
-
-    // 追加到现有表格
-    rows.value.push(...imported)
-    const matchedCount = imported.filter(r => r.price > 0).length
-    ElMessage.success(`成功导入 ${imported.length} 行，其中 ${matchedCount} 行已匹配单价`)
-  } catch (err) {
-    ElMessage.error('导入失败: ' + (err.message || '格式错误'))
-  } finally {
-    importing.value = false
-    e.target.value = '' // 清空文件选择器
-  }
-}
+ if (stats.unmatched > 0) {
+ ElMessage.info('未匹配的行已保留原始数据，可手动修改或从价格库搜索')
+ }
+ } catch (err) {
+ ElMessage.error('导入失败: ' + (err.message || '格式错误'))
+ } finally {
+ importing.value = false
+ e.target.value = '' // 清空文件选择器
+ }
+	}
 
 function addEmptyRow() { rows.value.push({ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }) }
 function clearRows() {
