@@ -289,8 +289,8 @@ padding: 8px 16px; background: #f0f5ff; border: 1px solid #d9ecff; border-radius
 }
 
 /* 输入区 */
-.input-area { border-top: 1px solid #ebeef5; padding: 12px 16px; }
-.input-wrapper { display: flex; gap: 10px; align-items: flex-end; }
+.input-area { border-top: 1px solid #ebeef5; padding: 8px 16px 0; }
+.input-wrapper { display: flex; gap: 10px; }
 .input-wrapper :deep(.el-textarea__inner) { border-radius: 8px; }
-.send-btn { margin-bottom: 0; flex-shrink: 0; }
+.send-btn { flex-shrink: 0; }
 </style>
