@@ -115,10 +115,11 @@ html, body, #app {
 .top-menu .el-menu-item {
   color: #9aa0a6;
   height: 48px;
-  line-height: 48px;
+  display: flex;
+  align-items: center;
+  line-height: normal;
   font-size: 14px;
   padding: 0 16px;
-  border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
 
@@ -129,8 +130,7 @@ html, body, #app {
 
 .top-menu .el-menu-item.is-active {
   color: white;
-  border-bottom-color: #409eff;
-  background: transparent;
+  background: rgba(255,255,255,0.1);
 }
 
 .app-main {
