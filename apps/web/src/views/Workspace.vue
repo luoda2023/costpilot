@@ -62,9 +62,14 @@
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-        </el-table-column>
+<el-table-column prop="created_at" label="创建时间" width="170">
+  <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+</el-table-column>
+<el-table-column label="操作" width="90" align="center">
+  <template #default="{ row }">
+    <el-button size="small" type="danger" link @click.stop="deleteProject(row)">删除</el-button>
+  </template>
+</el-table-column>
       </el-table>
     </el-card>
 
@@ -101,7 +106,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { PricesAPI, ProjectsAPI } from '@/api'
 import { PriceTag, Location, Folder, Connection, Search, Document, Files, ChatDotRound } from '@element-plus/icons-vue'
 
@@ -152,22 +157,33 @@ const loading = ref(true)
     try { projects.value = await ProjectsAPI.list() } catch {}
   }
 
-  async function createProject() {
-    if (!newProject.name || !newProject.region || !newProject.stage) {
-      ElMessage.warning('请填写完整')
-      return
-    }
-    creating.value = true
-    try {
-      await ProjectsAPI.create({ ...newProject })
-      ElMessage.success('项目已创建')
-      newProjectDialog.value = false
-      newProject.name = ''; newProject.note = ''
-      await loadProjects()
-    } catch (e) {
-      ElMessage.error('创建失败：' + (e.response?.data?.detail || e.message))
-    } finally { creating.value = false }
+async function createProject() {
+  if (!newProject.name || !newProject.region || !newProject.stage) {
+    ElMessage.warning('请填写完整')
+    return
   }
+  creating.value = true
+  try {
+    await ProjectsAPI.create({ ...newProject })
+    ElMessage.success('项目已创建')
+    newProjectDialog.value = false
+    newProject.name = ''; newProject.note = ''
+    await loadProjects()
+    await loadStats()
+  } catch (e) {
+    ElMessage.error('创建失败：' + (e.response?.data?.detail || e.message))
+  } finally { creating.value = false }
+}
+
+async function deleteProject(row) {
+  try {
+    await ElMessageBox.confirm(`确定删除项目「${row.name}」?`, '提示', { type: 'warning' })
+    await ProjectsAPI.delete(row.id)
+    projects.value = projects.value.filter(p => p.id !== row.id)
+    ElMessage.success('已删除')
+    await loadStats()
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
+}
 
   onMounted(() => { loadStats(); loadProjects() })
 </script>
