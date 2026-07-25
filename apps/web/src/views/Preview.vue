@@ -51,10 +51,15 @@
           <div v-if="!currentFile" class="placeholder">
             <el-empty description="从左侧目录选择文件" :image-size="60" />
           </div>
-          <div v-else-if="loadingPreview" class="placeholder">
-            <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-            <p style="margin-top:8px;color:#909399">加载中...</p>
-          </div>
+<div v-else-if="loadingPreview" class="placeholder">
+  <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+  <p style="margin-top:8px;color:#909399">加载中...</p>
+</div>
+<div v-else-if="previewError" class="placeholder">
+  <el-empty description="预览加载失败">
+    <el-button type="primary" @click="openExternal">系统打开</el-button>
+  </el-empty>
+</div>
           <div v-else class="preview-body">
             <!-- PDF -->
             <VueOfficePDF v-if="currentExt === 'pdf'" :src="previewUrl" class="office-viewer" @error="onPreviewError" />
@@ -96,8 +101,9 @@ const rootPath = 'H:/AI-model'
 const pathInput = ref(rootPath)
 const treeData = ref([])
 const currentFile = ref('')
-const loadingPreview = ref(false)
-const textContent = ref('')
+  const loadingPreview = ref(false)
+  const previewError = ref(false)
+  const textContent = ref('')
 const treeProps = { label: 'name', children: 'children', isLeaf: (data) => !data.is_dir }
 const currentExt = computed(() => currentFile.value ? currentFile.value.split('.').pop().toLowerCase() : '')
 const previewUrl = computed(() => {
@@ -123,15 +129,16 @@ async function loadNode(node, resolve) {
 async function onNodeClick(data) {
   if (data.is_dir) return
   currentFile.value = data.path
-  loadingPreview.value = true; textContent.value = ''
+  loadingPreview.value = true; previewError.value = false; textContent.value = ''
   try {
     if (['md','txt','yml','yaml','json','csv','log'].includes(currentExt.value)) {
       const r = await axios.get(apiUrl + '/preview/text', { params: { path: data.path } })
       textContent.value = r.data
     }
-  } finally { loadingPreview.value = false }
-}
-function onPreviewError(err) { ElMessage.error('预览失败') }
+} catch { previewError.value = true }
+  finally { loadingPreview.value = false }
+  }
+  function onPreviewError(err) { previewError.value = true; ElMessage.error('预览失败') }
 function openExternal() {
   if (window.costpilot?.openExternal) window.costpilot.openExternal(currentFile.value)
   else ElMessage.info(`路径: ${currentFile.value}`)
