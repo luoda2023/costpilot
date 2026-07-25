@@ -51,4 +51,9 @@ const router = createRouter({
   routes,
 })
 
+// 切换页面时更新文档标题
+router.afterEach((to) => {
+  document.title = (to.meta?.title || '造价通') + ' - 造价通'
+})
+
 export default router

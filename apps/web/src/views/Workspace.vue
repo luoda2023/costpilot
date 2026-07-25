@@ -116,7 +116,7 @@ const loading = ref(true)
     { label: '查询综合单价', icon: Search, path: '/prices', type: 'primary' },
     { label: '生成文本', icon: Document, path: '/text-gen', type: 'success' },
     { label: '预览文件', icon: Files, path: '/preview', type: 'warning' },
-    { label: 'AI 助手', icon: ChatDotRound, path: '/chat', type: 'info' },
+    { label: 'AI 助手', icon: ChatDotRound, path: '/chat', type: 'danger' },
   ]
 
   const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
