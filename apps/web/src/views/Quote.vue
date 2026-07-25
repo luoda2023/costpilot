@@ -63,9 +63,10 @@
             <el-table-column label="单价" width="120">
               <template #default="{ row }"><el-input-number v-model="row.price" :min="0" :precision="2" :controls="false" size="small" style="width:100%" /></template>
             </el-table-column>
-            <el-table-column label="合价" width="110">
-              <template #default="{ row }">¥ {{ (row.qty * row.price).toLocaleString('zh-CN', {maximumFractionDigits:2}) }}</template>
-            </el-table-column>
+<el-table-column label="合价" width="110">
+  <template #default="{ row }">{{ fmt(row.qty * row.price) }}</template>
+</el-table-column>
+</｜DSML｜table-column>
             <el-table-column label="操作" width="60">
               <template #default="{ $index }"><el-button size="small" type="danger" link @click="rows.splice($index, 1)">删除</el-button></template>
             </el-table-column>
@@ -80,33 +81,33 @@
           <template #header><span class="card-title">报价结果</span></template>
           <div v-if="!result" class="placeholder"><el-empty description="填写工程量后生成报价" :image-size="50" /></div>
           <div v-else class="result-body">
-            <div class="result-block">
-              <div class="result-label">一类(分部分项)</div>
-              <div class="result-value">¥ {{ result.category1.toLocaleString('zh-CN', {maximumFractionDigits:2}) }}</div>
-            </div>
-            <div class="result-block">
-              <div class="result-label">二类(措施费)</div>
-              <div class="result-value">¥ {{ result.category2.toLocaleString('zh-CN', {maximumFractionDigits:2}) }}</div>
-              <el-collapse class="sub-collapse">
-                <el-collapse-item v-for="(v, k) in result.category2_detail" :key="k" :title="k">
-                  ¥ {{ v.toLocaleString('zh-CN', {maximumFractionDigits:2}) }}
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-            <div class="result-block">
-              <div class="result-label">三类(规费+税金)</div>
-              <div class="result-value">¥ {{ result.category3.toLocaleString('zh-CN', {maximumFractionDigits:2}) }}</div>
-              <el-collapse class="sub-collapse">
-                <el-collapse-item v-for="(v, k) in result.category3_detail" :key="k" :title="k">
-                  ¥ {{ v.toLocaleString('zh-CN', {maximumFractionDigits:2}) }}
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-            <el-divider />
-            <div class="result-block grand">
-              <div class="result-label">工程总造价</div>
-              <div class="result-value">¥ {{ result.grand_total.toLocaleString('zh-CN', {maximumFractionDigits:2}) }}</div>
-            </div>
+<div class="result-block">
+  <div class="result-label">一类(分部分项)</div>
+  <div class="result-value">{{ fmt(result.category1) }}</div>
+</div>
+<div class="result-block">
+  <div class="result-label">二类(措施费)</div>
+  <div class="result-value">{{ fmt(result.category2) }}</div>
+  <el-collapse class="sub-collapse">
+    <el-collapse-item v-for="(v, k) in result.category2_detail" :key="k" :title="k">
+      {{ fmt(v) }}
+    </el-collapse-item>
+  </el-collapse>
+</div>
+<div class="result-block">
+  <div class="result-label">三类(规费+税金)</div>
+  <div class="result-value">{{ fmt(result.category3) }}</div>
+  <el-collapse class="sub-collapse">
+    <el-collapse-item v-for="(v, k) in result.category3_detail" :key="k" :title="k">
+      {{ fmt(v) }}
+    </el-collapse-item>
+  </el-collapse>
+</div>
+<el-divider />
+<div class="result-block grand">
+  <div class="result-label">工程总造价</div>
+  <div class="result-value">{{ fmt(result.grand_total) }}</div>
+</div>
           </div>
           <div class="action-bar">
             <el-button type="primary" @click="compose" :loading="composing" :disabled="!rows.length" style="width:100%">生成报价</el-button>
@@ -148,14 +149,17 @@ import { api, PricesAPI } from '@/api'
 import * as XLSX from 'xlsx'
 
 const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
-const specialties = ref([])
-const projectInfo = reactive({ name: '未命名项目', region: '北京市', stage: '预算', tax_method: '一般计税' })
-const rows = ref([{ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }])
-const result = ref(null)
-const composing = ref(false); const exportingX = ref(false); const exportingW = ref(false)
-const searchDialog = ref(false); const searchKw = ref(''); const searchResults = ref([]); const searchLoading = ref(false)
-const importing = ref(false)
-const fileInputRef = ref(null)
+  const specialties = ref([])
+  const projectInfo = reactive({ name: '未命名项目', region: '北京市', stage: '预算', tax_method: '一般计税' })
+  const rows = ref([{ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }])
+  const result = ref(null)
+  const composing = ref(false); const exportingX = ref(false); const exportingW = ref(false)
+  const searchDialog = ref(false); const searchKw = ref(''); const searchResults = ref([]); const searchLoading = ref(false)
+  const importing = ref(false)
+  const fileInputRef = ref(null)
+
+  /** 格式化金额：¥ 1,234.56 */
+  const fmt = (v) => v != null && !isNaN(v) ? '¥ ' + Number(v).toLocaleString('zh-CN', {maximumFractionDigits:2}) : '¥ 0.00'
 
 /** 安全提取数字：移除中文/逗号/空格，只取有效数字 */
 	function safeParseNum(v) {
@@ -253,16 +257,23 @@ function addFromSearch(row) {
   ElMessage.success(`已加入: ${row.item_name}`)
 }
 async function compose() {
-  if (rows.value.some(r => !r.item_name || r.qty <= 0)) { ElMessage.warning('请完善所有行的项目名称和工程量'); return }
-  if (rows.value.some(r => !r.unit)) { ElMessage.warning('请完善所有行的单位'); return }
-  if (rows.value.some(r => r.price <= 0)) { ElMessage.warning('请完善所有行的综合单价'); return }
+  const invalid = rows.value.filter(r => !r.item_name || r.qty <= 0 || !r.unit || r.price <= 0)
+  if (invalid.length) {
+    const missing = []
+    if (rows.value.some(r => !r.item_name)) missing.push('项目名称')
+    if (rows.value.some(r => r.qty <= 0)) missing.push('工程量')
+    if (rows.value.some(r => !r.unit)) missing.push('单位')
+    if (rows.value.some(r => r.price <= 0)) missing.push('综合单价')
+    ElMessage.warning(`请完善所有行的${missing.join('、')}`)
+    return
+  }
   composing.value = true
   try {
     result.value = await api.post('/v1/quotes/compose', {
       items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })),
       region: projectInfo.region, stage: projectInfo.stage, tax_method: projectInfo.tax_method,
     })
-    ElMessage.success(`组价完成: ¥ ${result.value.grand_total.toLocaleString('zh-CN')}`)
+    ElMessage.success(`组价完成: ${fmt(result.value.grand_total)}`)
   } catch (e) { ElMessage.error('组价失败: ' + (e.response?.data?.detail || e.message)) }
   finally { composing.value = false }
 }
