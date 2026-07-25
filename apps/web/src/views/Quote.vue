@@ -10,9 +10,9 @@
 <div class="header-actions">
  <el-button size="small" @click="addEmptyRow">+ 添加行</el-button>
  <el-button size="small" @click="fillFromPriceSearch">从价格库匹配</el-button>
- <el-button size="small" type="success" @click="triggerImport">导入 Excel</el-button>
+ <el-button size="small" type="success" @click="triggerImport" :loading="importing">AI 智能导入</el-button>
  <el-button size="small" type="danger" @click="clearRows" :disabled="!rows.length">清空</el-button>
- <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="onFileSelected" />
+ <input ref="fileInputRef" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onFileSelected" />
  </div>
             </div>
           </template>
@@ -195,46 +195,59 @@ const regions = ['北京市','上海市','天津市','重庆市','广东省','�
  const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
  if (!json.length) { ElMessage.warning('Excel 为空，请检查'); return }
 
- // 解析 Excel 行
- const rawRows = []
- for (const item of json) {
- const name = item['项目名称'] || item['项目名'] || item['名称'] || item['name'] || item['item_name'] || item['Name'] || ''
- if (!name) continue
- rawRows.push({
- item_name: name,
- qty: safeParseNum(item['工程量'] || item['数量'] || item['qty'] || item['Qty'] || item['QTY'] || ''),
- unit: item['单位'] || item['unit'] || item['Unit'] || '',
- specialty: item['专业'] || item['specialty'] || item['Specialty'] || '',
- price: safeParsePrice(item['综合单价'] || item['单价'] || item['价格'] || item['price'] || item['Price'] || ''),
+ // 将表格转为文本,让 AI 理解结构
+ const headers = Object.keys(json[0]).join(',')
+ const sampleRows = json.slice(0, 20).map(r => Object.values(r).join(',')).join('\n')
+ const tableText = `表头: ${headers}\n数据:\n${sampleRows}`
+
+ // AI 智能解析表格结构
+ ElMessage.info('AI 正在理解表格结构...')
+ const parsed = await api.post('/v1/ai/parse-table', {
+ content: tableText,
+ source_type: 'auto',
+ target_fields: ['item_name', 'specialty', 'unit', 'qty', 'price'],
  })
+
+ if (!parsed.rows || !parsed.rows.length) {
+ ElMessage.warning('AI 未能解析表格数据，请检查格式')
+ return
  }
 
- if (!rawRows.length) { ElMessage.warning('未解析到有效数据，请检查 Excel 列名'); return }
+ // 将 AI 解析结果填入表格,再用价格库匹配
+ const rawRows = parsed.rows.map(r => ({
+ item_name: r.item_name || '',
+ qty: safeParseNum(r.qty),
+ unit: r.unit || '',
+ specialty: r.specialty || '',
+ price: safeParsePrice(r.price),
+ })).filter(r => r.item_name)
 
-// 发送到后端 AI 匹配
-	 const result = await api.post('/v1/quotes/ai-match', { rows: rawRows })
+ if (!rawRows.length) { ElMessage.warning('AI 未识别到有效数据行'); return }
 
-	 // 将匹配结果填入表格
-	 const matched = result.matched || []
-	 rows.value.push(...matched)
+ // 发送到后端 AI 匹配价格库
+ const result = await api.post('/v1/quotes/ai-match', { rows: rawRows })
 
-	 const stats = result.stats || {}
-	 const matchedRows = stats.matched ?? 0
-	 const aiMatchedRows = stats.ai_matched ?? 0
-	 const unmatchedRows = stats.unmatched ?? 0
-	 const totalRows = stats.total ?? matched.length
+ // 将匹配结果填入表格
+ const matched = result.matched || []
+ rows.value.push(...matched)
 
-	 let msg = `成功导入 ${totalRows} 行`
-	 if (matchedRows > 0) msg += `，匹配 ${matchedRows} 行`
-	 if (aiMatchedRows > 0) msg += `（AI 辅助 ${aiMatchedRows} 行）`
-	 if (unmatchedRows > 0) msg += `，未匹配 ${unmatchedRows} 行`
-	 ElMessage.success(msg)
+ const stats = result.stats || {}
+ const totalRows = stats.total ?? matched.length
+ const matchedRows = stats.matched ?? 0
+ const aiMatchedRows = stats.ai_matched ?? 0
+ const unmatchedRows = stats.unmatched ?? 0
 
-	 if (unmatchedRows > 0) {
-	 ElMessage.info('未匹配的行已保留原始数据，可手动修改或从价格库搜索')
-	 }
+ let msg = `AI 理解完成，导入 ${totalRows} 行`
+ if (matchedRows > 0) msg += `，匹配 ${matchedRows} 行`
+ if (aiMatchedRows > 0) msg += `（AI 辅助 ${aiMatchedRows} 行）`
+ if (unmatchedRows > 0) msg += `，未匹配 ${unmatchedRows} 行`
+ ElMessage.success(msg)
+
+ if (unmatchedRows > 0) {
+ ElMessage.info('未匹配的行已保留原始数据，可手动修改或从价格库搜索')
+ }
  } catch (err) {
- ElMessage.error('导入失败: ' + (err.message || '格式错误'))
+ ElMessage.error('AI 导入失败: ' + (err.message || '格式错误'))
  } finally {
  importing.value = false
  e.target.value = '' // 清空文件选择器
