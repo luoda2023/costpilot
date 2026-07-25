@@ -43,10 +43,14 @@
       </el-menu>
     </el-header>
 
-    <!-- 主体 -->
-    <el-main class="app-main">
-      <router-view />
-    </el-main>
+<!-- 主体 -->
+  <el-main class="app-main">
+    <router-view v-slot="{ Component }">
+      <transition name="fade" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+  </el-main>
   </el-container>
 </template>
 
@@ -121,16 +125,27 @@ html, body, #app {
   font-size: 14px;
   padding: 0 16px;
   transition: all 0.2s;
+  border-radius: 6px;
+  margin: 0 2px;
 }
 
 .top-menu .el-menu-item:hover {
   color: #e8eaed;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.08);
 }
 
 .top-menu .el-menu-item.is-active {
-  color: white;
-  background: rgba(255,255,255,0.1);
+  color: #409eff;
+  background: rgba(64,158,255,0.12);
+}
+
+.top-menu .el-menu-item .el-icon {
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+.top-menu .el-menu-item.is-active .el-icon {
+  color: #409eff;
 }
 
 .app-main {
@@ -141,22 +156,42 @@ html, body, #app {
 }
 
 /* 去除 Element Plus 默认边框 */
-.el-menu--horizontal > .el-menu-item:not(.is-disabled):focus,
-.el-menu--horizontal > .el-menu-item:not(.is-disabled):hover {
-  background: transparent;
-}
-.el-menu--horizontal {
-  border-bottom: none !important;
-}
+  .el-menu--horizontal > .el-menu-item:not(.is-disabled):focus,
+  .el-menu--horizontal > .el-menu-item:not(.is-disabled):hover {
+    background: transparent;
+  }
+  .el-menu--horizontal {
+    border-bottom: none !important;
+  }
 
-/* 全局 Element Plus 尺寸统一 */
-.el-card__body { padding: 16px; }
-.el-table .cell { line-height: 1.5; }
-.el-table--small { font-size: 13px; }
-.el-tag { line-height: 1.4; }
-.el-button--small { font-size: 13px; }
-.el-form-item__label { font-size: 14px; line-height: 1.5; }
-.el-dialog__body { padding: 20px; }
-.el-descriptions__cell { font-size: 13px; }
-.el-empty__description p { font-size: 14px; line-height: 1.5; }
+  /* 页面切换过渡动画 */
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity 0.2s ease;
+  }
+  .fade-enter-from,
+  .fade-leave-to {
+    opacity: 0;
+  }
+
+  /* 统一滚动条 */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d0d5dd; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b0b5bd; }
+
+  /* 全局 Element Plus 尺寸统一 */
+  .el-card__body { padding: 16px; }
+  .el-card { border-radius: 8px; border: 1px solid #ebeef5; }
+  .el-table .cell { line-height: 1.5; }
+  .el-table--small { font-size: 13px; }
+  .el-table th.el-table__cell { background: #fafafa; }
+  .el-tag { line-height: 1.4; }
+  .el-button--small { font-size: 13px; }
+  .el-form-item__label { font-size: 14px; line-height: 1.5; }
+  .el-dialog__body { padding: 20px; }
+  .el-descriptions__cell { font-size: 13px; }
+  .el-empty__description p { font-size: 14px; line-height: 1.5; }
+  .el-input__inner { font-size: 14px; }
+  .el-select { width: 100%; }
 </style>

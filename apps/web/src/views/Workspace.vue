@@ -1,6 +1,9 @@
 <template>
-  <div class="workspace" v-loading="loading" element-loading-text="正在加载数据...">
-    <!-- 概览卡片 -->
+<div class="workspace" v-loading="loading" element-loading-text="正在加载数据...">
+  <!-- 错误提示 -->
+  <el-alert v-if="loadError" :title="loadError" type="error" show-icon closable class="error-alert" @close="loadError=''" />
+
+  <!-- 概览卡片 -->
     <el-row :gutter="16" class="stat-row">
       <el-col :span="6" v-for="card in statCards" :key="card.label">
         <el-card shadow="never" class="stat-card">
@@ -100,71 +103,76 @@ import { PricesAPI, ProjectsAPI } from '@/api'
 import { PriceTag, Location, Folder, Connection, Search, Document, Files, ChatDotRound } from '@element-plus/icons-vue'
 
 const loading = ref(true)
-const stats = ref({})
-const projects = ref([])
-const newProjectDialog = ref(false)
-const creating = ref(false)
-const newProject = reactive({ name: '', region: '', stage: '估算', note: '' })
-const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
+  const loadError = ref('')
+  const stats = ref({})
+  const projects = ref([])
+  const newProjectDialog = ref(false)
+  const creating = ref(false)
+  const newProject = reactive({ name: '', region: '', stage: '估算', note: '' })
+  const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
 
-const statCards = ref([])
-const quickLinks = [
-  { label: '查询综合单价', icon: Search, path: '/prices', type: 'primary' },
-  { label: '生成文本', icon: Document, path: '/text-gen', type: 'success' },
-  { label: '预览文件', icon: Files, path: '/preview', type: 'warning' },
-  { label: 'AI 助手', icon: ChatDotRound, path: '/chat', type: 'info' },
-]
+  const statCards = ref([])
+  const quickLinks = [
+    { label: '查询综合单价', icon: Search, path: '/prices', type: 'primary' },
+    { label: '生成文本', icon: Document, path: '/text-gen', type: 'success' },
+    { label: '预览文件', icon: Files, path: '/preview', type: 'warning' },
+    { label: 'AI 助手', icon: ChatDotRound, path: '/chat', type: 'info' },
+  ]
 
-const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
+  const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
 
-async function loadStats() {
-  try {
-    const r = await PricesAPI.stats()
-    stats.value = r
-    statCards.value = [
-      { label: '总价格条目', value: r.total_prices ?? '-', icon: PriceTag, bg: '#409eff', cls: '' },
-      { label: '市政专题', value: r.total_topics ?? '-', icon: Location, bg: '#67c23a', cls: '' },
-      { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
-      { label: 'API 状态', value: '正常', icon: Connection, bg: '#67c23a', cls: 'ok' },
-    ]
-  } catch {
-    statCards.value = [
-      { label: '总价格条目', value: '-', icon: PriceTag, bg: '#909399', cls: '' },
-      { label: '市政专题', value: '-', icon: Location, bg: '#909399', cls: '' },
-      { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
-      { label: 'API 状态', value: '异常', icon: Connection, bg: '#f56c6c', cls: 'err' },
-    ]
+  async function loadStats() {
+    try {
+      const r = await PricesAPI.stats()
+      stats.value = r
+      const total = r.total_prices ?? 0
+      statCards.value = [
+        { label: '总价格条目', value: total.toLocaleString(), icon: PriceTag, bg: '#409eff', cls: '' },
+        { label: '市政专题', value: r.total_topics ?? 0, icon: Location, bg: '#67c23a', cls: '' },
+        { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
+        { label: 'API 状态', value: '正常', icon: Connection, bg: '#67c23a', cls: 'ok' },
+      ]
+      loadError.value = ''
+    } catch (e) {
+      loadError.value = '数据加载失败，请检查后端服务是否正常运行'
+      statCards.value = [
+        { label: '总价格条目', value: '-', icon: PriceTag, bg: '#909399', cls: '' },
+        { label: '市政专题', value: '-', icon: Location, bg: '#909399', cls: '' },
+        { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
+        { label: 'API 状态', value: '异常', icon: Connection, bg: '#f56c6c', cls: 'err' },
+      ]
+    }
+    finally { loading.value = false }
   }
-  finally { loading.value = false }
-}
 
-async function loadProjects() {
-  try { projects.value = await ProjectsAPI.list() } catch {}
-}
-
-async function createProject() {
-  if (!newProject.name || !newProject.region || !newProject.stage) {
-    ElMessage.warning('请填写完整')
-    return
+  async function loadProjects() {
+    try { projects.value = await ProjectsAPI.list() } catch {}
   }
-  creating.value = true
-  try {
-    await ProjectsAPI.create({ ...newProject })
-    ElMessage.success('项目已创建')
-    newProjectDialog.value = false
-    newProject.name = ''; newProject.note = ''
-    await loadProjects()
-  } catch (e) {
-    ElMessage.error('创建失败：' + (e.response?.data?.detail || e.message))
-  } finally { creating.value = false }
-}
 
-onMounted(() => { loadStats(); loadProjects() })
+  async function createProject() {
+    if (!newProject.name || !newProject.region || !newProject.stage) {
+      ElMessage.warning('请填写完整')
+      return
+    }
+    creating.value = true
+    try {
+      await ProjectsAPI.create({ ...newProject })
+      ElMessage.success('项目已创建')
+      newProjectDialog.value = false
+      newProject.name = ''; newProject.note = ''
+      await loadProjects()
+    } catch (e) {
+      ElMessage.error('创建失败：' + (e.response?.data?.detail || e.message))
+    } finally { creating.value = false }
+  }
+
+  onMounted(() => { loadStats(); loadProjects() })
 </script>
 
 <style scoped>
-.workspace { display:flex; flex-direction:column; gap:16px; }
-.stat-row { margin-bottom:0; }
+  .workspace { display:flex; flex-direction:column; gap:16px; }
+  .error-alert { margin-bottom: 0; }
+  .stat-row { margin-bottom:0; }
 .stat-card { border-radius:8px; }
 .stat-inner { display:flex; align-items:center; justify-content:space-between; }
 .stat-left { flex:1; }
