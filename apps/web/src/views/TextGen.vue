@@ -54,15 +54,16 @@
       <!-- 右侧：预览 -->
       <el-col :span="9">
         <el-card shadow="never" class="main-card">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title">预览</span>
-              <div>
-                <el-button size="small" type="primary" @click="render" :disabled="!selectedTemplate" :loading="rendering">渲染</el-button>
-                <el-button size="small" @click="exportDocx" :disabled="!rendered">导出 docx</el-button>
-              </div>
-            </div>
-          </template>
+<template #header>
+  <div class="card-header">
+    <span class="card-title">预览</span>
+    <div>
+      <el-button size="small" type="primary" @click="render" :disabled="!selectedTemplate" :loading="rendering">渲染</el-button>
+      <el-button size="small" @click="copyRendered" :disabled="!rendered" :icon="DocumentCopy">复制文本</el-button>
+      <el-button size="small" @click="exportDocx" :disabled="!rendered">导出 docx</el-button>
+    </div>
+  </div>
+</template>
           <div v-if="!rendered" class="placeholder">
             <el-empty description="点击渲染生成预览" :image-size="60" />
           </div>
@@ -130,6 +131,7 @@ async function render() {
   } finally { rendering.value = false }
 }
 function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])) }
+  function copyRendered() { navigator.clipboard.writeText(renderedHtml.value.replace(/<[^>]+>/g,'')).then(() => ElMessage.success('已复制')) }
 async function exportDocx() {
   if (!selectedTemplate.value) { ElMessage.warning('请先选择模板'); return }
   try {
