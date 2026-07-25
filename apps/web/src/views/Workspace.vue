@@ -176,7 +176,8 @@ const loading = ref(true)
   .workspace { display:flex; flex-direction:column; gap:16px; }
   .error-alert { margin-bottom: 0; }
   .stat-row { margin-bottom:0; }
-.stat-card { border-radius:8px; }
+.stat-card { border-radius:8px; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .stat-inner { display:flex; align-items:center; justify-content:space-between; }
 .stat-left { flex:1; }
 .stat-label { font-size:13px; color:#909399; margin-bottom:4px; line-height:1.5; }
@@ -184,7 +185,8 @@ const loading = ref(true)
 .stat-value.ok { color:#67c23a; }
 .stat-value.err { color:#f56c6c; }
 .stat-icon-wrap { width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.section-card { border-radius:8px; margin-top:0; }
+.section-card { border-radius:8px; margin-top:0; transition: box-shadow 0.2s; }
+.section-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .section-title { font-size:15px; font-weight:600; color:#303133; line-height:1.5; }
 .card-header { display:flex; justify-content:space-between; align-items:center; }
 .quick-btn { width:100%; height:48px; font-size:14px; display:flex; align-items:center; gap:8px; border-radius:8px; }
