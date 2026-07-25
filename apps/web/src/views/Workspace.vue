@@ -59,9 +59,9 @@
         <el-table-column prop="name" label="项目名" min-width="200" />
         <el-table-column prop="region" label="地区" width="100" />
         <el-table-column prop="stage" label="阶段" width="90" />
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
-        </el-table-column>
+<el-table-column prop="status" label="状态" width="90">
+  <template #default="{ row }"><el-tag size="small" :type="statusType(row.status)">{{ row.status }}</el-tag></template>
+</el-table-column>
 <el-table-column prop="created_at" label="创建时间" width="170">
   <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
 </el-table-column>
@@ -184,8 +184,12 @@ async function deleteProject(row) {
     await loadStats()
   } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
 }
+function statusType(s) {
+  const m = { '草稿': 'info', '进行中': 'primary', '已交付': 'success', '已归档': 'warning' }
+  return m[s] || 'info'
+}
 
-  onMounted(() => { loadStats(); loadProjects() })
+onMounted(() => { loadStats(); loadProjects() })
 </script>
 
 <style scoped>
