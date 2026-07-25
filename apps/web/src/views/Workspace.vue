@@ -49,12 +49,15 @@
 
     <!-- 项目列表 -->
     <el-card shadow="never" class="section-card">
-      <template #header>
-        <div class="card-header">
-          <span class="section-title">最近项目</span>
-          <el-button size="small" type="primary" @click="newProjectDialog = true">+ 新建</el-button>
-        </div>
-      </template>
+<template #header>
+	<div class="card-header">
+		<span class="section-title">最近项目</span>
+		<div class="header-actions">
+			<el-button size="small" type="primary" @click="newProjectDialog = true">+ 新建</el-button>
+			<el-button size="small" type="success" @click="aiProjectDialog = true"><el-icon :size="14"><MagicStick /></el-icon> AI 快速创建</el-button>
+		</div>
+	</div>
+</template>
       <el-table :data="projects" stripe empty-text="暂无项目，点击右上角新建">
         <el-table-column prop="name" label="项目名" min-width="200" />
         <el-table-column prop="region" label="地区" width="100" />
@@ -100,23 +103,55 @@
         <el-button @click="newProjectDialog = false">取消</el-button>
         <el-button type="primary" @click="createProject" :loading="creating">创建</el-button>
       </template>
-    </el-dialog>
-  </div>
+</el-dialog>
+
+<!-- AI 快速创建项目对话框 -->
+<el-dialog v-model="aiProjectDialog" title="AI 快速创建项目" width="500" :close-on-click-modal="false">
+	<div class="ai-create-desc">
+		<p>输入一句话描述，AI 自动提取项目信息并创建：</p>
+		<el-input
+			v-model="aiDescription"
+			type="textarea"
+			:rows="4"
+			placeholder="如：帮我建一个北京某高层住宅1#楼的估算项目，建筑面积约12000㎡，框架结构"
+		/>
+	</div>
+	<div v-if="aiPreview" class="ai-preview">
+		<el-divider>AI 识别结果</el-divider>
+		<el-descriptions :column="1" border size="small">
+			<el-descriptions-item label="项目名">{{ aiPreview.name }}</el-descriptions-item>
+			<el-descriptions-item label="地区">{{ aiPreview.region }}</el-descriptions-item>
+			<el-descriptions-item label="阶段">{{ aiPreview.stage }}</el-descriptions-item>
+			<el-descriptions-item label="备注">{{ aiPreview.note || '-' }}</el-descriptions-item>
+		</el-descriptions>
+	</div>
+	<template #footer>
+		<el-button @click="aiProjectDialog = false; aiPreview = null">取消</el-button>
+		<el-button @click="aiParseProject" :loading="aiParsing" :disabled="!aiDescription.trim()">AI 识别</el-button>
+		<el-button type="primary" @click="aiCreateProject" :loading="aiCreating" :disabled="!aiPreview">确认创建</el-button>
+	</template>
+</el-dialog>
+</div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { PricesAPI, ProjectsAPI } from '@/api'
+import { PricesAPI, ProjectsAPI, api } from '@/api'
 import { PriceTag, Location, Folder, Connection, Search, Document, Files, ChatDotRound } from '@element-plus/icons-vue'
 
 const loading = ref(true)
   const loadError = ref('')
   const stats = ref({})
   const projects = ref([])
-  const newProjectDialog = ref(false)
-  const creating = ref(false)
-  const newProject = reactive({ name: '', region: '', stage: '估算', note: '' })
+const newProjectDialog = ref(false)
+const creating = ref(false)
+const newProject = reactive({ name: '', region: '', stage: '估算', note: '' })
+const aiProjectDialog = ref(false)
+const aiDescription = ref('')
+const aiPreview = ref(null)
+const aiParsing = ref(false)
+const aiCreating = ref(false)
   const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
 
   const statCards = ref([])
@@ -185,8 +220,40 @@ async function deleteProject(row) {
   } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
 }
 function statusType(s) {
-  const m = { '草稿': 'info', '进行中': 'primary', '已交付': 'success', '已归档': 'warning' }
-  return m[s] || 'info'
+	const m = { '草稿': 'info', '进行中': 'primary', '已交付': 'success', '已归档': 'warning' }
+	return m[s] || 'info'
+}
+
+async function aiParseProject() {
+	if (!aiDescription.value.trim()) return
+	aiParsing.value = true
+	try {
+		const r = await api.post('/v1/ai/parse-project', { description: aiDescription.value.trim() })
+		aiPreview.value = r
+	} catch (e) {
+		ElMessage.error('AI 识别失败: ' + (e.response?.data?.detail || e.message))
+	} finally { aiParsing.value = false }
+}
+
+async function aiCreateProject() {
+	if (!aiPreview.value) return
+	aiCreating.value = true
+	try {
+		await ProjectsAPI.create({
+			name: aiPreview.value.name,
+			region: aiPreview.value.region,
+			stage: aiPreview.value.stage,
+			note: aiPreview.value.note,
+		})
+		ElMessage.success('AI 项目已创建')
+		aiProjectDialog.value = false
+		aiPreview.value = null
+		aiDescription.value = ''
+		await loadProjects()
+		await loadStats()
+	} catch (e) {
+		ElMessage.error('创建失败: ' + (e.response?.data?.detail || e.message))
+	} finally { aiCreating.value = false }
 }
 
 onMounted(() => { loadStats(); loadProjects() })
@@ -215,4 +282,7 @@ onMounted(() => { loadStats(); loadProjects() })
   .spec-name { color:#606266; font-size:13px; line-height:1.5; }
   .spec-count { color:#303133; font-weight:600; font-size:13px; line-height:1.5; }
   .empty-specialty { padding:20px 0; text-align:center; }
+.header-actions { display:flex; gap:8px; align-items:center; }
+.ai-create-desc p { margin:0 0 12px; color:#606266; font-size:14px; }
+.ai-preview { margin-top:8px; }
 </style>
