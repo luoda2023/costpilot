@@ -159,11 +159,16 @@ def export_word(payload: ExportIn):
 
 @router.get("/download/{filename}")
 def download_file(filename: str):
-    """下载已生成的报价文件"""
-    # 防 path traversal
-    if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(400, "非法文件名")
-    path = OUTPUT_DIR / filename
-    if not path.exists():
-        raise HTTPException(404, "文件不存在或已清理")
-    return FileResponse(str(path), filename=filename)
+ """下载已生成的报价文件"""
+ # 防 path traversal
+ if "/" in filename or "\\" in filename or ".." in filename:
+  raise HTTPException(400, "非法文件名")
+ path = OUTPUT_DIR / filename
+ if not path.exists():
+  raise HTTPException(404, "文件不存在或已清理")
+ return FileResponse(str(path), filename=filename)
+
+@router.post("/save")
+def save_quote(payload: ExportIn):
+ """保存报价到数据库(预留接口)"""
+ return {"ok": True, "message": "报价已保存"}

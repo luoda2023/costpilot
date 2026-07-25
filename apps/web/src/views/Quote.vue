@@ -111,10 +111,11 @@
           </div>
           <div class="action-bar">
             <el-button type="primary" @click="compose" :loading="composing" :disabled="!rows.length" style="width:100%">生成报价</el-button>
-            <div class="sub-actions">
-              <el-button @click="exportExcel" :loading="exportingX" :disabled="!result" size="small">导出 Excel</el-button>
-              <el-button @click="exportWord" :loading="exportingW" :disabled="!result" size="small">导出 Word</el-button>
-            </div>
+<div class="sub-actions">
+  <el-button @click="saveQuote" :loading="saving" :disabled="!result" size="small">保存报价</el-button>
+  <el-button @click="exportExcel" :loading="exportingX" :disabled="!result" size="small">导出 Excel</el-button>
+  <el-button @click="exportWord" :loading="exportingW" :disabled="!result" size="small">导出 Word</el-button>
+</div>
           </div>
         </el-card>
       </el-col>
@@ -292,6 +293,18 @@ async function exportWord() {
   } catch { ElMessage.error('导出失败') } finally { exportingW.value = false }
 }
 async function loadSpecialties() { try { specialties.value = await PricesAPI.specialties() } catch {} }
+
+const saving = ref(false)
+async function saveQuote() {
+  if (!result.value) return
+  saving.value = true
+  try {
+    await api.post('/v1/quotes/save', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo }, result: result.value })
+    ElMessage.success('报价已保存')
+  } catch (e) { ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message)) }
+  finally { saving.value = false }
+}
+
 onMounted(loadSpecialties)
 </script>
 
