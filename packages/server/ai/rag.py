@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 CHROMA_DIR = PROJECT_ROOT / get_config().rag.chroma_dir
 CHROMA_DIR.mkdir(parents=True, exist_ok=True)
 
-COLLECTION_NAME = "costpilot_kb"
+COLLECTION_NAME = "engineering_assistant_kb"
 
 _chroma_client = None
 _collection = None

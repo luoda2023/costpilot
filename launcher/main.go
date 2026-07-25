@@ -1,10 +1,10 @@
-// CostPilot 一键启动器 - Windows 原生 EXE
+// 工程助手 一键启动器 - Windows 原生 EXE
 //
 // 双击 start.exe 后:
 //   1. 检测 Docker
 //   2. 启动 lobechat 容器 (DeepSeek/OpenAI 兼容)
 //   3. 等待 http://localhost:3210 就绪
-//   4. 启动工程助手桌面壳 costpilot.exe
+//   4. 启动工程助手桌面壳 工程助手.exe
 //
 // 配置在 sidecar 的 config.yaml 中(可编辑)。
 package main
@@ -59,7 +59,7 @@ func main() {
 			Label{Text: "正在拉起工程助手运行环境 ...", MinSize: Size{Height: 22}},
 			TextEdit{AssignTo: &logBox, ReadOnly: true, VScroll: true, MinSize: Size{Height: 240}},
 			PushButton{AssignTo: &btnOpen, Text: "打开工程助手", Enabled: false,
-				OnClicked: func() { openCostPilot() }},
+				OnClicked: func() { openEngineeringAssistant() }},
 			ProgressBar{Min: 0, Max: 100, Value: 0, AssignTo: &pb},
 		},
 	}.Create()
@@ -70,7 +70,7 @@ func main() {
 			{"检测 Docker", stepCheckDocker},
 			{"启动 LobeChat 容器", stepStartLobeChat},
 			{fmt.Sprintf("等待 :%d 就绪", lobePort), stepWaitLobeChat},
-			{"启动工程助手桌面", stepStartCostPilot},
+			{"启动工程助手桌面", stepStartEngineeringAssistant},
 		}
 		for i, s := range steps {
 			logf(mw, logBox, "[%d/%d] %s ...", i+1, len(steps), s.name)
@@ -204,17 +204,17 @@ func stepWaitLobeChat(mw *walk.MainWindow, log *walk.TextEdit) error {
 }
 
 // ---------- 步骤 4: 启动工程助手桌面 ----------
-func stepStartCostPilot(mw *walk.MainWindow, log *walk.TextEdit) error {
-	return openCostPilot()
+func stepStartEngineeringAssistant(mw *walk.MainWindow, log *walk.TextEdit) error {
+	return openEngineeringAssistant()
 }
 
 // ---------- 工具函数 ----------
-func openCostPilot() error {
-	// 优先找 costpilot.exe(线上构建产物)
+func openEngineeringAssistant() error {
+	// 优先找 工程助手.exe(线上构建产物)
 	exePath, _ := os.Executable()
 	dir := filepath.Dir(exePath)
 	candidates := []string{
-		filepath.Join(dir, "costpilot.exe"),
+		filepath.Join(dir, "工程助手.exe"),
 		filepath.Join(dir, "..", "dist-electron", "win-unpacked", "工程助手.exe"),
 		filepath.Join(dir, "..", "apps", "desktop", "dist", "工程助手.exe"),
 	}

@@ -16,8 +16,8 @@ from packages.server.api.chat import router as chat_router
 from packages.server.api.files import router as files_router
 
 app = FastAPI(
-title="工程助手 CostPilot API",
-description="工程智能助手 - 本地 API 服务",
+	title="工程助手 API",
+	description="工程助手 - 工程造价智能辅助系统",
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -81,7 +81,7 @@ app.include_router(knowledge_router, prefix="/api/v1/kb", tags=["知识库 RAG"]
 def api_status():
     """纯 API 信息端点"""
     return {
-        "name": "工程助手 CostPilot API",
+        "name": "工程助手 API",
         "version": "0.1.0",
         "docs": "/docs",
     }

@@ -140,7 +140,7 @@ async function onNodeClick(data) {
   }
   function onPreviewError(err) { previewError.value = true; ElMessage.error('预览失败') }
 function openExternal() {
-  if (window.costpilot?.openExternal) window.costpilot.openExternal(currentFile.value)
+  if (window.engineeringAssistant?.openExternal) window.engineeringAssistant.openExternal(currentFile.value)
   else ElMessage.info(`路径: ${currentFile.value}`)
 }
 function copyPath() { navigator.clipboard.writeText(currentFile.value); ElMessage.success('已复制') }

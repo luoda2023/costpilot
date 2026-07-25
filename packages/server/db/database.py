@@ -12,11 +12,11 @@ def _db_path() -> Path:
     """数据库文件路径
 
     ⚠ 卸载重装不丢数据的关键:
-      ① 优先使用 COSTPILOT_DATA_DIR 环境变量(由 Electron 主进程设置)
+      ① 优先使用 ENGINEERING_ASSISTANT_DATA_DIR 环境变量(由 Electron 主进程设置)
       ② 打包后: exe 同目录/data/sqlite(旧版兼容)
       ③ 开发模式: 项目根/data/sqlite
     """
-    data_dir = os.environ.get("COSTPILOT_DATA_DIR")
+    data_dir = os.environ.get("ENGINEERING_ASSISTANT_DATA_DIR")
     if data_dir:
         return Path(data_dir) / "data" / "sqlite" / "工程助手.db"
 
@@ -28,7 +28,7 @@ def _db_path() -> Path:
 
 # 数据库 URL (环境变量优先)
 DB_URL = os.environ.get(
-    "COSTPILOT_DB_URL",
+    "ENGINEERING_ASSISTANT_DB_URL",
     f"sqlite:///{_db_path()}"
 )
 

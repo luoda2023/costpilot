@@ -1,9 +1,9 @@
 {
-  "name": "costpilot",
-  "version": "0.1.0",
-  "description": "CostPilot - construction cost intelligent assistant",
-  "private": true,
-  "author": "CostPilot",
+ "name": "engineering-assistant",
+ "version": "0.1.0",
+ "description": "工程助手 - 工程造价智能辅助系统",
+ "private": true,
+ "author": "LUODA",
   "license": "MIT",
   "main": "apps/desktop/main/index.js",
   "scripts": {
@@ -27,23 +27,23 @@
     "vite": "^5.3.0"
   },
 "build": {
-"appId": "com.costpilot.desktop",
-"productName": "CostPilot",
+"appId": "com.luoda.engineering-assistant",
+	"productName": "工程助手",
 "files": [
 "apps/desktop/**/*",
 "packages/**/*",
-"costpilot-server.exe",
+"engine-server.exe",
 "alembic.ini",
 "packages/db-migrations/**/*",
 "config.example.yaml"
 ],
 "asarUnpack": [
-"costpilot-server.exe"
+"engine-server.exe"
 ],
 "extraResources": [
 {
-"from": "costpilot-server.exe",
-"to": "app/costpilot-server.exe"
+"from": "engine-server.exe",
+"to": "app/engine-server.exe"
 },
 {
 "from": "data/sqlite",

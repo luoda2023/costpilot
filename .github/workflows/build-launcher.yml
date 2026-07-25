@@ -43,7 +43,7 @@ jobs:
       - name: Upload start.exe as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: costpilot-start-exe
+          name: engineering-assistant-start-exe
           path: launcher/start.exe
           if-no-files-found: error
           retention-days: 90

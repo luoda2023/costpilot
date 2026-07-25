@@ -16,8 +16,8 @@ const SERVER_URL = 'http://127.0.0.1:8765';
 const SERVER_PORT = 8765;
 const isDev = !app.isPackaged;
 
-// 用户数据目录: %APPDATA%/costpilot (卸载重装不丢配置/数据库)
-const USER_DATA_DIR = path.join(app.getPath('appData'), 'costpilot');
+// 用户数据目录: %APPDATA%/engineering-assistant (卸载重装不丢配置/数据库)
+const USER_DATA_DIR = path.join(app.getPath('appData'), 'engineering-assistant');
 
 // 关闭 GPU 硬件加速 - 解决花屏/闪屏问题(部分显卡与 Chromium 渲染冲突)
 app.disableHardwareAcceleration();
@@ -28,16 +28,16 @@ let pythonServer = null;
 /**
  * 启动 Python FastAPI 子进程
  *
- * 打包后: 用 PyInstaller 产出的 costpilot-server.exe,无需用户装 Python
+ * 打包后: 用 PyInstaller 产出的 engine-server.exe,无需用户装 Python
  * 开发期: 用 python -m uvicorn
  */
 function startPythonServer() {
  let cmd, args, cwd;
 
  if (app.isPackaged) {
- // 打包模式: 跑 costpilot-server.exe (PyInstaller onefile)
+ // 打包模式: 跑 engine-server.exe (PyInstaller onefile)
  if (process.platform === 'win32') {
- cmd = path.join(process.resourcesPath, 'app', 'costpilot-server.exe');
+ cmd = path.join(process.resourcesPath, 'app', 'engine-server.exe');
  args = ['--host', '127.0.0.1', '--port', String(SERVER_PORT)];
  } else {
  // mac/linux 暂未实现PyInstaller 打包,降级到 python3
@@ -63,7 +63,7 @@ pythonServer = spawn(cmd, args, {
 	 env: {
  ...process.env,
  PYTHONIOENCODING: 'utf-8',
- COSTPILOT_DATA_DIR: USER_DATA_DIR, // 告诉 Python 服务端用户数据目录
+ ENGINEERING_ASSISTANT_DATA_DIR: USER_DATA_DIR, // 告诉 Python 服务端用户数据目录
  },
 	 stdio: ['ignore', 'pipe', 'pipe'],
 	 windowsHide: true,
@@ -82,7 +82,7 @@ pythonServer = spawn(cmd, args, {
 
 /**
  * 首次启动: 确保 config.yaml / 数据库在 USER_DATA_DIR 存在
- * %APPDATA%/costpilot/ 卸载重装不丢
+ * %APPDATA%/engineering-assistant/ 卸载重装不丢
  */
 function ensureRuntimeFiles() {
   // 1. 创建用户数据目录

@@ -1,4 +1,4 @@
-# 工程助手一键启动器 (CostPilot Launcher)
+# 工程助手一键启动器 (工程助手 Launcher)
 
 > 双击 `start.exe` 即可拉起整个工程助手运行环境（LobeChat + 桌面壳），用户无需打开 Docker Desktop、无需敲命令行。
 
@@ -41,7 +41,7 @@ launcher/
    └─ HTTP GET 30 次每次 1s, 任一次 200-499 即视为就绪
 
 [4/4] 启动工程助手桌面壳
-   ├─ 优先找同目录的 costpilot.exe
+   ├─ 优先找同目录的 工程助手.exe
    ├─ 次找 ../dist-electron/win-unpacked/工程助手.exe
    ├─ 再次找 ../apps/desktop/dist/工程助手.exe
    └─ 兜底 npm run dev:electron (开发期)
@@ -75,7 +75,7 @@ build.bat
 
 ## 五、 用户使用
 
-1. 把 `start.exe` 与 `costpilot.exe` 放到同一目录 (推荐: `C:\Program Files\工程助手\`)
+1. 把 `start.exe` 与 `工程助手.exe` 放到同一目录 (推荐: `C:\Program Files\工程助手\`)
 2. 双击 `start.exe`
 3. 等 4 步进度完成
 4. 点「打开工程助手」按钮,桌面 应用出现,选「AI 助手」标签页即可聊天
@@ -102,7 +102,7 @@ var defaultEnv = map[string]string{
 | 进度卡在 [1/4] 60s 后报错 | Docker Desktop 未安装/未启动 | 安装 https://www.docker.com/products/docker-desktop/ |
 | [2/4] 报 `image not found` | 网络慢,首次拉 lobehub/lobe-chat:latest 失败 | 手动 `docker pull lobehub/lobe-chat:latest` 后重试 |
 | [3/4] 30s 未就绪 | LobeChat 内部错误 | 命令行 `docker logs lobechat` 看 |
-| [4/4] 找不到工程助手.exe | costpilot.exe 没放到同目录 | 重新跑 electron-builder 打 Setup.exe |
+| [4/4] 找不到工程助手.exe | 工程助手.exe 没放到同目录 | 重新跑 electron-builder 打 Setup.exe |
 
 ## 八、 LobeChat 容器日常维护
 

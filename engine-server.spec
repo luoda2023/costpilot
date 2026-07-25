@@ -1,9 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec - 把后端打成单文件 costpilot-server.exe
+# PyInstaller spec - 把后端打成单文件 engine-server.exe
 # 用法:
-#   pip install pyinstaller
-#   pyinstaller costpilot-server.spec --noconfirm
-# 产出: dist/costpilot-server.exe
+# pip install pyinstaller
+# pyinstaller engine-server.spec --noconfirm
+# 产出: dist/engine-server.exe
 import sys
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
@@ -55,7 +55,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='costpilot-server',
+    name='engine-server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

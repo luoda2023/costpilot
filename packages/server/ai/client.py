@@ -64,7 +64,7 @@ class AIClient:
         if self.provider != "ollama" and not self.api_key:
             raise AIConfigError(
                 f"AI api_key 未配置。请在 config.yaml 的 ai.api_key 填入 {self.provider} 的密钥,"
-                f"或设置环境变量 COSTPILOT_AI_API_KEY。"
+                f"或设置环境变量 ENGINEERING_ASSISTANT_AI_API_KEY。"
             )
 
         if not self.base_url:

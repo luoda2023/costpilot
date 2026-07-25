@@ -2,8 +2,8 @@
 工程助手 - 后端入口 (PyInstaller 打包目标)
 
 打包后:
-  costpilot-server.exe  ← 直接双击运行,起 uvicorn
-  costpilot-server.exe --port 8765 --host 127.0.0.1
+ engine-server.exe  ← 直接双击运行,起 uvicorn
+ engine-server.exe --port 8765 --host 127.0.0.1
 """
 import sys
 import os

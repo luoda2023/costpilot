@@ -4,7 +4,7 @@
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('costpilot', {
+contextBridge.exposeInMainWorld('engineeringAssistant', {
   // 服务器通知
   onServerReady: (callback) => ipcRenderer.on('server:ready', (_, url) => callback(url)),
   onServerError: (callback) => ipcRenderer.on('server:error', (_, msg) => callback(msg)),

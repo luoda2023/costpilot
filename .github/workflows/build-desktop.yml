@@ -1,5 +1,5 @@
 # 工程助手 - 一键安装包构建 (GitHub Actions 云端跑,产出 Setup.exe)
-# 用户在 Actions 页手动 Run,约 15 分钟后下载 Artifacts/costpilot-setup-exe
+# 用户在 Actions 页手动 Run,约 15 分钟后下载 Artifacts/engineering-assistant-setup-exe
 # 装完后双击桌面图标即可启动工程助手,无需装 Python/Node
 name: Build Desktop Installer
 
@@ -36,18 +36,18 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build costpilot-server.exe (PyInstaller)
-        shell: cmd
-        run: scripts\build_server.bat
+- name: Build engine-server.exe (PyInstaller)
+ shell: cmd
+ run: scripts\build_server.bat
 
-      - name: Verify server.exe
-        shell: pwsh
-        run: |
-          if (-not (Test-Path dist\costpilot-server.exe)) { throw "server.exe missing" }
-          $sz = (Get-Item dist\costpilot-server.exe).Length / 1MB
-          Write-Host "server.exe size: $sz MB"
-          Copy-Item dist\costpilot-server.exe -Destination costpilot-server.exe -Force
-          Write-Host "已复制到根目录: costpilot-server.exe"
+ - name: Verify server.exe
+ shell: pwsh
+ run: |
+ if (-not (Test-Path dist\engine-server.exe)) { throw "server.exe missing" }
+ $sz = (Get-Item dist\engine-server.exe).Length / 1MB
+ Write-Host "server.exe size: $sz MB"
+ Copy-Item dist\engine-server.exe -Destination engine-server.exe -Force
+ Write-Host "已复制到根目录: engine-server.exe"
 
       - name: Init database with seed data
         shell: bash
@@ -96,7 +96,7 @@ jobs:
 - name: Upload Setup.exe
         uses: actions/upload-artifact@v4
         with:
-          name: costpilot-setup-exe
+          name: engineering-assistant-setup-exe
           path: |
             dist-electron/*.exe
             dist-electron/latest.yml
@@ -106,7 +106,7 @@ jobs:
       - name: Upload unpacked dir (debug)
         uses: actions/upload-artifact@v4
         with:
-          name: costpilot-unpacked
+          name: engineering-assistant-unpacked
           path: dist-electron/win-unpacked/**
           if-no-files-found: error
           retention-days: 7

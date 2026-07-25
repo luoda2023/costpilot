@@ -7,7 +7,7 @@
  cfg.ai.base_url / cfg.ai.api_key / cfg.ai.model
 
 配置优先级(高 -> 低):
- 1. 环境变量 COSTPILOT_DATA_DIR/config.yaml (由 Electron 设置, 卸载重装不丢)
+ 1. 环境变量 ENGINEERING_ASSISTANT_DATA_DIR/config.yaml (由 Electron 设置, 卸载重装不丢)
  2. 可执行文件同目录/config.yaml (旧版兼容)
  3. 项目根/config.yaml (开发模式)
 """
@@ -24,11 +24,11 @@ def _resolve_config_path() -> Path:
     """确定 config.yaml 的查找路径
 
     ⚠ 卸载重装不丢配置的关键:
-      ① 优先使用 COSTPILOT_DATA_DIR 环境变量(由 Electron 主进程设置)
+      ① 优先使用 ENGINEERING_ASSISTANT_DATA_DIR 环境变量(由 Electron 主进程设置)
       ② 打包后: exe 同目录(旧版兼容)
       ③ 开发模式: 项目根
     """
-    data_dir = os.environ.get("COSTPILOT_DATA_DIR")
+    data_dir = os.environ.get("ENGINEERING_ASSISTANT_DATA_DIR")
     if data_dir:
         return Path(data_dir) / "config.yaml"
 
@@ -60,7 +60,7 @@ class AIConfig:
         return {
             "provider": self.provider,
             "base_url": self.base_url or preset.get("base_url", ""),
-            "api_key": self.api_key or os.environ.get("COSTPILOT_AI_API_KEY", ""),
+            "api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", ""),
             "model": self.model or preset.get("model", ""),
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
