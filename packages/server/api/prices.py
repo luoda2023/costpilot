@@ -82,21 +82,24 @@ def prices_stats(db: Session = Depends(get_db)):
 
 @router.get("", response_model=List[PriceUnitOut])
 def list_prices(
-    specialty: Optional[str] = None,
-    region: Optional[str] = None,
-    keyword: Optional[str] = None,
-    limit: int = Query(50, le=500),
-    offset: int = 0,
-    db: Session = Depends(get_db),
+  specialty: Optional[str] = None,
+  region: Optional[str] = None,
+  keyword: Optional[str] = None,
+  unit: Optional[str] = None,
+  limit: int = Query(50, le=500),
+  offset: int = 0,
+  db: Session = Depends(get_db),
 ):
-    """列表查价(分页)"""
-    q = db.query(PriceUnit, Specialty.name).join(Specialty, PriceUnit.specialty_id == Specialty.id)
-    if specialty:
-        q = q.filter(Specialty.name == specialty)
-    if region:
-        q = q.filter(PriceUnit.region == region)
-    if keyword:
-        q = q.filter(PriceUnit.item_name.like(f"%{keyword}%"))
+  """列表查价(分页)"""
+  q = db.query(PriceUnit, Specialty.name).join(Specialty, PriceUnit.specialty_id == Specialty.id)
+  if specialty:
+    q = q.filter(Specialty.name == specialty)
+  if region:
+    q = q.filter(PriceUnit.region == region)
+  if keyword:
+    q = q.filter(PriceUnit.item_name.like(f"%{keyword}%"))
+  if unit:
+    q = q.filter(PriceUnit.unit == unit)
     q = q.order_by(PriceUnit.id).offset(offset).limit(limit)
     results = []
     for pu, spec_name in q.all():
