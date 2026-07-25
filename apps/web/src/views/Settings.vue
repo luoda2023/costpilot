@@ -88,20 +88,21 @@ const form = reactive({ provider: 'deepseek', base_url: '', api_key: '', model: 
 const testing = ref(false); const applying = ref(false); const reloading = ref(false); const testResult = ref(null)
 
 async function loadProviders() {
-  const r = await axios.get(apiUrl + '/ai/providers')
-  providers.value = r.data
+  try { const r = await axios.get(apiUrl + '/ai/providers'); providers.value = r.data }
+  catch { ElMessage.error('加载 Provider 列表失败') }
 }
 async function loadCurrent() {
-  const r = await axios.get(apiUrl + '/ai/config')
-  current.value = r.data
-  Object.assign(form, {
-    provider: r.data.provider,
-    base_url: r.data.base_url,
-    model: r.data.model,
-    temperature: r.data.temperature,
-    max_tokens: r.data.max_tokens,
-    // api_key 不回显，保持空字符串；用户不修改则不发送
-  })
+  try {
+    const r = await axios.get(apiUrl + '/ai/config')
+    current.value = r.data
+    Object.assign(form, {
+      provider: r.data.provider,
+      base_url: r.data.base_url,
+      model: r.data.model,
+      temperature: r.data.temperature,
+      max_tokens: r.data.max_tokens,
+    })
+  } catch { ElMessage.error('加载当前配置失败') }
 }
 async function loadKbStats() {
   try {
@@ -126,7 +127,7 @@ async function testConnection() {
       testResult.value = { ok: false, msg: r.data.msg }
     }
   } catch (e) {
-    testResult.value = { ok: false, msg: e.response?.data?.detail || e.message }
+    testResult.value = { ok: false, msg: '连接失败: ' + (e.response?.data?.detail || e.message) }
   } finally { testing.value = false }
 }
 async function applyChange() {
@@ -139,14 +140,22 @@ async function applyChange() {
     } else {
       ElMessage.error(r.data.msg)
     }
+  } catch (e) {
+    ElMessage.error('应用配置失败: ' + (e.response?.data?.detail || e.message))
   } finally { applying.value = false }
 }
 async function reloadYaml() {
   reloading.value = true
   try {
-    await axios.post(apiUrl + '/ai/reload')
-    ElMessage.success('config.yaml 已重载')
+    const r = await axios.post(apiUrl + '/ai/reload')
+    if (r.data?.ok) {
+      ElMessage.success('config.yaml 已重载')
+    } else {
+      ElMessage.info('已重载配置文件')
+    }
     await loadCurrent()
+  } catch (e) {
+    ElMessage.error('重载失败: ' + (e.response?.data?.detail || e.message))
   } finally { reloading.value = false }
 }
 onMounted(() => { loadProviders(); loadCurrent(); loadKbStats() })
