@@ -45,20 +45,23 @@
             <el-icon class="is-loading" :size="24"><Loading /></el-icon>
           </div>
 
-          <div
-            v-for="(msg, i) in messages"
-            :key="i"
-            class="message-row"
-            :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
-          >
-            <div class="avatar" :class="msg.role">
-              <el-icon v-if="msg.role === 'user'" :size="16"><UserFilled /></el-icon>
-              <el-icon v-else :size="16" color="#409eff"><Monitor /></el-icon>
-            </div>
-            <div class="bubble" :class="msg.role">
-              <div class="msg-content" v-html="renderMarkdown(msg.content)"></div>
-            </div>
-          </div>
+<div
+  v-for="(msg, i) in messages"
+  :key="i"
+  class="message-row"
+  :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
+>
+  <div class="avatar" :class="msg.role">
+    <el-icon v-if="msg.role === 'user'" :size="16"><UserFilled /></el-icon>
+    <el-icon v-else :size="16" color="#409eff"><Monitor /></el-icon>
+  </div>
+  <div class="bubble" :class="msg.role">
+    <div v-if="msg._loading" class="typing-indicator">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </div>
+    <div v-else class="msg-content" v-html="renderMarkdown(msg.content)"></div>
+  </div>
+</div>
         </template>
       </div>
 
@@ -243,6 +246,14 @@ padding: 8px 16px; background: #f0f5ff; border: 1px solid #d9ecff; border-radius
 .bubble.user { background: #409eff; color: #fff; border-bottom-right-radius: 2px; }
 .bubble.assistant { background: #f0f2f5; color: #303133; border-bottom-left-radius: 2px; }
 .msg-content { word-break: break-word; }
+
+/* 打字动画指示器 */
+.typing-indicator { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.typing-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: #909399; animation: typingBounce 1.4s infinite ease-in-out both; }
+.typing-indicator .dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator .dot:nth-child(2) { animation-delay: -0.16s; }
+.typing-indicator .dot:nth-child(3) { animation-delay: 0s; }
+@keyframes typingBounce { 0%, 80%, 100% { transform: scale(0.6); } 40% { transform: scale(1); } }
 
 /* 消息内容中的 Markdown 样式 */
 .msg-content :deep(p) { margin: 0 0 8px 0; }
