@@ -14,14 +14,14 @@
         </el-card>
         <el-card shadow="never" class="side-card" style="margin-top:12px">
           <template #header><span class="card-title">模板列表</span></template>
-          <el-table :data="templates" @row-click="onSelectTemplate" highlight-current-row stripe size="small">
-            <el-table-column prop="name" label="模板名" min-width="120" show-overflow-tooltip />
-            <el-table-column label="启用" width="56">
-              <template #default="{ row }">
-                <el-tag :type="row.is_active ? 'success' : 'info'" size="small">{{ row.is_active ? '是' : '否' }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
+<el-table :data="templates" v-loading="loadingTemplates" @row-click="onSelectTemplate" highlight-current-row stripe size="small" empty-text="该分类暂无模板">
+  <el-table-column prop="name" label="模板名" min-width="120" show-overflow-tooltip />
+  <el-table-column label="启用" width="56">
+    <template #default="{ row }">
+      <el-tag :type="row.is_active ? 'success' : 'info'" size="small">{{ row.is_active ? '是' : '否' }}</el-tag>
+    </template>
+  </el-table-column>
+</el-table>
         </el-card>
       </el-col>
 
@@ -86,6 +86,7 @@ const templateTypes = ref([])
   const fields = ref([])
   const fieldValues = reactive({})
   const loading = ref(false)
+  const loadingTemplates = ref(false)
   const rendering = ref(false)
   const rendered = ref(false)
   const renderedHtml = ref('')
@@ -101,7 +102,9 @@ async function loadTypes() {
 }
 async function onSelectType(id) {
   selectedTypeId.value = Number(id)
-  templates.value = await TemplatesAPI.list(selectedTypeId.value)
+  loadingTemplates.value = true
+  try { templates.value = await TemplatesAPI.list(selectedTypeId.value) }
+  finally { loadingTemplates.value = false }
   selectedTemplate.value = null; fields.value = []; rendered.value = false
 }
 async function onSelectTemplate(row) {
