@@ -52,13 +52,28 @@
     </router-view>
   </el-main>
   </el-container>
+
+  <!-- AI 配置守卫 -->
+  <AiSetupWizard v-if="!aiConfigured" @configured="aiConfigured = true" />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import axios from 'axios'
+import AiSetupWizard from '@/components/AiSetupWizard.vue'
 
 const route = useRoute()
+const aiConfigured = ref(true) // 默认 true, 检查后变 false
+
+onMounted(async () => {
+  try {
+    const r = await axios.get('/api/v1/ai/config')
+    aiConfigured.value = r.data?.api_key_set === true
+  } catch {
+    aiConfigured.value = false
+  }
+})
 
 const activeMenu = computed(() => {
   if (route.path.startsWith('/prices')) return '/prices'
