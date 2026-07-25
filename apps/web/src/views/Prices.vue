@@ -21,7 +21,9 @@
   </el-select>
   <el-button type="primary" @click="doSearch" :loading="loading">查询</el-button>
   <el-button @click="loadList" :disabled="loading">显示全部</el-button>
+  <el-button type="success" @click="triggerAiImport" :loading="aiImporting" size="small">AI 导入价格</el-button>
   <el-tag type="info" effect="plain" class="result-tag">{{ results.length }} 条</el-tag>
+  <input ref="fileInputRef" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onAiImportFile" />
 </div>
         <el-table :data="results" v-loading="loading" stripe height="calc(100vh - 220px)" class="price-table" empty-text="暂无数据，请点击查询或显示全部">
           <el-table-column prop="specialty" label="专业" width="100" />
@@ -86,7 +88,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { PricesAPI, FeesAPI } from '@/api'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { PricesAPI, FeesAPI, api } from '@/api'
+import * as XLSX from 'xlsx'
 
 const activeTab = ref('search')
 const keyword = ref('')
@@ -107,6 +111,8 @@ const feeRegion = ref('')
 const feeType = ref('')
 const feeRates = ref([])
 const feeLoading = ref(false)
+const aiImporting = ref(false)
+const fileInputRef = ref(null)
 
 async function doSearch() {
   if (!keyword.value.trim() && !filterSpecialty.value && !filterUnit.value) { return loadList() }
@@ -143,9 +149,64 @@ async function loadFees() {
 async function loadSpecialties() {
   try { specialties.value = await PricesAPI.specialties() } catch {}
   try {
-    const all = await PricesAPI.list({ limit: 500 })
-    units.value = [...new Set(all.map(x => x.unit).filter(Boolean))].sort()
+ const all = await PricesAPI.list({ limit: 500 })
+ units.value = [...new Set(all.map(x => x.unit).filter(Boolean))].sort()
   } catch {}
+}
+
+function triggerAiImport() { fileInputRef.value?.click() }
+
+async function onAiImportFile(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  aiImporting.value = true
+  try {
+ const data = await file.arrayBuffer()
+ const wb = XLSX.read(data, { type: 'array' })
+ const ws = wb.Sheets[wb.SheetNames[0]]
+ const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
+ if (!json.length) { ElMessage.warning('文件为空，请检查'); return }
+
+ // 转文本让 AI 理解
+ const headers = Object.keys(json[0]).join(',')
+ const sampleRows = json.slice(0, 20).map(r => Object.values(r).join(',')).join('\n')
+ const tableText = `表头: ${headers}\n数据:\n${sampleRows}`
+
+ ElMessage.info('AI 正在理解表格...')
+ const parsed = await api.post('/v1/ai/parse-table', {
+ content: tableText,
+ source_type: 'auto',
+ target_fields: ['item_name', 'specialty', 'unit', 'qty', 'price'],
+ })
+
+ if (!parsed.rows || !parsed.rows.length) {
+ ElMessage.warning('AI 未能解析表格数据')
+ return
+ }
+
+ // 提取价格数据
+ const prices = parsed.rows
+ .filter(r => r.item_name && r.price)
+ .map(r => ({
+ item_name: r.item_name,
+ specialty: r.specialty || '',
+ unit: r.unit || '',
+ price: r.price,
+ region: '',
+ source_file: 'AI 智能导入',
+ }))
+
+ if (!prices.length) { ElMessage.warning('AI 未识别到价格数据'); return }
+
+ // 将价格追加到显示列表
+ results.value.unshift(...prices)
+ ElMessage.success(`AI 识别完成，导入 ${prices.length} 条价格`)
+  } catch (err) {
+ ElMessage.error('AI 导入失败: ' + (err.message || '格式错误'))
+  } finally {
+ aiImporting.value = false
+ e.target.value = ''
+  }
 }
 
 onMounted(() => { loadList(); loadTopics(); loadFees(); loadSpecialties() })
