@@ -60,14 +60,16 @@
           <el-button size="small" style="margin-top:8px" @click="loadKbStats">刷新</el-button>
         </el-card>
 
-        <el-card shadow="never" class="setting-card">
-          <template #header><span class="card-title">说明</span></template>
-          <ul class="notes">
-            <li>「应用配置」仅切换本次运行时，重启后还原</li>
-            <li>持久化请编辑 <code>config.yaml</code> 后点「从文件重载」</li>
-            <li>api_key 不回显，保存到 yaml 后下次启动自动加载</li>
-          </ul>
-        </el-card>
+<el-card shadow="never" class="setting-card">
+  <template #header><span class="card-title">说明</span></template>
+  <ul class="notes">
+    <li>「测试连接」：保存当前配置并测试 AI 服务是否可用</li>
+    <li>「应用配置」：保存当前配置到 <code>config.yaml</code>（持久化，重启不丢失）</li>
+    <li>「从文件重载」：重新读取 <code>config.yaml</code>（手动编辑文件后使用）</li>
+    <li>API Key 不回显，修改后会自动保存到 <code>config.yaml</code></li>
+    <li>切换 Provider 时，Base URL 和 Model 会自动填充默认值</li>
+  </ul>
+</el-card>
       </el-col>
     </el-row>
   </div>

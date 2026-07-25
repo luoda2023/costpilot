@@ -127,7 +127,7 @@
         </el-input>
         <el-button @click="doSearch" size="small">查询</el-button>
       </div>
-      <el-table :data="searchResults" max-height="400" @row-dblclick="addFromSearch" size="small">
+      <el-table :data="searchResults" v-loading="searchLoading" max-height="400" @row-dblclick="addFromSearch" size="small" empty-text="输入关键词查询">
         <el-table-column prop="specialty" label="专业" width="90" />
         <el-table-column prop="item_name" label="项目名称" min-width="200" show-overflow-tooltip />
         <el-table-column prop="unit" label="单位" width="60" />
@@ -153,7 +153,7 @@ const projectInfo = reactive({ name: '未命名项目', region: '北京市', sta
 const rows = ref([{ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }])
 const result = ref(null)
 const composing = ref(false); const exportingX = ref(false); const exportingW = ref(false)
-const searchDialog = ref(false); const searchKw = ref(''); const searchResults = ref([])
+const searchDialog = ref(false); const searchKw = ref(''); const searchResults = ref([]); const searchLoading = ref(false)
 const importing = ref(false)
 const fileInputRef = ref(null)
 
@@ -243,8 +243,10 @@ function clearRows() {
 function fillFromPriceSearch() { searchDialog.value = true; if (!searchResults.value.length) doSearch() }
 async function doSearch() {
   if (!searchKw.value.trim()) { ElMessage.warning('请输入关键词'); return }
+  searchLoading.value = true
   try { searchResults.value = await PricesAPI.search(searchKw.value.trim(), 30) }
   catch { ElMessage.error('查询失败') }
+  finally { searchLoading.value = false }
 }
 function addFromSearch(row) {
   rows.value.push({ item_name: row.item_name, specialty: row.specialty || '', unit: row.unit || '', qty: 1, price: safeParsePrice(row.price) })

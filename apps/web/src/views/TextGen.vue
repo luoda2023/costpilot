@@ -58,7 +58,7 @@
             <div class="card-header">
               <span class="card-title">预览</span>
               <div>
-                <el-button size="small" type="primary" @click="render" :disabled="!selectedTemplate">渲染</el-button>
+                <el-button size="small" type="primary" @click="render" :disabled="!selectedTemplate" :loading="rendering">渲染</el-button>
                 <el-button size="small" @click="exportDocx" :disabled="!rendered">导出 docx</el-button>
               </div>
             </div>
@@ -79,14 +79,15 @@ import { ElMessage } from 'element-plus'
 import { TemplatesAPI } from '@/api'
 
 const templateTypes = ref([])
-const selectedTypeId = ref(null)
-const templates = ref([])
-const selectedTemplate = ref(null)
-const fields = ref([])
-const fieldValues = reactive({})
-const loading = ref(false)
-const rendered = ref(false)
-const renderedHtml = ref('')
+  const selectedTypeId = ref(null)
+  const templates = ref([])
+  const selectedTemplate = ref(null)
+  const fields = ref([])
+  const fieldValues = reactive({})
+  const loading = ref(false)
+  const rendering = ref(false)
+  const rendered = ref(false)
+  const renderedHtml = ref('')
 
 const currentTypeName = computed(() => {
   const t = templateTypes.value.find(x => x.id === selectedTypeId.value)
@@ -117,13 +118,16 @@ async function loadFields() {
 }
 async function render() {
   if (!selectedTemplate.value) return
-  let md = selectedTemplate.value.content_md || ''
-  Object.keys(fieldValues).forEach(k => {
-    const v = fieldValues[k] || `__${k}__`
-    md = md.replaceAll(`{{${k}}}`, v).replaceAll(`{{ ${k} }}`, v)
-  })
-  renderedHtml.value = `<pre style="white-space:pre-wrap;font-family:PingFang SC, sans-serif;font-size:13px;line-height:1.8">${escapeHtml(md)}</pre>`
-  rendered.value = true
+  rendering.value = true
+  try {
+    let md = selectedTemplate.value.content_md || ''
+    Object.keys(fieldValues).forEach(k => {
+      const v = fieldValues[k] || `__${k}__`
+      md = md.replaceAll(`{{${k}}}`, v).replaceAll(`{{ ${k} }}`, v)
+    })
+    renderedHtml.value = `<pre style="white-space:pre-wrap;font-family:PingFang SC, sans-serif;font-size:13px;line-height:1.8">${escapeHtml(md)}</pre>`
+    rendered.value = true
+  } finally { rendering.value = false }
 }
 function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])) }
 async function exportDocx() {

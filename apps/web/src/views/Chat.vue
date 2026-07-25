@@ -82,6 +82,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { ChatAPI } from '@/api'
 import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promotion } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
@@ -136,7 +137,9 @@ async function newSession() {
     sessions.value.unshift(s)
     currentId.value = s.id
     messages.value = []
-  } catch {}
+  } catch (e) {
+    ElMessage.error('创建会话失败: ' + (e.message || '未知错误'))
+  }
 }
 
 async function quickAsk(text) {
@@ -171,7 +174,11 @@ async function send() {
     const result = await ChatAPI.send(currentId.value, text)
     messages.value[messages.value.length - 1] = result
   } catch (e) {
-    messages.value[messages.value.length - 1] = { role: 'assistant', content: `[发送失败] ${e.message || '请检查网络或 AI 配置'}` }
+    const errMsg = e.response?.data?.detail || e.message || '请检查网络或 AI 配置'
+    messages.value[messages.value.length - 1] = {
+      role: 'assistant',
+      content: `**发送失败**：${errMsg}\n\n> 提示：请检查「系统设置」中的 AI 配置是否正确，或确认后端服务是否正常运行。`
+    }
   } finally {
     sending.value = false
     await nextTick(); scrollToBottom()

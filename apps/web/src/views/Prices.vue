@@ -14,10 +14,10 @@
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
           <el-button type="primary" @click="doSearch" :loading="loading">查询</el-button>
-          <el-button @click="loadList">显示全部</el-button>
+          <el-button @click="loadList" :disabled="loading">显示全部</el-button>
           <el-tag type="info" effect="plain" class="result-tag">{{ results.length }} 条</el-tag>
         </div>
-        <el-table :data="results" v-loading="loading" stripe height="calc(100vh - 220px)" class="price-table">
+        <el-table :data="results" v-loading="loading" stripe height="calc(100vh - 220px)" class="price-table" empty-text="暂无数据，请点击查询或显示全部">
           <el-table-column prop="specialty" label="专业" width="100" />
           <el-table-column prop="item_name" label="项目名称" min-width="240" show-overflow-tooltip />
           <el-table-column prop="unit" label="单位" width="70" />
@@ -33,10 +33,10 @@
           <el-select v-model="topicFilter" placeholder="选择专题" clearable style="width:220px">
             <el-option v-for="t in topics" :key="t" :label="t" :value="t" />
           </el-select>
-          <el-button @click="loadTopics">查询</el-button>
+          <el-button @click="loadTopics" :loading="topicLoading">查询</el-button>
           <el-tag type="info" class="result-tag">{{ topicResults.length }} 条</el-tag>
         </div>
-        <el-table :data="topicResults" stripe height="calc(100vh - 220px)" class="price-table">
+        <el-table :data="topicResults" v-loading="topicLoading" stripe height="calc(100vh - 220px)" class="price-table" empty-text="暂无数据">
           <el-table-column prop="topic" label="专题" width="160" />
           <el-table-column prop="item_name" label="项目名称" min-width="240" show-overflow-tooltip />
           <el-table-column prop="unit" label="单位" width="70" />
@@ -56,10 +56,10 @@
             <el-option label="规费" value="规费" />
             <el-option label="措施费" value="措施费" />
           </el-select>
-          <el-button @click="loadFees">查询</el-button>
+          <el-button @click="loadFees" :loading="feeLoading">查询</el-button>
           <el-tag type="info" class="result-tag">{{ feeRates.length }} 条</el-tag>
         </div>
-        <el-table :data="feeRates" stripe height="calc(100vh - 220px)" class="price-table">
+        <el-table :data="feeRates" v-loading="feeLoading" stripe height="calc(100vh - 220px)" class="price-table" empty-text="暂无数据">
           <el-table-column prop="region" label="地区" width="100" />
           <el-table-column prop="fee_type" label="类型" width="90" />
           <el-table-column prop="fee_subitem" label="子项" min-width="200" />
@@ -90,34 +90,44 @@ const loading = ref(false)
 const topics = ['管道铺设与修复', '深基坑开挖与支护', '钢板桩', '降水工程', '桩基与地基处理']
 const topicFilter = ref('')
 const topicResults = ref([])
+const topicLoading = ref(false)
 
 const feeRegions = ['全国', '北京市', '上海市', '天津市', '重庆市', '广东省', '浙江省', '江苏省']
 const feeRegion = ref('')
 const feeType = ref('')
 const feeRates = ref([])
+const feeLoading = ref(false)
 
 async function doSearch() {
   if (!keyword.value.trim()) { return loadList() }
   loading.value = true
   try { results.value = await PricesAPI.search(keyword.value.trim()) }
+  catch { results.value = [] }
   finally { loading.value = false }
 }
 
 async function loadList() {
   loading.value = true
   try { results.value = await PricesAPI.list({ limit: 200 }) }
+  catch { results.value = [] }
   finally { loading.value = false }
 }
 
 async function loadTopics() {
-  topicResults.value = await PricesAPI.topics(topicFilter.value)
+  topicLoading.value = true
+  try { topicResults.value = await PricesAPI.topics(topicFilter.value) }
+  catch { topicResults.value = [] }
+  finally { topicLoading.value = false }
 }
 
 async function loadFees() {
+  feeLoading.value = true
   const params = {}
   if (feeRegion.value) params.region = feeRegion.value
   if (feeType.value) params.fee_type = feeType.value
-  feeRates.value = await FeesAPI.list(params)
+  try { feeRates.value = await FeesAPI.list(params) }
+  catch { feeRates.value = [] }
+  finally { feeLoading.value = false }
 }
 
 onMounted(() => { loadList(); loadTopics(); loadFees() })
