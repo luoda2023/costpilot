@@ -7,16 +7,17 @@
         <el-button size="small" type="primary" @click="newSession" :icon="Plus">新建</el-button>
       </div>
       <div class="session-list">
-        <div
-          v-for="s in sessions"
-          :key="s.id"
-          class="session-item"
-          :class="{ active: s.id === currentId }"
-          @click="switchSession(s.id)"
-        >
-          <el-icon :size="14"><ChatDotRound /></el-icon>
-          <span class="session-title">{{ s.title || '新会话' }}</span>
-        </div>
+<div
+  v-for="s in sessions"
+  :key="s.id"
+  class="session-item"
+  :class="{ active: s.id === currentId }"
+  @click="switchSession(s.id)"
+>
+  <el-icon :size="14"><ChatDotRound /></el-icon>
+  <span class="session-title">{{ s.title || '新会话' }}</span>
+  <el-button size="small" type="danger" link @click.stop="deleteSession(s.id)" :icon="Delete" style="margin-left:auto;padding:0" />
+</div>
         <el-empty v-if="sessions.length === 0" description="暂无会话" :image-size="50" />
       </div>
     </div>
@@ -85,9 +86,9 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatAPI } from '@/api'
-import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promotion } from '@element-plus/icons-vue'
+import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promotion, Delete } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 
@@ -163,6 +164,16 @@ async function switchSession(id) {
     await nextTick()
     scrollToBottom()
   } finally { loading.value = false }
+}
+
+async function deleteSession(id) {
+  try {
+    await ElMessageBox.confirm('确定删除此会话?', '提示', { type: 'warning' })
+    await ChatAPI.deleteSession(id)
+    sessions.value = sessions.value.filter(s => s.id !== id)
+    if (currentId.value === id) { currentId.value = null; messages.value = [] }
+    ElMessage.success('已删除')
+  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
 }
 
 async function send() {

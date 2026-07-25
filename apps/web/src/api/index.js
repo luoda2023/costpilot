@@ -69,6 +69,7 @@ export const ChatAPI = {
   listSessions: () => api.get('/v1/chat/sessions'),
   messages: (sid) => api.get(`/v1/chat/sessions/${sid}/messages`),
   send: (sid, content) => api.post(`/v1/chat/sessions/${sid}/messages`, { content }),
+  deleteSession: (sid) => api.delete(`/v1/chat/sessions/${sid}`),
 }
 
 // 兼容 main.js 中所引用的 'api'

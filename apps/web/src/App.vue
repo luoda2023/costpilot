@@ -135,8 +135,8 @@ html, body, #app {
 }
 
 .top-menu .el-menu-item.is-active {
-  color: #409eff;
-  background: rgba(64,158,255,0.12);
+  color: #fff;
+  background: #409eff;
 }
 
 .top-menu .el-menu-item .el-icon {
