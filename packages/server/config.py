@@ -1,5 +1,5 @@
 """
-造价通 - 配置加载器
+工程助手 - 配置加载器
 
 读取 config.yaml, 提供全局访问入口:
  from packages.server.config import get_config
@@ -83,7 +83,7 @@ class RAGConfig:
 
 @dataclass
 class DatabaseConfig:
-    url: str = "sqlite:///data/sqlite/造价通.db"
+    url: str = "sqlite:///data/sqlite/工程助手.db"
 
 
 @dataclass
@@ -143,7 +143,7 @@ def load_config() -> AppConfig:
             score_threshold=raw.get("rag", {}).get("score_threshold", 0.5),
         ),
         database=DatabaseConfig(
-            url=raw.get("database", {}).get("url", "sqlite:///data/sqlite/造价通.db"),
+            url=raw.get("database", {}).get("url", "sqlite:///data/sqlite/工程助手.db"),
         ),
         server=ServerConfig(
             host=raw.get("server", {}).get("host", "127.0.0.1"),

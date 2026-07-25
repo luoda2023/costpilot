@@ -4,7 +4,7 @@
     <el-header class="app-header">
       <div class="logo">
         <el-icon :size="20"><Coin /></el-icon>
-        <span>造价通</span>
+        <span>工程助手</span>
       </div>
       <el-menu
         :default-active="activeMenu"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 造价通 - Linux/Mac 跑 PyInstaller (本地或 CI 都可)
+# 工程助手 - Linux/Mac 跑 PyInstaller (本地或 CI 都可)
 set -e
 cd "$(dirname "$0")/.."
 

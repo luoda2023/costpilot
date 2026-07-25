@@ -7,7 +7,7 @@
         <div class="wizard-header">
           <div class="wizard-logo">
             <el-icon :size="36" color="#409eff"><Coin /></el-icon>
-            <h1>欢迎使用造价通</h1>
+            <h1>欢迎使用工程助手</h1>
           </div>
           <p class="wizard-subtitle">请先配置 AI 服务，所有功能由 AI 驱动</p>
         </div>

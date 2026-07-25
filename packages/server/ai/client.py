@@ -1,5 +1,5 @@
 """
-造价通 - 统一 AI 客户端(多 Provider 适配层)
+工程助手 - 统一 AI 客户端(多 Provider 适配层)
 
 支持:
   - DeepSeek / Qwen(通义) / Zhipu(智谱) / Moonshot(KIMI) / OpenAI
@@ -255,7 +255,7 @@ if __name__ == "__main__":
         print(f"⚠ 配置未就绪: {e}")
         print()
         print("配置提示:")
-        print("  1. 编辑 H:\\AI-model\\造价通\\config.yaml")
+        print("  1. 编辑 H:\\AI-model\\工程助手\\config.yaml")
         print("  2. 在 ai.api_key 填入对应 provider 的密钥")
         print("  3. 重新运行本测试")
     except Exception as e:

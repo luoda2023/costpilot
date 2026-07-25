@@ -4,7 +4,7 @@
 //   1. 检测 Docker
 //   2. 启动 lobechat 容器 (DeepSeek/OpenAI 兼容)
 //   3. 等待 http://localhost:3210 就绪
-//   4. 启动造价通桌面壳 costpilot.exe
+//   4. 启动工程助手桌面壳 costpilot.exe
 //
 // 配置在 sidecar 的 config.yaml 中(可编辑)。
 package main
@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	appTitle  = "造价通一键启动器 v0.2.1"
+	appTitle  = "工程助手一键启动器 v0.2.1"
 	lobePort  = 3210
 	lobeImage = "lobehub/lobe-chat:latest"
 	lobeName  = "lobechat"
@@ -41,7 +41,7 @@ var defaultEnv = map[string]string{
 func main() {
 	// 单例: 已在跑则退出
 	if isAlreadyRunning() {
-		walk.MsgBox(nil, appTitle, "造价通启动器已经在运行", walk.MsgBoxIconInformation)
+		walk.MsgBox(nil, appTitle, "工程助手启动器已经在运行", walk.MsgBoxIconInformation)
 		return
 	}
 
@@ -56,9 +56,9 @@ func main() {
 		Icon:     setupIcon(),
 		Layout:   VBox{Margins: Margins{Left: 12, Top: 12, Right: 12, Bottom: 12}, Spacing: 8},
 		Children: []Widget{
-			Label{Text: "正在拉起造价通运行环境 ...", MinSize: Size{Height: 22}},
+			Label{Text: "正在拉起工程助手运行环境 ...", MinSize: Size{Height: 22}},
 			TextEdit{AssignTo: &logBox, ReadOnly: true, VScroll: true, MinSize: Size{Height: 240}},
-			PushButton{AssignTo: &btnOpen, Text: "打开造价通", Enabled: false,
+			PushButton{AssignTo: &btnOpen, Text: "打开工程助手", Enabled: false,
 				OnClicked: func() { openCostPilot() }},
 			ProgressBar{Min: 0, Max: 100, Value: 0, AssignTo: &pb},
 		},
@@ -70,7 +70,7 @@ func main() {
 			{"检测 Docker", stepCheckDocker},
 			{"启动 LobeChat 容器", stepStartLobeChat},
 			{fmt.Sprintf("等待 :%d 就绪", lobePort), stepWaitLobeChat},
-			{"启动造价通桌面", stepStartCostPilot},
+			{"启动工程助手桌面", stepStartCostPilot},
 		}
 		for i, s := range steps {
 			logf(mw, logBox, "[%d/%d] %s ...", i+1, len(steps), s.name)
@@ -85,7 +85,7 @@ func main() {
 		}
 		logf(mw, logBox, "")
 		logf(mw, logBox, "==========================================")
-		logf(mw, logBox, "✓ 全部就绪! 造价通已在桌面打开,在「AI 助手」标签页开始聊天")
+		logf(mw, logBox, "✓ 全部就绪! 工程助手已在桌面打开,在「AI 助手」标签页开始聊天")
 		logf(mw, logBox, "==========================================")
 		mw.RunThreadSafe(func() { btnOpen.SetEnabled(true) })
 	}()
@@ -203,7 +203,7 @@ func stepWaitLobeChat(mw *walk.MainWindow, log *walk.TextEdit) error {
 	return fmt.Errorf("LobeChat 30s 内未就绪,请检查 docker logs %s", lobeName)
 }
 
-// ---------- 步骤 4: 启动造价通桌面 ----------
+// ---------- 步骤 4: 启动工程助手桌面 ----------
 func stepStartCostPilot(mw *walk.MainWindow, log *walk.TextEdit) error {
 	return openCostPilot()
 }
@@ -215,8 +215,8 @@ func openCostPilot() error {
 	dir := filepath.Dir(exePath)
 	candidates := []string{
 		filepath.Join(dir, "costpilot.exe"),
-		filepath.Join(dir, "..", "dist-electron", "win-unpacked", "造价通.exe"),
-		filepath.Join(dir, "..", "apps", "desktop", "dist", "造价通.exe"),
+		filepath.Join(dir, "..", "dist-electron", "win-unpacked", "工程助手.exe"),
+		filepath.Join(dir, "..", "apps", "desktop", "dist", "工程助手.exe"),
 	}
 	for _, p := range candidates {
 		if _, err := os.Stat(p); err == nil {
@@ -230,7 +230,7 @@ func openCostPilot() error {
 		_ = exec.Command("cmd", "/c", "cd /d "+root+" && npm run dev:electron").Start()
 		return nil
 	}
-	return fmt.Errorf("未找到造价通桌面 exe,也未找到项目根")
+	return fmt.Errorf("未找到工程助手桌面 exe,也未找到项目根")
 }
 
 func findProjectRoot(start string) string {

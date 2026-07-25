@@ -1,5 +1,5 @@
 /**
- * 造价通 - Electron 主进程
+ * 工程助手 - Electron 主进程
  * 负责:
  * - 创建 BrowserWindow 并加载 Vue 渲染进程
  * - 拉起 Python FastAPI 子进程
@@ -111,15 +111,15 @@ function ensureRuntimeFiles() {
     console.log(`[init] 已创建数据库目录 ${sqliteDir}`);
   }
 
-  // 4. 种子数据库 造价通.db 不存在则从 extraResources 复制
-  const dbPath = path.join(sqliteDir, '造价通.db');
-  if (!fs.existsSync(dbPath)) {
-    const seedDbPath = (() => {
-      if (app.isPackaged) {
-        return path.join(process.resourcesPath, 'app', 'data', 'sqlite', '造价通.db');
-      }
-      return path.join(__dirname, '..', '..', 'data', 'sqlite', '造价通.db');
-    })();
+// 4. 种子数据库 工程助手.db 不存在则从 extraResources 复制
+	const dbPath = path.join(sqliteDir, '工程助手.db');
+	if (!fs.existsSync(dbPath)) {
+		const seedDbPath = (() => {
+			if (app.isPackaged) {
+				return path.join(process.resourcesPath, 'app', 'data', 'sqlite', '工程助手.db');
+			}
+			return path.join(__dirname, '..', '..', 'data', 'sqlite', '工程助手.db');
+		})();
     if (fs.existsSync(seedDbPath)) {
       fs.copyFileSync(seedDbPath, dbPath);
       console.log(`[init] 已复制种子数据库 → ${dbPath}`);
@@ -138,7 +138,7 @@ function createWindow() {
  height: 900,
  minWidth: 1024,
  minHeight: 720,
- title: '造价通',
+ title: '工程助手',
  show: false,
  backgroundColor: '#f5f7fa',
  webPreferences: {

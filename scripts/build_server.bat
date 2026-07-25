@@ -1,5 +1,5 @@
 @echo off
-REM 造价通 - 用 PyInstaller 把后端打成单 EXE (CI 跑,本地原则不跑)
+REM 工程助手 - 用 PyInstaller 把后端打成单 EXE (CI 跑,本地原则不跑)
 REM 产出: dist/costpilot-server.exe (约 80 MB)
 cd /d "%~dp0\.."
 

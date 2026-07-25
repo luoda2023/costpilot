@@ -53,7 +53,7 @@ const router = createRouter({
 
 // 切换页面时更新文档标题
 router.afterEach((to) => {
-  document.title = (to.meta?.title || '造价通') + ' - 造价通'
+  document.title = (to.meta?.title || '工程助手') + ' - 工程助手'
 })
 
 export default router

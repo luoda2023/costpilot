@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 造价通 - 一键启动开发环境(后端 + 前端 + Electron 桌面壳)
+# 工程助手 - 一键启动开发环境(后端 + 前端 + Electron 桌面壳)
 # 用户需填好 config.yaml 的 ai.api_key 后双击此脚本
 
 set -e
 cd "$(dirname "$0")"
 
 echo "============================================================"
-echo "造价通 CostPilot v0.2.1 - 一键启动"
+echo "工程助手 CostPilot v0.2.1 - 一键启动"
 echo "============================================================"
 
 # 1. 检测 Python
@@ -48,7 +48,7 @@ if [ ! -d apps/web/node_modules ]; then
 fi
 
 # 5. 检测数据库
-if [ ! -f data/sqlite/造价通.db ]; then
+if [ ! -f data/sqlite/工程助手.db ]; then
   echo "    首次运行,执行 alembic 迁移..."
   alembic upgrade head 2>&1 | tail -3
   echo "    导入价格库 + 模板..."

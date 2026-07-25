@@ -1,5 +1,5 @@
 """
-造价通 - 批量构建 RAG 知识库索引
+工程助手 - 批量构建 RAG 知识库索引
 
 扫描 config.yaml knowledge_sources 中的目录, 把所有支持的文件:
   1. 提取文本
@@ -79,7 +79,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("造价通 - 批量构建 RAG 知识库索引")
+    print("工程助手 - 批量构建 RAG 知识库索引")
     print("=" * 60)
 
     cfg = get_config()

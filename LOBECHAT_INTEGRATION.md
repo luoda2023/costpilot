@@ -1,4 +1,4 @@
-# 造价通 v0.2.1 - LobeChat 嵌入说明
+# 工程助手 v0.2.1 - LobeChat 嵌入说明
 
 ## 一、决策回溯
 
@@ -32,14 +32,14 @@
    → Docker 拉起 lobehub/lobe-chat:latest, 监听 :3210
    → 填好 OPENAI_API_KEY (默认 DeepSeek)
 
-2. 启动造价通:
+2. 启动工程助手:
    npm run dev:electron   # 自动加载 LobeChat iframe
    或访问 http://localhost:5173 → 点 "AI 助手" 标签页
 
 3. 在 LobeChat 内:
    - 设置 → 语言模型 → 切 DeepSeek/Qwen/智谱/KIMI 任一 Provider
    - 多会话、Markdown、代码高亮、文件上传全部开箱可用
-   - 不需要造价通这边写任何聊天 UI 代码
+   - 不需要工程助手这边写任何聊天 UI 代码
 ```
 
 ## 四、不动的部分
@@ -50,7 +50,7 @@
 - 报价组价、Excel/Word/docx 生成不动
 - 7 个前端页面不动（Chat.vue 只升级为 iframe 容器）
 
-## 五、造价通这一侧后续还要做的（可选）
+## 五、工程助手这一侧后续还要做的（可选）
 
 | 项 | 价值 | 优先级 |
 |---|---|---|

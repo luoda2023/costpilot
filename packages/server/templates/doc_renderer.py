@@ -1,5 +1,5 @@
 """
-造价通 - 8 类格式谱 Markdown 渲染器
+工程助手 - 8 类格式谱 Markdown 渲染器
 
 把模板的 content_md 中的 Markdown 标记转为 docx 段落/表格/列表;
 

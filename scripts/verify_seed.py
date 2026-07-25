@@ -3,7 +3,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-db_path = Path('data/sqlite/造价通.db')
+db_path = Path('data/sqlite/工程助手.db')
 if not db_path.exists():
     print(f'[FAIL] DB 不存在: {db_path}', file=sys.stderr)
     sys.exit(1)

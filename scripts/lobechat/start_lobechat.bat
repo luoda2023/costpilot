@@ -1,5 +1,5 @@
 @echo off
-REM 造价通 - Windows 一键启动 LobeChat
+REM 工程助手 - Windows 一键启动 LobeChat
 REM 需先安装 Docker Desktop(推荐) 或 Node + pnpm
 
 set OPENAI_API_KEY=sk-你的-deepseek-密钥
@@ -19,7 +19,7 @@ if %errorlevel%==0 (
     -e ACCESS_CODE= ^
     lobehub/lobe-chat:latest
   echo [2/2] LobeChat 已启动: http://localhost:%PORT%
-  echo   造价通的 AI 助手标签页将自动加载
+  echo   工程助手的 AI 助手标签页将自动加载
   echo   日志: docker logs -f lobechat
   exit /b 0
 )

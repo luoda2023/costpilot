@@ -1,9 +1,9 @@
 @echo off
-REM 造价通 - 一键启动开发环境
+REM 工程助手 - 一键启动开发环境
 cd /d "%~dp0"
 
 echo ============================================================
-echo 造价通 CostPilot v0.2.1 - 一键启动
+echo 工程助手 CostPilot v0.2.1 - 一键启动
 echo ============================================================
 
 where python >nul 2>nul
@@ -42,7 +42,7 @@ if not exist apps\web\node_modules (
   cd ..\..
 )
 
-if not exist "data\sqlite\造价通.db" (
+if not exist "data\sqlite\工程助手.db" (
   echo    首次运行,执行 alembic 迁移...
   call alembic upgrade head
   python scripts\import_prices_to_db.py

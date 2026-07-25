@@ -1,5 +1,5 @@
 """
-造价通 - RAG 知识库嵌入与检索
+工程助手 - RAG 知识库嵌入与检索
 
 依赖(用户需自行安装):
   pip install chromadb sentence-transformers

@@ -1,4 +1,4 @@
-# 造价通 - 一键启动器 start.exe 线上构建
+# 工程助手 - 一键启动器 start.exe 线上构建
 # push 到 main 后 GitHub 云端自动 build,产出 start.exe 作为 artifact 供下载
 name: Build Launcher
 

@@ -1,5 +1,5 @@
 """
-造价通 - 数据库 ORM 模型
+工程助手 - 数据库 ORM 模型
 14 张表，SQLite + PostgreSQL 双 schema 兼容
 """
 from datetime import datetime

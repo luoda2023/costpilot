@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 r"""
-造价通 - 价格信息库 .md 批量导入 SQLite
+工程助手 - 价格信息库 .md 批量导入 SQLite
 读取 H:\AI-model\价格信息库\ 下的 13 个 .md 文件，解析为结构化记录入库
 
 - 8 个专业速查表 → t_price_unit (17,944 条)
@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Tuple
 
-# 项目根(造价通/)
+# 项目根(工程助手/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -269,7 +269,7 @@ def import_fee_rates_from_md(session) -> int:
 
 def main():
                 print("=" * 60)
-                print("造价通 - 价格信息库导入 SQLite")
+                print("工程助手 - 价格信息库导入 SQLite")
                 print("=" * 60)
 
                 print("\n[1/4] 初始化数据库(创建 14 张表)...")
@@ -301,7 +301,7 @@ def main():
                                 session.close()
 
                 print("\n" + "=" * 60)
-                print("导入完毕。数据库位置:", PROJECT_ROOT / "data" / "sqlite" / "造价通.db")
+                print("导入完毕。数据库位置:", PROJECT_ROOT / "data" / "sqlite" / "工程助手.db")
                 print("=" * 60)
 
 

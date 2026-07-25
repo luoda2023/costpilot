@@ -1,5 +1,5 @@
 @echo off
-REM 造价通启动器 - Windows 线上构建
+REM 工程助手启动器 - Windows 线上构建
 setlocal
 cd /d "%~dp0"
 
@@ -23,4 +23,4 @@ echo [4/4] 完成:
 dir dist\start.exe
 
 echo.
-echo 把 dist\start.exe 和造价通本体 costpilot.exe 放同一目录,双击 start.exe 即可。
+echo 把 dist\start.exe 和工程助手本体 costpilot.exe 放同一目录,双击 start.exe 即可。

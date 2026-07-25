@@ -1,6 +1,6 @@
-# 造价通 - 一键安装包构建 (GitHub Actions 云端跑,产出 Setup.exe)
+# 工程助手 - 一键安装包构建 (GitHub Actions 云端跑,产出 Setup.exe)
 # 用户在 Actions 页手动 Run,约 15 分钟后下载 Artifacts/costpilot-setup-exe
-# 装完后双击桌面图标即可启动造价通,无需装 Python/Node
+# 装完后双击桌面图标即可启动工程助手,无需装 Python/Node
 name: Build Desktop Installer
 
 on:

@@ -1,4 +1,4 @@
-# 造价通 后端 Python 依赖
+# 工程助手 后端 Python 依赖
 sqlalchemy>=2.0
 alembic>=1.13
 fastapi>=0.110

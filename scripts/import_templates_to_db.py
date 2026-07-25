@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 r"""
-造价通 - 8 类文本格式谱入库
+工程助手 - 8 类文本格式谱入库
 从 data/source/文本编制模板库/ 下的 8 个格式谱 .md
 拆为:
   - YAML 章节骨架(从 ## 与 ### 推断)
@@ -188,7 +188,7 @@ def make_template_md(type_id: int, type_name: str, original_md: str) -> str:
 
 def main():
     print("=" * 60)
-    print("造价通 - 8 类文本格式谱入库")
+    print("工程助手 - 8 类文本格式谱入库")
     print("=" * 60)
 
     print("\n[1/3] 初始化数据库...")

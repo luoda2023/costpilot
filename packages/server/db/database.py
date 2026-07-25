@@ -1,5 +1,5 @@
 """
-造价通 - 数据库引擎与 Session
+工程助手 - 数据库引擎与 Session
 SQLite 默认 + PostgreSQL 可选，同一份 ORM 模型
 """
 import os
@@ -18,13 +18,13 @@ def _db_path() -> Path:
     """
     data_dir = os.environ.get("COSTPILOT_DATA_DIR")
     if data_dir:
-        return Path(data_dir) / "data" / "sqlite" / "造价通.db"
+        return Path(data_dir) / "data" / "sqlite" / "工程助手.db"
 
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         base = Path(sys.executable).resolve().parent
     else:
         base = Path(__file__).parent.parent.parent.parent
-    return base / 'data' / 'sqlite' / '造价通.db'
+    return base / 'data' / 'sqlite' / '工程助手.db'
 
 # 数据库 URL (环境变量优先)
 DB_URL = os.environ.get(

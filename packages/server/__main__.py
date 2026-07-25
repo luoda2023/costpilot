@@ -1,5 +1,5 @@
 """
-造价通 - 后端入口 (PyInstaller 打包目标)
+工程助手 - 后端入口 (PyInstaller 打包目标)
 
 打包后:
   costpilot-server.exe  ← 直接双击运行,起 uvicorn
@@ -31,11 +31,11 @@ from packages.server.api.app import app
 
 
 def main():
-    parser = argparse.ArgumentParser(description="造价通 后端服务")
+    parser = argparse.ArgumentParser(description="工程助手 后端服务")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
-    print(f"造价通后端启动: http://{args.host}:{args.port}")
+    print(f"工程助手后端启动: http://{args.host}:{args.port}")
     uvicorn.run(
         app,
         host=args.host,

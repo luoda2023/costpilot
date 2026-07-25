@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 造价通 - 一键启动内嵌 AI 聊天前端 LobeChat
+# 工程助手 - 一键启动内嵌 AI 聊天前端 LobeChat
 # 推荐: Docker 一键起,无 Docker 用 Node 自部署
 
 set -e
@@ -22,7 +22,7 @@ if command -v docker >/dev/null 2>&1; then
     -e ACCESS_CODE="" \
     lobehub/lobe-chat:latest
   echo "[2/2] LobeChat 已启动: http://localhost:${PORT}"
-  echo "  造价通的「AI 助手」标签页将自动加载此地址"
+  echo "  工程助手的「AI 助手」标签页将自动加载此地址"
   echo ""
   echo "  日志: docker logs -f lobechat"
   echo "  停止: docker stop lobechat"

@@ -1,5 +1,5 @@
 /**
- * 造价通 - Electron preload
+ * 工程助手 - Electron preload
  * 暴露安全的 IPC API 给渲染进程
  */
 const { contextBridge, ipcRenderer } = require('electron');

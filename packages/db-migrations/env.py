@@ -1,4 +1,4 @@
-"""Alembic env.py - 造价通"""
+"""Alembic env.py - 工程助手"""
 import os
 import sys
 from pathlib import Path

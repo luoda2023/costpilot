@@ -1,4 +1,4 @@
-# 造价通 CostPilot - 工程造价智能助手 v0.2.0
+# 工程助手 CostPilot - 工程智能助手 v0.2.0
 
 > 基于 H:\AI-model 21,000+ 原文件 + 17,864 条提炼价格 + 8 类文本格式谱开发的桌面单机版专业软件。
 
@@ -66,7 +66,7 @@
 ## 四、目录结构
 
 ```
-H:\AI-model\造价通\
+H:\AI-model\工程助手\
 ├── config.yaml                  ★ 用户唯一对外配置(AI/RAG/数据库/资源路径)
 ├── package.json
 ├── alembic.ini
@@ -112,7 +112,7 @@ H:\AI-model\造价通\
 │   ├── import_templates_to_db.py
 │   └── build_rag_index.py        ★ 批量 RAG 索引
 └── data/
-    ├── sqlite/造价通.db          # 18,366 条记录 / 5.9 MB
+    ├── sqlite/工程助手.db          # 18,366 条记录 / 5.9 MB
     ├── chroma/                   # ChromaDB 向量库
     └── exports/                  # 已生成 Excel/Word/docx
 ```
@@ -139,7 +139,7 @@ cd apps/web && npm install && cd ../..
 
 ### 5.2 配置 AI(关键)
 
-编辑 `H:\AI-model\造价通\config.yaml`, 改一行即可:
+编辑 `H:\AI-model\工程助手\config.yaml`, 改一行即可:
 
 ```yaml
 ai:
@@ -190,7 +190,7 @@ python scripts/build_rag_index.py --reset
 ### 5.6 打包安装包
 
 ```bash
-npm run build:win    # → dist-electron/造价通 Setup 0.2.0.exe
+npm run build:win    # → dist-electron/工程助手 Setup 0.2.0.exe
 npm run build:mac
 npm run build:linux
 ```
@@ -241,7 +241,7 @@ MIT
 
 ## 十、v0.2.1 - LobeChat 嵌入补充说明
 
-> **重要**: 造价通的「AI 助手」聊天 UI 采用开源项目 **LobeChat** 通过 iframe 嵌入,
+> **重要**: 工程助手的「AI 助手」聊天 UI 采用开源项目 **LobeChat** 通过 iframe 嵌入,
 > 不自写聊天界面,不自训练模型。
 
 ### 启动 LobeChat(一次)
@@ -258,7 +258,7 @@ scripts\lobechat\start_lobechat.bat
 #   lobehub/lobe-chat:latest
 ```
 
-### 配置造价通指向它
+### 配置工程助手指向它
 
 `config.yaml`:
 
@@ -267,7 +267,7 @@ ai:
   lobechat_url: "http://localhost:3210"  # 改成你的 LobeChat 实例地址
 ```
 
-LobeChat 启动后，造价通的「AI 助手」标签页自动加载，**所有聊天能力（多会话、Markdown、模型切换、文件上传）由 LobeChat 提供**，造价通只做容器。
+LobeChat 启动后，工程助手的「AI 助手」标签页自动加载，**所有聊天能力（多会话、Markdown、模型切换、文件上传）由 LobeChat 提供**，工程助手只做容器。
 
 详见 `LOBECHAT_INTEGRATION.md`。
 

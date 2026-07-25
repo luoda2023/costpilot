@@ -1,5 +1,5 @@
 """
-造价通 - AI 智能辅助 API
+工程助手 - AI 智能辅助 API
 
 提供 AI 驱动的智能导入/填充功能:
   POST /api/v1/ai/parse-table   理解任意格式表格数据,返回结构化字段

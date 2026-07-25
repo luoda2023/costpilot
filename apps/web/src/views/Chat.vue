@@ -30,7 +30,7 @@
           <div class="welcome-icon">
             <el-icon :size="56" color="#409eff"><ChatLineSquare /></el-icon>
           </div>
-          <h3>造价通 AI 助手</h3>
+          <h3>工程助手 AI 助手</h3>
           <p class="welcome-desc">查询价格、费率、模板，生成报价和文本</p>
           <div class="welcome-suggestions">
             <div class="suggestion-item" @click="quickAsk('查一下C30混凝土的综合单价')">C30混凝土综合单价</div>

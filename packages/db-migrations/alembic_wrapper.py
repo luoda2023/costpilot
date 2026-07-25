@@ -1,4 +1,4 @@
-"""Alembic 配置 - 造价通"""
+"""Alembic 配置 - 工程助手"""
 from alembic.context import config
 import os
 import sys

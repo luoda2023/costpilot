@@ -1,4 +1,4 @@
-"""造价通 - db 包"""
+"""工程助手 - db 包"""
 from .database import engine, SessionLocal, get_db, init_db, reset_db
 from .models import (
     Base, Specialty, PriceUnit, TopicPrice, RegionInfoPrice, FeeRate,
