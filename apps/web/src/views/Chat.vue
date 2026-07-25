@@ -142,7 +142,7 @@ async function newSession() {
     currentId.value = s.id
     messages.value = []
   } catch (e) {
-    ElMessage.error('创建会话失败: ' + (e.message || '未知错误'))
+    ElMessage.error('创建会话失败: ' + (e.response?.data?.detail || e.message || '未知错误'))
   }
 }
 
