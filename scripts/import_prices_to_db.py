@@ -4,6 +4,7 @@ r"""
 读取 H:\AI-model\价格信息库\ 下的 13 个 .md 文件，解析为结构化记录入库
 
 - 8 个专业速查表 → t_price_unit (17,944 条)
+- 2 个补充速查表(公路工程+市政补充) → t_price_unit (新增~300 条)
 - 1 个市政重点专题 → t_topic_price (370 条)
 - 1 个省市信息价主线表 → t_region_info_price (主线表是目录索引,真正的价格数据待 M5 解析 PDF/Excel)
 - 1 个规费措施税金费率表 → t_fee_rate (各地费率)
@@ -38,6 +39,12 @@ SPECIALTY_FILES = [
                 ("门窗幕墙", "门窗幕墙_综合单价速查表.md"),
                 ("钢结构", "钢结构_综合单价速查表.md"),
                 ("涂料", "涂料_综合单价速查表.md"),
+]
+
+# 补充专业速查表（2025年新增：公路工程、市政道路桥梁补充等）
+SUPPLEMENT_FILES = [
+	("公路", "公路_综合单价速查表.md"),
+	("市政", "市政_综合单价速查表_补充.md"),
 ]
 
 TOPIC_FILE = "市政/重点专题_管道基坑钢板桩.md"
@@ -157,49 +164,86 @@ def parse_topic_md(md_text: str) -> List[Dict]:
 
 
 def import_specialty_prices(session) -> Tuple[int, int]:
-    """导入 8 个专业速查表 → t_price_unit"""
-    total_inserted = 0
-    specialty_count = 0
+ """导入 8 个专业速查表 + 补充数据 → t_price_unit"""
+ total_inserted = 0
+ specialty_count = 0
 
-    for spec_name, filename in SPECIALTY_FILES:
-        fp = PROJECT_ROOT / "data" / "source" / "价格信息库" / spec_name / filename
-        if not fp.exists():
-            print(f"  [WARN] 文件不存在: {fp}")
-            continue
+ # 第一步：基础 8 个专业
+ for spec_name, filename in SPECIALTY_FILES:
+  fp = PROJECT_ROOT / "data" / "source" / "价格信息库" / spec_name / filename
+  if not fp.exists():
+   print(f"  [WARN] 文件不存在: {fp}")
+   continue
 
-        # 创建专业记录(如不存在)
-        specialty = session.query(Specialty).filter_by(name=spec_name).first()
-        if not specialty:
-            specialty = Specialty(name=spec_name, code=spec_name, description=f"{spec_name}专业综合单价")
-            session.add(specialty)
-            session.commit()
-            specialty_count += 1
+  # 创建专业记录(如不存在)
+  specialty = session.query(Specialty).filter_by(name=spec_name).first()
+  if not specialty:
+   specialty = Specialty(name=spec_name, code=spec_name, description=f"{spec_name}专业综合单价")
+   session.add(specialty)
+   session.commit()
+   specialty_count += 1
 
-        # 解析 + 入库
-        with open(fp, encoding="utf-8") as f:
-            text = f.read()
-        rows = parse_md_table(text)
-        print(f"  [OK] {spec_name}: 解析 {len(rows)} 条")
+  # 解析 + 入库
+  with open(fp, encoding="utf-8") as f:
+   text = f.read()
+   rows = parse_md_table(text)
+   print(f"  [OK] {spec_name}: 解析 {len(rows)} 条")
 
-        for r in rows:
-            pu = PriceUnit(
-                specialty_id=specialty.id,
-                item_name=r.get("项目名称", "").strip(),
-                unit=r.get("单位", "").strip(),
-                price=r.get("综合单价（元）", r.get("综合单价(元)", "")).strip(),
-                region="全国",
-                calc_rule=r.get("计量规则", ""),
-                remark=r.get("备注", ""),
-                source_file=r.get("来源", ""),
-            )
-            session.add(pu)
-            total_inserted += 1
+  for r in rows:
+   pu = PriceUnit(
+    specialty_id=specialty.id,
+    item_name=r.get("项目名称", "").strip(),
+    unit=r.get("单位", "").strip(),
+    price=r.get("综合单价（元）", r.get("综合单价(元)", "")).strip(),
+    region="全国",
+    calc_rule=r.get("计量规则", ""),
+    remark=r.get("备注", ""),
+    source_file=r.get("来源", ""),
+   )
+   session.add(pu)
+   total_inserted += 1
 
-        # 批量提交,每文件一次
-        session.commit()
+  # 批量提交,每文件一次
+  session.commit()
 
-    return total_inserted, specialty_count
+ # 第二步：补充表（2025年新增，含公路工程、市政道路桥梁补充等）
+ for spec_name, filename in SUPPLEMENT_FILES:
+  fp = PROJECT_ROOT / "data" / "source" / "价格信息库" / spec_name / filename
+  if not fp.exists():
+   print(f"  [WARN] 补充文件不存在: {fp}")
+   continue
 
+  # 创建专业记录(如不存在)
+  specialty = session.query(Specialty).filter_by(name=spec_name).first()
+  if not specialty:
+   specialty = Specialty(name=spec_name, code=spec_name, description=f"{spec_name}专业综合单价")
+   session.add(specialty)
+   session.commit()
+   specialty_count += 1
+
+  # 解析 + 入库
+  with open(fp, encoding="utf-8") as f:
+   text = f.read()
+   rows = parse_md_table(text)
+   print(f"  [OK] {spec_name}(补充): 解析 {len(rows)} 条")
+
+  for r in rows:
+   pu = PriceUnit(
+    specialty_id=specialty.id,
+    item_name=r.get("项目名称", "").strip(),
+    unit=r.get("单位", "").strip(),
+    price=r.get("综合单价（元）", r.get("综合单价(元)", "")).strip(),
+    region="全国",
+    calc_rule=r.get("计量规则", ""),
+    remark=r.get("备注", ""),
+    source_file=r.get("来源", ""),
+   )
+   session.add(pu)
+   total_inserted += 1
+
+  session.commit()
+
+ return total_inserted, specialty_count
 
 def import_topic_prices(session) -> int:
                 """导入市政重点专题 → t_topic_price"""
