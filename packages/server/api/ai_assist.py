@@ -57,23 +57,22 @@ class ParseProjectOut(BaseModel):
 # 辅助函数
 # ---------------------------------------------------------------------------
 
-def _call_ai(system_prompt: str, user_prompt: str, expect_json: bool = True) -> str:
-  """调用 AI 并返回响应文本"""
+def _call_ai(system_prompt: str, user_prompt: str) -> str:
+  """调用 AI 并返回响应文本,自动提取 JSON 块"""
   client = get_ai_client()
   resp = client.chat(messages=[
     {"role": "system", "content": system_prompt},
     {"role": "user", "content": user_prompt},
   ])
   content = resp.get("content", "")
-  if expect_json:
-    # 尝试提取 JSON 块
-    content = content.strip()
-    if content.startswith("```"):
-      lines = content.split("\n")
-      start = next((i for i, l in enumerate(lines) if "```" in l), -1)
-      end = next((i for i in range(start + 1, len(lines)) if "```" in lines[i]), len(lines))
-      if start >= 0:
-        content = "\n".join(lines[start + 1:end]).strip()
+  # 尝试提取 JSON 块(跳过 markdown 代码块标记)
+  content = content.strip()
+  if content.startswith("```"):
+    lines = content.split("\n")
+    start = next((i for i, l in enumerate(lines) if "```" in l), -1)
+    end = next((i for i in range(start + 1, len(lines)) if "```" in lines[i]), len(lines))
+    if start >= 0:
+      content = "\n".join(lines[start + 1:end]).strip()
   return content
 
 # ---------------------------------------------------------------------------

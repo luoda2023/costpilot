@@ -55,6 +55,13 @@
 
   <!-- AI 配置守卫 -->
   <AiSetupWizard v-if="!aiConfigured" @configured="aiConfigured = true" />
+  <!-- 加载状态：AI 配置检查中 -->
+  <div v-if="aiConfigured === null" class="loading-guard">
+    <div class="loading-content">
+      <el-icon class="is-loading" :size="36"><Loading /></el-icon>
+      <p>正在检查 AI 配置...</p>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -64,14 +71,14 @@ import axios from 'axios'
 import AiSetupWizard from '@/components/AiSetupWizard.vue'
 
 const route = useRoute()
-const aiConfigured = ref(true) // 默认 true, 检查后变 false
+const aiConfigured = ref(null) // null=检查中, true=已配置, false=未配置
 
 onMounted(async () => {
   try {
-    const r = await axios.get('/api/v1/ai/config')
-    aiConfigured.value = r.data?.api_key_set === true
+ const r = await axios.get('/api/v1/ai/config')
+ aiConfigured.value = r.data?.api_key_set === true
   } catch {
-    aiConfigured.value = false
+ aiConfigured.value = false
   }
 })
 
@@ -209,4 +216,28 @@ html, body, #app {
   .el-empty__description p { font-size: 14px; line-height: 1.5; }
   .el-input__inner { font-size: 14px; }
   .el-select { width: 100%; }
+
+  /* AI 配置加载守卫 */
+  .loading-guard {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: #f0f2f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .loading-content {
+    text-align: center;
+    color: #909399;
+  }
+  .loading-content p {
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  /* 未配置 AI 时隐藏主内容 */
+  .app-container { display: flex; }
+  .app-container.ai-hidden { display: none; }
 </style>
