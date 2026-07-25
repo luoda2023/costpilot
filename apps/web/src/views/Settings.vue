@@ -50,15 +50,15 @@
           </el-descriptions>
         </el-card>
 
-        <el-card shadow="never" class="setting-card">
-          <template #header><span class="card-title">知识库 RAG 状态</span></template>
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="嵌入模型">{{ kb.embedding_model || 'BAAI/bge-m3' }}</el-descriptions-item>
-            <el-descriptions-item label="已索引块数">{{ kb.chunks || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="已处理文件">{{ kb.files || 0 }}</el-descriptions-item>
-          </el-descriptions>
-          <el-button size="small" style="margin-top:8px" @click="loadKbStats">刷新</el-button>
-        </el-card>
+<el-card shadow="never" class="setting-card" v-loading="loadingKb" element-loading-text="加载中...">
+  <template #header><span class="card-title">知识库 RAG 状态</span></template>
+  <el-descriptions :column="1" border size="small">
+    <el-descriptions-item label="嵌入模型">{{ kb.embedding_model || 'BAAI/bge-m3' }}</el-descriptions-item>
+    <el-descriptions-item label="已索引块数">{{ kb.chunks || 0 }}</el-descriptions-item>
+    <el-descriptions-item label="已处理文件">{{ kb.files || 0 }}</el-descriptions-item>
+  </el-descriptions>
+  <el-button size="small" style="margin-top:8px" @click="loadKbStats">刷新</el-button>
+</el-card>
 
 <el-card shadow="never" class="setting-card">
   <template #header><span class="card-title">说明</span></template>
@@ -86,6 +86,7 @@ const current = ref({})
 const kb = ref({})
 const form = reactive({ provider: 'deepseek', base_url: '', api_key: '', model: '', temperature: 0.3, max_tokens: 4096 })
 const testing = ref(false); const applying = ref(false); const reloading = ref(false); const testResult = ref(null)
+  const loadingKb = ref(false)
 
 async function loadProviders() {
   try { const r = await axios.get(apiUrl + '/ai/providers'); providers.value = r.data }
@@ -105,10 +106,12 @@ async function loadCurrent() {
   } catch { ElMessage.error('加载当前配置失败') }
 }
 async function loadKbStats() {
+  loadingKb.value = true
   try {
     const [stats, prog] = await Promise.all([axios.get(apiUrl + '/kb/stats'), axios.get(apiUrl + '/kb/progress')])
     kb.value = { ...stats.data, ...prog.data }
   } catch { kb.value = { error: '未就绪' } }
+  finally { loadingKb.value = false }
 }
 function onProviderChange(name) {
   const p = providers.value.find(x => x.name === name)

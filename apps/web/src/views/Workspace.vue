@@ -33,16 +33,19 @@
       </el-row>
     </el-card>
 
-    <!-- 各专业条数 -->
-    <el-card shadow="never" class="section-card">
-      <template #header><span class="section-title">专业概览</span></template>
-      <div class="specialty-grid">
-        <div v-for="(count, name) in stats.by_specialty" :key="name" class="specialty-item">
-          <span class="spec-name">{{ name }}</span>
-          <span class="spec-count">{{ count }}</span>
-        </div>
+<!-- 各专业条数 -->
+  <el-card shadow="never" class="section-card">
+    <template #header><span class="section-title">专业概览</span></template>
+    <div v-if="!stats.by_specialty || !Object.keys(stats.by_specialty).length" class="empty-specialty">
+      <el-empty description="暂无数据" :image-size="40" />
+    </div>
+    <div v-else class="specialty-grid">
+      <div v-for="(count, name) in stats.by_specialty" :key="name" class="specialty-item">
+        <span class="spec-name">{{ name }}</span>
+        <span class="spec-count">{{ count }}</span>
       </div>
-    </el-card>
+    </div>
+  </el-card>
 
     <!-- 项目列表 -->
     <el-card shadow="never" class="section-card">
@@ -186,7 +189,8 @@ const loading = ref(true)
 .card-header { display:flex; justify-content:space-between; align-items:center; }
 .quick-btn { width:100%; height:48px; font-size:14px; display:flex; align-items:center; gap:8px; border-radius:8px; }
 .specialty-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-.specialty-item { display:flex; justify-content:space-between; padding:8px 12px; background:#f5f7fa; border-radius:6px; }
-.spec-name { color:#606266; font-size:13px; line-height:1.5; }
-.spec-count { color:#303133; font-weight:600; font-size:13px; line-height:1.5; }
+  .specialty-item { display:flex; justify-content:space-between; padding:8px 12px; background:#f5f7fa; border-radius:6px; }
+  .spec-name { color:#606266; font-size:13px; line-height:1.5; }
+  .spec-count { color:#303133; font-weight:600; font-size:13px; line-height:1.5; }
+  .empty-specialty { padding:20px 0; text-align:center; }
 </style>
