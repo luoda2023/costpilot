@@ -34,11 +34,27 @@
               <el-button size="small" @click="loadFields" :disabled="!selectedTemplate">刷新字段</el-button>
             </div>
           </template>
-          <div v-if="!selectedTemplate" class="placeholder">
-            <el-empty description="请先在左侧选择一个模板" :image-size="60" />
-          </div>
-          <el-form v-else :model="fieldValues" label-width="140" label-position="right" size="small">
-            <el-form-item v-for="f in fields" :key="f.field_key" :label="f.field_label" :required="f.required">
+<div v-if="!selectedTemplate" class="placeholder">
+ <el-empty description="请先在左侧选择一个模板" :image-size="60" />
+ </div>
+ <div v-else>
+ <!-- AI 智能填充 -->
+ <div class="ai-fill-bar">
+ <el-input
+ v-model="aiDescription"
+ placeholder="输入一句话描述，AI 自动填充所有字段，如：某高层住宅 1# 楼，建筑面积 12000㎡，框架结构"
+ size="small"
+ clearable
+ @keyup.enter="aiFill"
+ >
+ <template #prefix><el-icon :size="14"><MagicStick /></el-icon></template>
+ </el-input>
+ <el-button type="primary" size="small" @click="aiFill" :loading="aiFilling" :disabled="!aiDescription.trim()">
+ AI 填充
+ </el-button>
+</div>
+	 <el-form :model="fieldValues" label-width="140" label-position="right" size="small">
+<el-form-item v-for="f in fields" :key="f.field_key" :label="f.field_label" :required="f.required">
               <el-input v-if="f.field_type === 'text'" v-model="fieldValues[f.field_key]" :placeholder="f.default_value || ''" />
               <el-input-number v-else-if="f.field_type === 'number'" v-model="fieldValues[f.field_key]" style="width:100%" />
               <el-date-picker v-else-if="f.field_type === 'date'" v-model="fieldValues[f.field_key]" type="date" value-format="YYYY-MM-DD" style="width:100%" />
@@ -46,9 +62,10 @@
                 <el-option v-for="o in (f.options || [])" :key="o" :label="o" :value="o" />
               </el-select>
               <el-input v-else v-model="fieldValues[f.field_key]" type="textarea" :rows="3" :placeholder="f.default_value || ''" />
-            </el-form-item>
-          </el-form>
-        </el-card>
+</el-form-item>
+ </el-form>
+ </div>
+ </el-card>
       </el-col>
 
       <!-- 右侧：预览 -->
@@ -77,7 +94,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { TemplatesAPI } from '@/api'
+import { TemplatesAPI, api } from '@/api'
 
 const templateTypes = ref([])
   const selectedTypeId = ref(null)
@@ -90,6 +107,8 @@ const templateTypes = ref([])
   const rendering = ref(false)
   const rendered = ref(false)
   const renderedHtml = ref('')
+  const aiFilling = ref(false)
+  const aiDescription = ref('')
 
 const currentTypeName = computed(() => {
   const t = templateTypes.value.find(x => x.id === selectedTypeId.value)
@@ -135,6 +154,31 @@ async function render() {
 }
 function escapeHtml(s) { return s.replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])) }
   function copyRendered() { navigator.clipboard.writeText(renderedHtml.value.replace(/<[^>]+>/g,'')).then(() => ElMessage.success('已复制')) }
+
+async function aiFill() {
+  if (!selectedTemplate.value || !aiDescription.value.trim()) return
+  aiFilling.value = true
+  try {
+ const result = await api.post('/v1/ai/fill-fields', {
+ fields: fields.value.map(f => ({
+ field_key: f.field_key,
+ field_label: f.field_label,
+ field_type: f.field_type || 'text',
+ default_value: f.default_value || '',
+ required: f.required || false,
+ })),
+ description: aiDescription.value.trim(),
+ })
+ // 填充返回值
+ Object.entries(result.values || {}).forEach(([k, v]) => {
+ if (fieldValues[k] !== undefined) fieldValues[k] = v
+ })
+ ElMessage.success('AI 已自动填充字段，请检查并调整')
+  } catch (e) {
+ ElMessage.error('AI 填充失败: ' + (e.response?.data?.detail || e.message))
+  } finally { aiFilling.value = false }
+}
+
 async function exportDocx() {
   if (!selectedTemplate.value) { ElMessage.warning('请先选择模板'); return }
   try {
