@@ -36,18 +36,18 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-- name: Build engine-server.exe (PyInstaller)
- shell: cmd
- run: scripts\build_server.bat
+      - name: Build engine-server.exe (PyInstaller)
+        shell: cmd
+        run: scripts\build_server.bat
 
- - name: Verify server.exe
- shell: pwsh
- run: |
- if (-not (Test-Path dist\engine-server.exe)) { throw "server.exe missing" }
- $sz = (Get-Item dist\engine-server.exe).Length / 1MB
- Write-Host "server.exe size: $sz MB"
- Copy-Item dist\engine-server.exe -Destination engine-server.exe -Force
- Write-Host "已复制到根目录: engine-server.exe"
+      - name: Verify server.exe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist\engine-server.exe)) { throw "server.exe missing" }
+          $sz = (Get-Item dist\engine-server.exe).Length / 1MB
+          Write-Host "server.exe size: $sz MB"
+          Copy-Item dist\engine-server.exe -Destination engine-server.exe -Force
+          Write-Host "已复制到根目录: engine-server.exe"
 
       - name: Init database with seed data
         shell: bash
@@ -82,18 +82,18 @@ jobs:
         run: Get-ChildItem dist-electron -Recurse | Format-Table Name,Length,FullName
 
       - name: Upload to GitHub Release
-  uses: softprops/action-gh-release@v1
-  with:
-    tag_name: v1.0.0
-    name: v1.0.0
-    files: |
-      dist-electron/*.exe
-      dist-electron/latest.yml
-    overwrite: true
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.0
+          name: v1.0.0
+          files: |
+            dist-electron/*.exe
+            dist-electron/latest.yml
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-- name: Upload Setup.exe
+      - name: Upload Setup.exe
         uses: actions/upload-artifact@v4
         with:
           name: engineering-assistant-setup-exe
