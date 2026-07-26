@@ -2,15 +2,13 @@
   <el-container class="app-root">
     <!-- 侧边栏导航 -->
     <el-aside class="sidebar" width="220px">
-      <div class="sidebar-brand">
-        <div class="brand-icon">
-          <el-icon :size="28"><Document /></el-icon>
-        </div>
-        <div class="brand-text">
-          <span class="brand-name">工程助手</span>
-          <span class="brand-sub">Engineering AI</span>
-        </div>
+<div class="sidebar-brand">
+      <img src="/icon.png" class="brand-icon-img" alt="工程助手" />
+      <div class="brand-text">
+        <span class="brand-name">工程助手</span>
+        <span class="brand-sub">Engineering AI</span>
       </div>
+    </div>
 
       <div class="sidebar-divider"></div>
 
@@ -321,17 +319,13 @@ html, body, #app {
   margin-top: var(--space-1);
 }
 
-.brand-icon {
+.brand-icon-img {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--brand-500), var(--brand-400));
   border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  box-shadow: var(--shadow-brand);
+  object-fit: contain;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .brand-text {
