@@ -53,7 +53,7 @@
           </div>
 <div v-else-if="loadingPreview" class="placeholder">
   <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-  <p style="margin-top:8px;color:#909399">加载中...</p>
+  <p style="margin-top:8px;color: var(--text-tertiary)">加载中...</p>
 </div>
 <div v-else-if="previewError" class="placeholder">
   <el-empty description="预览加载失败">
@@ -152,7 +152,7 @@ onMounted(loadRoot)
 .tree-card { height: 100%; border-radius:8px; overflow:auto; }
 .preview-card { height: 100%; border-radius:8px; }
 .card-header { display:flex; justify-content:space-between; align-items:center; }
-.card-title { font-size:15px; font-weight:600; color:#303133; line-height:1.5; }
+.card-title { font-size:15px; font-weight:600; color: var(--text-primary); line-height:1.5; }
 .header-actions { display:flex; gap:8px; align-items:center; }
 .tree-node { display:flex; align-items:center; gap:6px; }
 .node-label { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.5; }
@@ -160,6 +160,6 @@ onMounted(loadRoot)
 .preview-body { height: calc(100vh - 180px); overflow:auto; }
 .img-wrap { text-align:center; padding:12px; }
 .img-wrap img { max-width:100%; max-height:70vh; border-radius:4px; }
-.text-preview { white-space:pre-wrap; font-family:'Courier New',monospace; font-size:13px; line-height:1.6; background:#fafafa; padding:12px; margin:0; min-height:400px; }
+.text-preview { white-space:pre-wrap; font-family:'Courier New',monospace; font-size:13px; line-height:1.6; background: var(--gray-50); padding:12px; margin:0; min-height:400px; }
 .office-viewer { width:100%; height:70vh; overflow:auto; }
 </style>

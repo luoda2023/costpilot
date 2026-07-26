@@ -192,12 +192,12 @@ onMounted(loadTypes)
 </script>
 
 <style scoped>
-.textgen-page { background:#fff; border-radius:8px; padding:8px; }
+.textgen-page { background: var(--bg-self); border-radius:8px; padding:8px; }
 .side-card { border-radius:8px; }
 .main-card { border-radius:8px; }
-.card-title { font-size:15px; font-weight:600; color:#303133; line-height:1.5; }
+.card-title { font-size:15px; font-weight:600; color: var(--text-primary); line-height:1.5; }
 .card-header { display:flex; justify-content:space-between; align-items:center; }
 .type-menu { border-right:none; }
 .placeholder { padding:60px 0; text-align:center; }
-.rendered-md { max-height:600px; overflow:auto; padding:12px; background:#fafafa; border:1px solid #ebeef5; border-radius:4px; font-size:14px; line-height:1.6; }
+.rendered-md { max-height:600px; overflow:auto; padding:12px; background: var(--gray-50); border: 1 solid var(--gray-200); border-radius:4px; font-size:14px; line-height:1.6; }
 </style>

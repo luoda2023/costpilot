@@ -167,7 +167,7 @@ onMounted(() => { loadProviders(); loadCurrent(); loadKbStats() })
 <style scoped>
 .settings-page { padding:8px; }
 .setting-card { border-radius:8px; margin-bottom:16px; }
-.card-title { font-size:15px; font-weight:600; color:#303133; line-height:1.5; }
+.card-title { font-size:15px; font-weight:600; color: var(--text-primary); line-height:1.5; }
 .form-actions { display:flex; gap:10px; }
 .notes { margin:0; padding-left:16px; line-height:1.6; font-size:14px; color:#606266; }
 .notes code { background:#f4f4f5; padding:2px 6px; border-radius:3px; font-size:13px; }

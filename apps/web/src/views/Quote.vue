@@ -322,25 +322,25 @@ onMounted(loadSpecialties)
 </script>
 
 <style scoped>
-.quote-page { background:#fff; border-radius:8px; }
+.quote-page { background: var(--bg-self); border-radius:8px; }
 .quote-card { border-radius:8px; margin-bottom:0; }
 .result-card { border-radius:8px; }
 .card-header { display:flex; justify-content:space-between; align-items:center; }
-.card-title { font-size:15px; font-weight:600; color:#303133; line-height:1.5; }
+.card-title { font-size:15px; font-weight:600; color: var(--text-primary); line-height:1.5; }
 .header-actions { display:flex; gap:8px; }
-.proj-form { margin-bottom:10px; padding:10px; background:#fafafa; border-radius:6px; }
+.proj-form { margin-bottom:10px; padding:10px; background: var(--gray-50); border-radius: var(--radius-sm); }
 .empty-tip { padding:20px 0; }
 .placeholder { padding:60px 0; text-align:center; }
 .result-body { padding:0 4px; }
 .result-block { margin-bottom:16px; }
 .result-label { font-size:13px; color:#606266; line-height:1.5; }
-.result-value { font-size:16px; font-weight:700; color:#303133; margin-top:2px; line-height:1.4; }
-.result-block.grand .result-label { font-size:14px; color:#409eff; }
+.result-value { font-size:16px; font-weight:700; color: var(--text-primary); margin-top:2px; line-height:1.4; }
+.result-block.grand .result-label { font-size:14px; color: var(--brand-500); }
 .result-block.grand .result-value { font-size:20px; color:#f56c6c; }
 .sub-collapse { margin-top:2px; }
 .action-bar { margin-top:12px; display:flex; flex-direction:column; gap:8px; }
 .sub-actions { display:flex; gap:8px; }
 .sub-actions .el-button { flex:1; }
 .dialog-search { display:flex; gap:8px; margin-bottom:12px; }
-.dialog-hint { color:#909399; font-size:12px; margin-top:8px; }
+.dialog-hint { color: var(--text-tertiary); font-size:12px; margin-top:8px; }
 </style>
