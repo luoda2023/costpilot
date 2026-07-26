@@ -1,288 +1,549 @@
 <template>
-<div class="workspace" v-loading="loading" element-loading-text="正在加载数据...">
-  <!-- 错误提示 -->
-  <el-alert v-if="loadError" :title="loadError" type="error" show-icon closable class="error-alert" @close="loadError=''" />
-
-  <!-- 概览卡片 -->
-    <el-row :gutter="16" class="stat-row">
-      <el-col :span="6" v-for="card in statCards" :key="card.label">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-inner">
-            <div class="stat-left">
-              <div class="stat-label">{{ card.label }}</div>
-              <div class="stat-value" :class="card.cls">{{ card.value }}</div>
-            </div>
-            <div class="stat-icon-wrap" :style="{ background: card.bg }">
-              <el-icon :size="22" color="#fff"><component :is="card.icon" /></el-icon>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 快速入口 -->
-    <el-card shadow="never" class="section-card">
-      <template #header><span class="section-title">快速入口</span></template>
-      <el-row :gutter="16">
-        <el-col :span="6" v-for="item in quickLinks" :key="item.label">
-          <el-button :type="item.type" size="large" class="quick-btn" @click="$router.push(item.path)">
-            <el-icon><component :is="item.icon" /></el-icon>
-            <span>{{ item.label }}</span>
+  <div class="workspace">
+    <!-- 欢迎区 -->
+    <section class="hero-section">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <el-icon><Cpu /></el-icon>
+          <span>AI 驱动 · 数据有据</span>
+        </div>
+        <h1 class="hero-title">一句话，生成专业工程文档</h1>
+        <p class="hero-subtitle">从投标文件到施工图说明，覆盖可研、初设、方案、施组全流程</p>
+        <div class="hero-input-row">
+          <el-input
+            v-model="prompt"
+            placeholder="描述你的需求，例如：某DN800污水管网改造工程投标文件..."
+            size="large"
+            class="hero-input"
+            @keyup.enter="handleQuickGen"
+          >
+            <template #prefix>
+              <el-icon color="#94a3b8"><EditPen /></el-icon>
+            </template>
+          </el-input>
+          <el-button
+            type="primary"
+            size="large"
+            class="hero-btn"
+            :loading="generating"
+            @click="handleQuickGen"
+          >
+            <el-icon><MagicStick /></el-icon>
+            <span>开始生成</span>
           </el-button>
+        </div>
+        <div class="quick-types">
+          <el-tag
+            v-for="t in quickTypes"
+            :key="t.key"
+            class="quick-type-tag"
+            :type="t.active ? '' : 'info'"
+            effect="plain"
+            @click="selectType(t)"
+          >
+            <span class="type-icon">{{ t.icon }}</span>
+            <span>{{ t.label }}</span>
+          </el-tag>
+        </div>
+      </div>
+    </section>
+
+    <!-- 下方内容区 -->
+    <div class="workspace-body">
+      <el-row :gutter="20">
+        <!-- 最近文档 -->
+        <el-col :xs="24" :lg="14">
+          <el-card class="section-card recent-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <div class="header-left">
+                  <el-icon color="#2563eb"><Document /></el-icon>
+                  <span class="header-title">最近文档</span>
+                </div>
+                <el-button link type="primary" size="small">查看全部</el-button>
+              </div>
+            </template>
+            <el-table :data="recentDocs" style="width: 100%" :show-header="false" size="small">
+              <el-table-column prop="name" label="文档名称" min-width="200">
+                <template #default="{ row }">
+                  <div class="doc-name-cell">
+                    <el-icon color="#2563eb"><Document /></el-icon>
+                    <span>{{ row.name }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="type" label="类型" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="typeTagType(row.type)" effect="light">
+                    {{ row.type }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="date" label="日期" width="110" align="center" />
+              <el-table-column label="" width="50" align="center">
+                <template #default>
+                  <el-button link circle size="small" class="row-action">
+                    <el-icon><ArrowRight /></el-icon>
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
+
+        <!-- 文档模板库 -->
+        <el-col :xs="24" :lg="10">
+          <el-card class="section-card template-card" shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <div class="header-left">
+                  <el-icon color="#059669"><Grid /></el-icon>
+                  <span class="header-title">模板库</span>
+                </div>
+                <el-tag size="small" type="success" effect="light">8 类</el-tag>
+              </div>
+            </template>
+            <div class="template-grid">
+              <div
+                v-for="tpl in templates"
+                :key="tpl.key"
+                class="template-item"
+                @click="goDocGen(tpl.key)"
+              >
+                <div class="tpl-icon" :style="{ background: tpl.color }">
+                  <span class="tpl-icon-text">{{ tpl.icon }}</span>
+                </div>
+                <div class="tpl-info">
+                  <span class="tpl-name">{{ tpl.name }}</span>
+                  <span class="tpl-desc">{{ tpl.desc }}</span>
+                </div>
+                <el-icon class="tpl-arrow"><ArrowRight /></el-icon>
+              </div>
+            </div>
+          </el-card>
         </el-col>
       </el-row>
-    </el-card>
 
-<!-- 各专业条数 -->
-  <el-card shadow="never" class="section-card">
-    <template #header><span class="section-title">专业概览</span></template>
-    <div v-if="!stats.by_specialty || !Object.keys(stats.by_specialty).length" class="empty-specialty">
-      <el-empty description="暂无数据" :image-size="40" />
+      <!-- 数据看板 -->
+      <el-row :gutter="20" class="stats-row">
+        <el-col :xs="12" :sm="6" v-for="stat in stats" :key="stat.label">
+          <div class="stat-card" :style="{ borderTopColor: stat.color }">
+            <div class="stat-icon-wrap" :style="{ background: stat.bg }">
+              <el-icon :size="20" :color="stat.color">{{ stat.icon }}</el-icon>
+            </div>
+            <div class="stat-content">
+              <span class="stat-value">{{ stat.value }}</span>
+              <span class="stat-label">{{ stat.label }}</span>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
     </div>
-    <div v-else class="specialty-grid">
-      <div v-for="(count, name) in stats.by_specialty" :key="name" class="specialty-item">
-        <span class="spec-name">{{ name }}</span>
-        <span class="spec-count">{{ count }}</span>
-      </div>
-    </div>
-  </el-card>
-
-    <!-- 项目列表 -->
-    <el-card shadow="never" class="section-card">
-<template #header>
-	<div class="card-header">
-		<span class="section-title">最近项目</span>
-		<div class="header-actions">
-			<el-button size="small" type="primary" @click="newProjectDialog = true">+ 新建</el-button>
-			<el-button size="small" type="success" @click="aiProjectDialog = true"><el-icon :size="14"><MagicStick /></el-icon> AI 快速创建</el-button>
-		</div>
-	</div>
-</template>
-      <el-table :data="projects" stripe empty-text="暂无项目，点击右上角新建">
-        <el-table-column prop="name" label="项目名" min-width="200" />
-        <el-table-column prop="region" label="地区" width="100" />
-        <el-table-column prop="stage" label="阶段" width="90" />
-<el-table-column prop="status" label="状态" width="90">
-  <template #default="{ row }"><el-tag size="small" :type="statusType(row.status)">{{ row.status }}</el-tag></template>
-</el-table-column>
-<el-table-column prop="created_at" label="创建时间" width="170">
-  <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-</el-table-column>
-<el-table-column label="操作" width="90" align="center">
-  <template #default="{ row }">
-    <el-button size="small" type="danger" link @click.stop="deleteProject(row)">删除</el-button>
-  </template>
-</el-table-column>
-      </el-table>
-    </el-card>
-
-    <!-- 新建项目对话框 -->
-    <el-dialog v-model="newProjectDialog" title="新建项目" width="500" :close-on-click-modal="false">
-      <el-form :model="newProject" label-width="90">
-        <el-form-item label="项目名" required>
-          <el-input v-model="newProject.name" placeholder="如：某高层住宅 1# 楼估算" />
-        </el-form-item>
-        <el-form-item label="地区" required>
-          <el-select v-model="newProject.region" placeholder="选择" style="width:100%">
-            <el-option v-for="r in regions" :key="r" :label="r" :value="r" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="阶段" required>
-          <el-radio-group v-model="newProject.stage">
-            <el-radio-button value="估算">估算</el-radio-button>
-            <el-radio-button value="概算">概算</el-radio-button>
-            <el-radio-button value="预算">预算</el-radio-button>
-            <el-radio-button value="结算">结算</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="newProject.note" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="newProjectDialog = false">取消</el-button>
-        <el-button type="primary" @click="createProject" :loading="creating">创建</el-button>
-      </template>
-</el-dialog>
-
-<!-- AI 快速创建项目对话框 -->
-<el-dialog v-model="aiProjectDialog" title="AI 快速创建项目" width="500" :close-on-click-modal="false">
-	<div class="ai-create-desc">
-		<p>输入一句话描述，AI 自动提取项目信息并创建：</p>
-		<el-input
-			v-model="aiDescription"
-			type="textarea"
-			:rows="4"
-			placeholder="如：帮我建一个北京某高层住宅1#楼的估算项目，建筑面积约12000㎡，框架结构"
-		/>
-	</div>
-	<div v-if="aiPreview" class="ai-preview">
-		<el-divider>AI 识别结果</el-divider>
-		<el-descriptions :column="1" border size="small">
-			<el-descriptions-item label="项目名">{{ aiPreview.name }}</el-descriptions-item>
-			<el-descriptions-item label="地区">{{ aiPreview.region }}</el-descriptions-item>
-			<el-descriptions-item label="阶段">{{ aiPreview.stage }}</el-descriptions-item>
-			<el-descriptions-item label="备注">{{ aiPreview.note || '-' }}</el-descriptions-item>
-		</el-descriptions>
-	</div>
-	<template #footer>
-		<el-button @click="aiProjectDialog = false; aiPreview = null">取消</el-button>
-		<el-button @click="aiParseProject" :loading="aiParsing" :disabled="!aiDescription.trim()">AI 识别</el-button>
-		<el-button type="primary" @click="aiCreateProject" :loading="aiCreating" :disabled="!aiPreview">确认创建</el-button>
-	</template>
-</el-dialog>
-</div>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { PricesAPI, ProjectsAPI, api } from '@/api'
-import { PriceTag, Location, Folder, Connection, Search, Document, Files, ChatDotRound } from '@element-plus/icons-vue'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import {
+  Cpu, EditPen, MagicStick, Document, Grid, ArrowRight,
+  HomeFilled, TrendCharts, Wallet, ChatDotRound, Setting
+} from '@element-plus/icons-vue'
 
-const loading = ref(true)
-  const loadError = ref('')
-  const stats = ref({})
-  const projects = ref([])
-const newProjectDialog = ref(false)
-const creating = ref(false)
-const newProject = reactive({ name: '', region: '', stage: '估算', note: '' })
-const aiProjectDialog = ref(false)
-const aiDescription = ref('')
-const aiPreview = ref(null)
-const aiParsing = ref(false)
-const aiCreating = ref(false)
-  const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
+const router = useRouter()
 
-  const statCards = ref([])
-  const quickLinks = [
-    { label: '查询综合单价', icon: Search, path: '/prices', type: 'primary' },
-    { label: '生成文本', icon: Document, path: '/text-gen', type: 'success' },
-    { label: '预览文件', icon: Files, path: '/preview', type: 'warning' },
-    { label: 'AI 助手', icon: ChatDotRound, path: '/chat', type: 'danger' },
-  ]
+const prompt = ref('')
+const generating = ref(false)
 
-  const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
+const quickTypes = ref([
+  { key: 'bid',    label: '投标文件',   icon: '📑', active: false },
+  { key: 'proposal', label: '方案说明',  icon: '📋', active: false },
+  { key: 'prelim', label: '初步设计',   icon: '📐', active: false },
+  { key: 'draw',   label: '施工图说明',  icon: '📏', active: false },
+  { key: 'feas',   label: '可研报告',   icon: '📊', active: false },
+  { key: 'constr', label: '施工组织设计', icon: '📝', active: false },
+])
 
-  async function loadStats() {
-    try {
-      const r = await PricesAPI.stats()
-      stats.value = r
-      const total = r.total_prices ?? 0
-      statCards.value = [
-        { label: '总价格条目', value: total.toLocaleString(), icon: PriceTag, bg: '#409eff', cls: '' },
-        { label: '市政专题', value: r.total_topics ?? 0, icon: Location, bg: '#67c23a', cls: '' },
-        { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
-        { label: 'API 状态', value: '正常', icon: Connection, bg: '#67c23a', cls: 'ok' },
-      ]
-      loadError.value = ''
-    } catch (e) {
-      loadError.value = '数据加载失败，请检查后端服务是否正常运行'
-      statCards.value = [
-        { label: '总价格条目', value: '-', icon: PriceTag, bg: '#909399', cls: '' },
-        { label: '市政专题', value: '-', icon: Location, bg: '#909399', cls: '' },
-        { label: '项目数', value: projects.value.length, icon: Folder, bg: '#e6a23c', cls: '' },
-        { label: 'API 状态', value: '异常', icon: Connection, bg: '#f56c6c', cls: 'err' },
-      ]
-    }
-    finally { loading.value = false }
-  }
+const recentDocs = ref([
+  { name: 'XX县污水管网改造工程投标文件',   type: '投标文件',   date: '2026-07-20' },
+  { name: 'XX水厂扩建初步设计说明',        type: '初步设计',   date: '2026-07-18' },
+  { name: 'XX道路施工图设计说明',          type: '施工图说明',  date: '2026-07-15' },
+  { name: 'XX泵站专项施工方案',            type: '专项方案',   date: '2026-07-12' },
+])
 
-  async function loadProjects() {
-    try { projects.value = await ProjectsAPI.list() } catch {}
-  }
+const templates = ref([
+  { key: 'bid',     name: '投标文件',      icon: '📑', desc: '技术标+商务标', color: 'linear-gradient(135deg,#dbeafe,#bfdbfe)' },
+  { key: 'proposal', name: '方案说明',     icon: '📋', desc: '比选/优化方案',  color: 'linear-gradient(135deg,#d1fae5,#a7f3d0)' },
+  { key: 'prelim',  name: '初步设计说明',  icon: '📐', desc: '报批/评审稿',   color: 'linear-gradient(135deg,#e0e7ff,#c7d2fe)' },
+  { key: 'draw',    name: '施工图设计说明', icon: '📏', desc: '施工图阶段',   color: 'linear-gradient(135deg,#fef3c7,#fde68a)' },
+  { key: 'feas',    name: '可研报告',      icon: '📊', desc: '立项/报批',    color: 'linear-gradient(135deg,#fce7f3,#fbcfe8)' },
+  { key: 'constr',  name: '施工组织设计',  icon: '📝', desc: '总体/专题',    color: 'linear-gradient(135deg,#ccfbf1,#99f6e4)' },
+  { key: 'contract', name: '合同范本',     icon: '📁', desc: '总包/分包',    color: 'linear-gradient(135deg,#f1f5f9,#e2e8f0)' },
+  { key: 'cost',    name: '概算/目标成本', icon: '💰', desc: '投资估算',     color: 'linear-gradient(135deg,#ecfdf5,#d1fae5)' },
+])
 
-async function createProject() {
-  if (!newProject.name || !newProject.region || !newProject.stage) {
-    ElMessage.warning('请填写完整')
+const stats = ref([
+  { label: '已生成文档',  value: '12',   icon: 'Document',    color: '#2563eb', bg: '#dbeafe' },
+  { label: '价格库条目',  value: '19.4k', icon: 'TrendCharts', color: '#059669', bg: '#d1fae5' },
+  { label: '覆盖专业',    value: '8',    icon: 'Grid',        color: '#7c3aed', bg: '#ede9fe' },
+  { label: '文档模板',    value: '8 类', icon: 'FolderOpened', color: '#d97706', bg: '#fef3c7' },
+])
+
+function typeTagType(type) {
+  const map = { '投标文件': 'danger', '初步设计': '', '施工图说明': 'warning', '专项方案': 'info' }
+  return map[type] || ''
+}
+
+function selectType(t) {
+  quickTypes.value.forEach(q => q.active = false)
+  t.active = true
+  prompt.value = `请帮我生成一份${t.label}，项目为：`
+  router.push('/docgen')
+}
+
+function goDocGen(key) {
+  router.push(`/docgen?type=${key}`)
+}
+
+function handleQuickGen() {
+  if (!prompt.value.trim()) {
+    ElMessage.warning('请先描述你的需求')
     return
   }
-  creating.value = true
-  try {
-    await ProjectsAPI.create({ ...newProject })
-    ElMessage.success('项目已创建')
-    newProjectDialog.value = false
-    newProject.name = ''; newProject.note = ''
-    await loadProjects()
-    await loadStats()
-  } catch (e) {
-    ElMessage.error('创建失败：' + (e.response?.data?.detail || e.message))
-  } finally { creating.value = false }
+  generating.value = true
+  setTimeout(() => {
+    generating.value = false
+    ElMessage.success('已创建生成任务，跳转到文档生成...')
+    router.push('/docgen')
+  }, 1200)
 }
-
-async function deleteProject(row) {
-  try {
-    await ElMessageBox.confirm(`确定删除项目「${row.name}」?`, '提示', { type: 'warning' })
-    await ProjectsAPI.delete(row.id)
-    projects.value = projects.value.filter(p => p.id !== row.id)
-    ElMessage.success('已删除')
-    await loadStats()
-  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
-}
-function statusType(s) {
-	const m = { '草稿': 'info', '进行中': 'primary', '已交付': 'success', '已归档': 'warning' }
-	return m[s] || 'info'
-}
-
-async function aiParseProject() {
-	if (!aiDescription.value.trim()) return
-	aiParsing.value = true
-	try {
-		const r = await api.post('/v1/ai/parse-project', { description: aiDescription.value.trim() })
-		aiPreview.value = r
-	} catch (e) {
-		ElMessage.error('AI 识别失败: ' + (e.response?.data?.detail || e.message))
-	} finally { aiParsing.value = false }
-}
-
-async function aiCreateProject() {
-	if (!aiPreview.value) return
-	aiCreating.value = true
-	try {
-		await ProjectsAPI.create({
-			name: aiPreview.value.name,
-			region: aiPreview.value.region,
-			stage: aiPreview.value.stage,
-			note: aiPreview.value.note,
-		})
-		ElMessage.success('AI 项目已创建')
-		aiProjectDialog.value = false
-		aiPreview.value = null
-		aiDescription.value = ''
-		await loadProjects()
-		await loadStats()
-	} catch (e) {
-		ElMessage.error('创建失败: ' + (e.response?.data?.detail || e.message))
-	} finally { aiCreating.value = false }
-}
-
-onMounted(() => { loadStats(); loadProjects() })
 </script>
 
 <style scoped>
-  .workspace { display:flex; flex-direction:column; gap:16px; }
-  .error-alert { margin-bottom: 0; }
-  .stat-row { margin-bottom:0; }
-.stat-card { border-radius:8px; overflow:hidden; transition: transform 0.2s, box-shadow 0.2s; }
-.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-.stat-inner { display:flex; align-items:center; justify-content:space-between; }
-.stat-left { flex:1; }
-.stat-label { font-size:13px; color:#909399; margin-bottom:4px; line-height:1.5; }
-.stat-value { font-size:22px; font-weight:700; color:#303133; line-height:1.3; }
-.stat-value.ok { color:#67c23a; }
-.stat-value.err { color:#f56c6c; }
-.stat-icon-wrap { width:40px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.section-card { border-radius:8px; margin-top:0; transition: box-shadow 0.2s; }
-.section-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.section-title { font-size:15px; font-weight:600; color:#303133; line-height:1.5; padding-left:4px; border-left:3px solid #409eff; }
-.card-header { display:flex; justify-content:space-between; align-items:center; }
-.quick-btn { width:100%; height:48px; font-size:14px; display:flex; align-items:center; gap:8px; border-radius:8px; }
-.specialty-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-  .specialty-item { display:flex; justify-content:space-between; padding:8px 12px; background:#f5f7fa; border-radius:6px; }
-  .spec-name { color:#606266; font-size:13px; line-height:1.5; }
-  .spec-count { color:#303133; font-weight:600; font-size:13px; line-height:1.5; }
-  .empty-specialty { padding:20px 0; text-align:center; }
-.header-actions { display:flex; gap:8px; align-items:center; }
-.ai-create-desc p { margin:0 0 12px; color:#606266; font-size:14px; }
-.ai-preview { margin-top:8px; }
+.workspace {
+  min-height: 100%;
+}
+
+/* ---------- 欢迎区 ---------- */
+.hero-section {
+  position: relative;
+  background: linear-gradient(135deg, var(--brand-900) 0%, var(--brand-700) 60%, #1e40af 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--space-10) var(--space-8);
+  margin-bottom: var(--space-6);
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 80% 20%, rgba(37,99,235,0.25) 0%, transparent 60%),
+    radial-gradient(ellipse at 20% 80%, rgba(16,185,129,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M0 20L20 0l20 20-20 20z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 40px 40px;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--brand-300);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-5);
+}
+
+.hero-title {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 var(--space-3) 0;
+  letter-spacing: -0.5px;
+  line-height: 1.3;
+}
+
+.hero-subtitle {
+  font-size: var(--text-md);
+  color: var(--gray-400);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.hero-input-row {
+  display: flex;
+  gap: var(--space-3);
+  max-width: 720px;
+}
+
+.hero-input {
+  flex: 1;
+}
+
+.hero-input :deep(.el-input__wrapper) {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.15), 0 4px 12px rgba(0,0,0,0.2) !important;
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(10px);
+  padding: var(--space-1);
+}
+
+.hero-input :deep(.el-input__inner) {
+  color: #fff !important;
+  font-size: var(--text-md);
+}
+
+.hero-input :deep(.el-input__inner::placeholder) {
+  color: var(--gray-400) !important;
+}
+
+.hero-btn {
+  border-radius: var(--radius-lg) !important;
+  font-weight: 600;
+  padding: 0 var(--space-8);
+  height: 48px;
+  font-size: var(--text-md);
+}
+
+.quick-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.quick-type-tag {
+  cursor: pointer;
+  border-radius: var(--radius-full) !important;
+  padding: var(--space-1) var(--space-3) !important;
+  font-size: var(--text-sm) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--gray-300) !important;
+  transition: all var(--transition-fast);
+}
+
+.quick-type-tag:hover {
+  background: rgba(255,255,255,0.12) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.3) !important;
+}
+
+.quick-type-tag.el-tag--info {
+  color: var(--gray-400) !important;
+}
+
+.type-icon {
+  margin-right: var(--space-1);
+}
+
+/* ---------- 内容区 ---------- */
+.workspace-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.section-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+}
+
+.section-card :deep(.el-card__header) {
+  padding: var(--space-4) var(--space-5) !important;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header-title {
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.doc-name-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.row-action {
+  color: var(--gray-400);
+  transition: all var(--transition-fast);
+}
+
+.row-action:hover {
+  color: var(--brand-500);
+  background: var(--gray-100);
+}
+
+/* ---------- 模板库卡片 ---------- */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.template-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-base);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  border: 1px solid transparent;
+}
+
+.template-item:hover {
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.tpl-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tpl-icon-text {
+  line-height: 1;
+}
+
+.tpl-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tpl-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tpl-desc {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+.tpl-arrow {
+  color: var(--gray-400);
+  font-size: 14px;
+  transition: all var(--transition-fast);
+}
+
+.template-item:hover .tpl-arrow {
+  color: var(--brand-500);
+  transform: translateX(2px);
+}
+
+/* ---------- 数据看板 ---------- */
+.stats-row {
+  margin-top: var(--space-5);
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-top: 3px solid transparent;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stat-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: var(--space-6) var(--space-4);
+  }
+  .hero-title {
+    font-size: var(--text-xl);
+  }
+  .hero-input-row {
+    flex-direction: column;
+  }
+  .hero-btn {
+    width: 100%;
+  }
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

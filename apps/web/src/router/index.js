@@ -2,12 +2,18 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
   { path: '/', redirect: '/workspace' },
-  {
-    path: '/workspace',
-    name: 'Workspace',
-    component: () => import('@/views/Workspace.vue'),
-    meta: { title: '工作台' },
-  },
+{
+	path: '/workspace',
+	name: 'Workspace',
+	component: () => import('@/views/Workspace.vue'),
+	meta: { title: '工作台' },
+},
+{
+	path: '/docgen',
+	name: 'DocGen',
+	component: () => import('@/views/DocGen.vue'),
+	meta: { title: '文档生成' },
+},
 {
 path: '/prices',
 name: 'Prices',
