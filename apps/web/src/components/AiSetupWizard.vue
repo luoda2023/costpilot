@@ -30,38 +30,43 @@
           </div>
         </div>
 
-        <!-- 步骤 1: 选择 Provider -->
-        <div v-if="step === 1" class="step-content">
-          <h3>选择 AI 服务商</h3>
-          <div class="provider-grid">
-            <div
-              v-for="p in providers"
-              :key="p.name"
-              class="provider-card"
-              :class="{ selected: form.provider === p.name }"
-              @click="selectProvider(p)"
-            >
-              <div class="provider-name">{{ p.name }}</div>
-              <div class="provider-model">{{ p.default_model }}</div>
-              <div v-if="p.note" class="provider-note">{{ p.note }}</div>
-              <div v-if="!p.needs_api_key" class="provider-badge">本地</div>
-            </div>
-          </div>
-          <div class="step-actions">
-            <el-button type="primary" size="large" @click="step = 2" :disabled="!form.provider">
-              下一步
-            </el-button>
-          </div>
-        </div>
+<!-- 步骤 1: 选择 Provider -->
+<div v-if="step === 1" class="step-content">
+  <h3>选择 AI 服务商</h3>
+  <div v-if="providers.length === 0" class="provider-loading">
+    <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+    <p>正在加载服务商列表...</p>
+  </div>
+  <div v-else class="provider-grid">
+    <div
+      v-for="p in providers"
+      :key="p.name"
+      class="provider-card"
+      :class="{ selected: form.provider === p.name }"
+      @click="selectProvider(p)"
+    >
+      <div class="provider-name">{{ p.name }}</div>
+      <div class="provider-model">{{ p.default_model }}</div>
+      <div v-if="p.note" class="provider-note">{{ p.note }}</div>
+      <div v-if="!p.needs_api_key" class="provider-badge">本地</div>
+    </div>
+  </div>
+  <div class="step-actions">
+    <el-button type="primary" size="large" @click="step = 2" :disabled="!form.provider">
+      下一步
+      <el-icon><ArrowRight /></el-icon>
+    </el-button>
+  </div>
+</div>
 
         <!-- 步骤 2: 填写 API Key -->
         <div v-if="step === 2" class="step-content">
-          <h3>{{ form.provider === 'ollama' ? '本地模型无需 API Key' : '填写 API Key' }}</h3>
+          <h3>{{ needsApiKey ? '填写 API Key' : '本地模型无需 API Key' }}</h3>
           <el-form :model="form" label-width="100" size="large">
             <el-form-item label="Base URL">
               <el-input v-model="form.base_url" placeholder="https://api.deepseek.com/v1" />
             </el-form-item>
-            <el-form-item v-if="form.provider !== 'ollama'" label="API Key">
+            <el-form-item v-if="needsApiKey" label="API Key">
               <el-input v-model="form.api_key" type="password" show-password placeholder="sk-..." />
             </el-form-item>
             <el-form-item label="Model">
@@ -70,9 +75,9 @@
           </el-form>
           <div class="step-actions">
             <el-button @click="step = 1" size="large">上一步</el-button>
-            <el-button type="primary" size="large" @click="step = 3" :disabled="form.provider !== 'ollama' && !form.api_key">
-              下一步
-            </el-button>
+<el-button type="primary" size="large" @click="step = 3" :disabled="needsApiKey && !form.api_key">
+  下一步
+</el-button>
           </div>
         </div>
 
@@ -89,9 +94,9 @@
           </div>
           <div class="step-actions">
             <el-button @click="step = 2" size="large">上一步</el-button>
-            <el-button type="primary" size="large" @click="testAndSave" :loading="testing" :disabled="!form.api_key && form.provider !== 'ollama'">
-              {{ testing ? '测试中...' : '测试并完成配置' }}
-            </el-button>
+<el-button type="primary" size="large" @click="testAndSave" :loading="testing" :disabled="needsApiKey && !form.api_key">
+  {{ testing ? '测试中...' : '测试并完成配置' }}
+</el-button>
           </div>
           <el-alert
             v-if="testResult"
@@ -116,15 +121,29 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { Loading, CircleCheck, ArrowRight } from '@element-plus/icons-vue'
 
 const emit = defineEmits(['configured'])
 
 const apiUrl = '/api/v1'
 const step = ref(1)
-const providers = ref([])
+// 内置 fallback 服务商列表（API 加载失败时使用）
+	const FALLBACK_PROVIDERS = [
+ { name: "deepseek", base_url: "https://api.deepseek.com/v1", default_model: "deepseek-chat", note: "在 https://platform.deepseek.com 申请 api_key", needs_api_key: true },
+ { name: "moonshot", base_url: "https://api.moonshot.cn/v1", default_model: "moonshot-v1-32k", note: "月之暗面,在 https://platform.moonshot.cn 申请", needs_api_key: true },
+ { name: "ollama", base_url: "http://127.0.0.1:11434/v1", default_model: "qwen2.5:7b-instruct", note: "本地 Ollama,无需 api_key", needs_api_key: false },
+ { name: "openai", base_url: "https://api.openai.com/v1", default_model: "gpt-4o-mini", note: "OpenAI 官方,需海外网络", needs_api_key: true },
+ { name: "qwen", base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", default_model: "qwen-plus", note: "阿里云 DashScope", needs_api_key: true },
+ { name: "zhipu", base_url: "https://open.bigmodel.cn/api/paas/v4", default_model: "glm-4-plus", note: "智谱开放平台", needs_api_key: true },
+	]
+	const providers = ref([])
+	const needsApiKey = computed(() => {
+ const p = providers.value.find(p => p.name === form.provider)
+ return p ? p.needs_api_key !== false : true
+	})
 const testing = ref(false)
 const testResult = ref(null)
 const form = reactive({
@@ -145,7 +164,12 @@ async function loadProviders() {
       form.model = first.default_model
     }
   } catch (e) {
-    ElMessage.error('加载 Provider 列表失败: ' + (e.response?.data?.detail || e.message))
+    // API 加载失败时使用内置 fallback
+    providers.value = FALLBACK_PROVIDERS
+    const first = FALLBACK_PROVIDERS[0]
+    form.provider = first.name
+    form.base_url = first.base_url
+    form.model = first.default_model
   }
 }
 
@@ -153,7 +177,9 @@ function selectProvider(p) {
   form.provider = p.name
   form.base_url = p.base_url
   form.model = p.default_model
-  if (!p.needs_api_key) {
+  if (p.needs_api_key) {
+    form.api_key = form.api_key === 'local' ? '' : form.api_key
+  } else {
     form.api_key = 'local'
   }
 }
@@ -313,10 +339,16 @@ onMounted(loadProviders)
 }
 
 .provider-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 24px;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 12px;
+margin-bottom: 24px;
+}
+
+.provider-loading {
+text-align: center;
+padding: 40px 0;
+color: #909399;
 }
 
 .provider-card {
