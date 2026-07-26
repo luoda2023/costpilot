@@ -6,420 +6,273 @@
         <!-- 顶部 -->
         <div class="wizard-header">
           <div class="wizard-logo">
-            <el-icon :size="36" color="#409eff"><Coin /></el-icon>
-            <h1>欢迎使用工程助手</h1>
-          </div>
-          <p class="wizard-subtitle">请先配置 AI 服务，所有功能由 AI 驱动</p>
-        </div>
-
-        <!-- 步骤指示器 -->
-        <div class="steps">
-          <div class="step" :class="{ active: step >= 1, done: step > 1 }">
-            <div class="step-circle">1</div>
-            <span class="step-label">选择 Provider</span>
-          </div>
-          <div class="step-line" :class="{ active: step >= 2 }"></div>
-          <div class="step" :class="{ active: step >= 2, done: step > 2 }">
-            <div class="step-circle">2</div>
-            <span class="step-label">填写 API Key</span>
-          </div>
-          <div class="step-line" :class="{ active: step >= 3 }"></div>
-          <div class="step" :class="{ active: step >= 3, done: step > 3 }">
-            <div class="step-circle">3</div>
-            <span class="step-label">测试连接</span>
+            <div class="logo-icon">⚙</div>
+            <div>
+              <h1>AI 服务配置</h1>
+              <p class="wizard-subtitle">填写你的 AI 服务信息，即可开始使用</p>
+            </div>
           </div>
         </div>
 
-<!-- 步骤 1: 选择 Provider -->
-<div v-if="step === 1" class="step-content">
-  <h3>选择 AI 服务商</h3>
-  <div v-if="providers.length === 0" class="provider-loading">
-    <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-    <p>正在加载服务商列表...</p>
-  </div>
-  <div v-else class="provider-grid">
-    <div
-      v-for="p in providers"
-      :key="p.name"
-      class="provider-card"
-      :class="{ selected: form.provider === p.name }"
-      @click="selectProvider(p)"
-    >
-      <div class="provider-name">{{ p.name }}</div>
-      <div class="provider-model">{{ p.default_model }}</div>
-      <div v-if="p.note" class="provider-note">{{ p.note }}</div>
-      <div v-if="!p.needs_api_key" class="provider-badge">本地</div>
-    </div>
-  </div>
-  <div class="step-actions">
-    <el-button type="primary" size="large" @click="step = 2" :disabled="!form.provider">
-      下一步
-      <el-icon><ArrowRight /></el-icon>
-    </el-button>
-  </div>
-</div>
+        <!-- 配置表单 -->
+        <div class="config-form">
+          <div class="form-group">
+            <label class="form-label">Base URL <span class="required">*</span></label>
+            <el-input
+              v-model="form.base_url"
+              placeholder="https://api.deepseek.com/v1"
+              size="large"
+              clearable
+            />
+            <span class="form-hint">AI 服务的 API 地址</span>
+          </div>
 
-        <!-- 步骤 2: 填写 API Key -->
-        <div v-if="step === 2" class="step-content">
-          <h3>{{ needsApiKey ? '填写 API Key' : '本地模型无需 API Key' }}</h3>
-          <el-form :model="form" label-width="100" size="large">
-            <el-form-item label="Base URL">
-              <el-input v-model="form.base_url" placeholder="https://api.deepseek.com/v1" />
-            </el-form-item>
-            <el-form-item v-if="needsApiKey" label="API Key">
-              <el-input v-model="form.api_key" type="password" show-password placeholder="sk-..." />
-            </el-form-item>
-            <el-form-item label="Model">
-              <el-input v-model="form.model" placeholder="deepseek-chat" />
-            </el-form-item>
-          </el-form>
-          <div class="step-actions">
-            <el-button @click="step = 1" size="large">上一步</el-button>
-<el-button type="primary" size="large" @click="step = 3" :disabled="needsApiKey && !form.api_key">
-  下一步
-</el-button>
+          <div class="form-group">
+            <label class="form-label">API Key <span class="required">*</span></label>
+            <el-input
+              v-model="form.api_key"
+              type="password"
+              show-password
+              placeholder="sk-..."
+              size="large"
+              clearable
+            />
+            <span class="form-hint">在服务商平台申请的 API 密钥</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Model <span class="required">*</span></label>
+            <el-input
+              v-model="form.model"
+              placeholder="deepseek-chat"
+              size="large"
+              clearable
+            />
+            <span class="form-hint">要使用的模型名称，如 deepseek-chat / gpt-4o-mini</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Temperature</label>
+            <el-input
+              v-model="form.temperature"
+              type="number"
+              :min="0"
+              :max="2"
+              :step="0.1"
+              size="large"
+            />
+            <span class="form-hint"> creativity 创造性程度，0=精确，2=创意，默认 0.3</span>
           </div>
         </div>
 
-        <!-- 步骤 3: 测试连接 -->
-        <div v-if="step === 3" class="step-content">
-          <h3>测试连接</h3>
-          <div class="config-summary">
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="Provider">{{ form.provider }}</el-descriptions-item>
-              <el-descriptions-item label="Base URL">{{ form.base_url }}</el-descriptions-item>
-              <el-descriptions-item label="Model">{{ form.model }}</el-descriptions-item>
-              <el-descriptions-item label="API Key">{{ form.api_key ? '已设置' : '未设置' }}</el-descriptions-item>
-            </el-descriptions>
-          </div>
-          <div class="step-actions">
-            <el-button @click="step = 2" size="large">上一步</el-button>
-<el-button type="primary" size="large" @click="testAndSave" :loading="testing" :disabled="needsApiKey && !form.api_key">
-  {{ testing ? '测试中...' : '测试并完成配置' }}
-</el-button>
-          </div>
-          <el-alert
-            v-if="testResult"
-            :title="testResult.msg"
-            :type="testResult.ok ? 'success' : 'error'"
-            :closable="false"
-            style="margin-top: 16px"
-          />
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+          <el-button size="large" @click="handleTest" :loading="testing">
+            测试连接
+          </el-button>
+          <el-button type="primary" size="large" @click="handleSave" :loading="saving">
+            保存并进入
+          </el-button>
         </div>
 
-        <!-- 完成状态 -->
-        <div v-if="step === 4" class="step-content">
-          <div class="done-state">
-            <el-icon :size="64" color="#67c23a"><CircleCheck /></el-icon>
-            <h2>配置完成！</h2>
-            <p>AI 服务已就绪，即将进入系统...</p>
-          </div>
-        </div>
+        <!-- 测试结果 -->
+        <el-alert
+          v-if="testResult"
+          :title="testResult.msg"
+          :type="testResult.ok ? 'success' : 'error'"
+          :closable="false"
+          style="margin-top: 16px"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
-import { Loading, CircleCheck, ArrowRight } from '@element-plus/icons-vue'
 
 const emit = defineEmits(['configured'])
 
 const apiUrl = '/api/v1'
-const step = ref(1)
-// 内置 fallback 服务商列表（API 加载失败时使用）
-	const FALLBACK_PROVIDERS = [
- { name: "deepseek", base_url: "https://api.deepseek.com/v1", default_model: "deepseek-chat", note: "在 https://platform.deepseek.com 申请 api_key", needs_api_key: true },
- { name: "moonshot", base_url: "https://api.moonshot.cn/v1", default_model: "moonshot-v1-32k", note: "月之暗面,在 https://platform.moonshot.cn 申请", needs_api_key: true },
- { name: "ollama", base_url: "http://127.0.0.1:11434/v1", default_model: "qwen2.5:7b-instruct", note: "本地 Ollama,无需 api_key", needs_api_key: false },
- { name: "openai", base_url: "https://api.openai.com/v1", default_model: "gpt-4o-mini", note: "OpenAI 官方,需海外网络", needs_api_key: true },
- { name: "qwen", base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1", default_model: "qwen-plus", note: "阿里云 DashScope", needs_api_key: true },
- { name: "zhipu", base_url: "https://open.bigmodel.cn/api/paas/v4", default_model: "glm-4-plus", note: "智谱开放平台", needs_api_key: true },
-	]
-	const providers = ref([])
-	const needsApiKey = computed(() => {
- const p = providers.value.find(p => p.name === form.provider)
- return p ? p.needs_api_key !== false : true
-	})
 const testing = ref(false)
+const saving = ref(false)
 const testResult = ref(null)
+
 const form = reactive({
-  provider: '',
   base_url: '',
   api_key: '',
   model: '',
+  temperature: 0.3,
 })
 
-async function loadProviders() {
+// 启动时如果已有配置，自动填入
+onMounted(async () => {
   try {
-    const r = await axios.get(apiUrl + '/ai/providers')
-    providers.value = r.data && r.data.length ? r.data : FALLBACK_PROVIDERS
-    const first = providers.value[0]
-    form.provider = first.name
-    form.base_url = first.base_url
-    form.model = first.default_model
-  } catch (e) {
-    // API 加载失败时使用内置 fallback
-    providers.value = FALLBACK_PROVIDERS
-    const first = FALLBACK_PROVIDERS[0]
-    form.provider = first.name
-    form.base_url = first.base_url
-    form.model = first.default_model
-  }
-}
+    const r = await axios.get(apiUrl + '/ai/config')
+    if (r.data) {
+      form.base_url = r.data.base_url || ''
+      form.api_key = ''
+      form.model = r.data.model || ''
+      form.temperature = r.data.temperature ?? 0.3
+    }
+  } catch {}
+})
 
-function selectProvider(p) {
-  form.provider = p.name
-  form.base_url = p.base_url
-  form.model = p.default_model
-  if (p.needs_api_key) {
-    form.api_key = form.api_key === 'local' ? '' : form.api_key
-  } else {
-    form.api_key = 'local'
+async function handleTest() {
+  if (!form.base_url || !form.api_key || !form.model) {
+    ElMessage.warning('请填写 Base URL、API Key 和 Model')
+    return
   }
-}
-
-async function testAndSave() {
   testing.value = true
   testResult.value = null
   try {
-    // 先保存配置
     await axios.post(apiUrl + '/ai/switch', {
-      provider: form.provider,
-      base_url: form.base_url || undefined,
-      api_key: form.api_key || undefined,
-      model: form.model || undefined,
+      provider: 'custom',
+      base_url: form.base_url,
+      api_key: form.api_key,
+      model: form.model,
+      temperature: form.temperature,
     })
-    // 再测试连接
     const t = await axios.post(apiUrl + '/ai/test')
     testResult.value = t.data
-    if (t.data.ok) {
-      step.value = 4
-      setTimeout(() => emit('configured'), 1500)
-    }
   } catch (e) {
-    testResult.value = { ok: false, msg: '配置失败: ' + (e.response?.data?.detail || e.message) }
+    testResult.value = { ok: false, msg: '测试失败: ' + (e.response?.data?.detail || e.message) }
   } finally {
     testing.value = false
   }
 }
 
-onMounted(loadProviders)
+async function handleSave() {
+  if (!form.base_url || !form.api_key || !form.model) {
+    ElMessage.warning('请填写 Base URL、API Key 和 Model')
+    return
+  }
+  saving.value = true
+  try {
+    await axios.post(apiUrl + '/ai/switch', {
+      provider: 'custom',
+      base_url: form.base_url,
+      api_key: form.api_key,
+      model: form.model,
+      temperature: form.temperature,
+    })
+    ElMessage.success('配置已保存')
+    setTimeout(() => emit('configured'), 800)
+  } catch (e) {
+    ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message))
+  } finally {
+    saving.value = false
+  }
+}
 </script>
 
 <style scoped>
-.wizard-overlay {
+.ai-setup-wizard {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
+  z-index: 9999;
+}
+
+.wizard-overlay {
   width: 100vw;
   height: 100vh;
-  background: #f0f2f5;
+  background: linear-gradient(135deg, #0f1724 0%, #1e3a5f 60%, #1e40af 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
 }
 
 .wizard-card {
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  width: 560px;
-  max-width: 90vw;
-  padding: 40px;
-  animation: slideUp 0.3s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 480px;
+  max-width: 92vw;
+  padding: 36px;
+  animation: slideUp 0.4s ease;
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .wizard-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .wizard-logo {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 14px;
+  margin-bottom: 6px;
 }
 
-.wizard-logo h1 {
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+
+.wizard-header h1 {
   margin: 0;
-  font-size: 24px;
-  color: #1a2332;
+  font-size: 22px;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .wizard-subtitle {
-  color: #909399;
+  color: #94a3b8;
   font-size: 14px;
-  margin: 0;
+  margin: 6px 0 0;
 }
 
-.steps {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32px;
-}
-
-.step {
+.config-form {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 
-.step-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #e4e7ed;
-  color: #909399;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.form-label {
   font-size: 14px;
   font-weight: 600;
-  transition: all 0.3s;
+  color: #334155;
 }
 
-.step.active .step-circle {
-  background: #409eff;
-  color: #fff;
+.required {
+  color: #ef4444;
 }
 
-.step.done .step-circle {
-  background: #67c23a;
-  color: #fff;
-}
-
-.step-label {
+.form-hint {
   font-size: 12px;
-  color: #909399;
-  white-space: nowrap;
+  color: #94a3b8;
 }
 
-.step.active .step-label {
-  color: #409eff;
-  font-weight: 600;
-}
-
-.step-line {
-  width: 60px;
-  height: 2px;
-  background: #e4e7ed;
-  margin: 0 8px;
-  margin-bottom: 24px;
-  transition: all 0.3s;
-}
-
-.step-line.active {
-  background: #409eff;
-}
-
-.step-content {
-  min-height: 260px;
-}
-
-.step-content h3 {
-  font-size: 16px;
-  color: #303133;
-  margin: 0 0 20px;
-}
-
-.provider-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 12px;
-margin-bottom: 24px;
-}
-
-.provider-loading {
-text-align: center;
-padding: 40px 0;
-color: #909399;
-}
-
-.provider-card {
-  padding: 16px;
-  border: 2px solid #ebeef5;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-}
-
-.provider-card:hover {
-  border-color: #409eff;
-  box-shadow: 0 2px 8px rgba(64,158,255,0.1);
-}
-
-.provider-card.selected {
-  border-color: #409eff;
-  background: #ecf5ff;
-}
-
-.provider-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 4px;
-}
-
-.provider-model {
-  font-size: 12px;
-  color: #909399;
-}
-
-.provider-note {
-  font-size: 11px;
-  color: #c0c4cc;
-  margin-top: 4px;
-}
-
-.provider-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: #67c23a;
-  color: #fff;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.step-actions {
+.form-actions {
   display: flex;
   gap: 12px;
-  justify-content: center;
+  justify-content: flex-end;
   margin-top: 24px;
 }
 
-.config-summary {
-  margin-bottom: 20px;
-}
-
-.done-state {
-  text-align: center;
-  padding: 40px 0;
-}
-
-.done-state h2 {
-  margin: 16px 0 8px;
-  color: #303133;
-}
-
-.done-state p {
-  color: #909399;
-  font-size: 14px;
+.form-actions .el-button {
+  min-width: 120px;
 }
 </style>
