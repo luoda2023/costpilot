@@ -156,13 +156,11 @@ const form = reactive({
 async function loadProviders() {
   try {
     const r = await axios.get(apiUrl + '/ai/providers')
-    providers.value = r.data
-    if (r.data.length) {
-      const first = r.data[0]
-      form.provider = first.name
-      form.base_url = first.base_url
-      form.model = first.default_model
-    }
+    providers.value = r.data && r.data.length ? r.data : FALLBACK_PROVIDERS
+    const first = providers.value[0]
+    form.provider = first.name
+    form.base_url = first.base_url
+    form.model = first.default_model
   } catch (e) {
     // API 加载失败时使用内置 fallback
     providers.value = FALLBACK_PROVIDERS
