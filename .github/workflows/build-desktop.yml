@@ -16,6 +16,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
 
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,14 +84,16 @@ jobs:
         run: Get-ChildItem dist-electron -Recurse | Format-Table Name,Length,FullName
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
         with:
           tag_name: v1.0.0
           name: v1.0.0
           files: |
             dist-electron/*.exe
             dist-electron/latest.yml
-          overwrite: true
+          draft: true
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
