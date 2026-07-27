@@ -203,13 +203,14 @@
             </div>
           </div>
         </template>
-        <div class="preview-content">
-          <div class="preview-placeholder">
-            <el-icon :size="64" color="#cbd5e1"><Document /></el-icon>
-            <p>文档预览区域</p>
-            <p class="preview-hint">AI 生成的文档将在这里实时展示</p>
-          </div>
-        </div>
+<div class="preview-content">
+ <div v-if="!generatedText" class="preview-placeholder">
+ <el-icon :size="64" color="#cbd5e1"><Document /></el-icon>
+ <p>文档预览区域</p>
+ <p class="preview-hint">AI 生成的文档将在这里实时展示</p>
+ </div>
+ <div v-else class="preview-rendered" v-html="renderMarkdown(generatedText)"></div>
+ </div>
       </el-card>
     </main>
 
@@ -237,7 +238,39 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Check, MagicStick, ArrowRight, ArrowLeft, Download } from '@element-plus/icons-vue'
+import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js'
+import { api } from '@/api'
+import { saveAs } from 'file-saver'
+import {
+  Document, Paragraph, TextRun, HeadingLevel, AlignmentType,
+  Packer, Table, TableRow, TableCell, WidthType, BorderStyle
+} from 'docx'
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+  highlight: (str, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return `<pre class="code-block"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
+      } catch {}
+    }
+    try {
+      const result = hljs.highlightAuto(str)
+      return `<pre class="code-block"><code class="hljs">${result.value}</code></pre>`
+    } catch {}
+    return `<pre class="code-block"><code>${md.utils.escapeHtml(str)}</code></pre>`
+  }
+})
+
+function renderMarkdown(text) {
+  if (!text) return ''
+  return md.render(text)
+}
 
 const route = useRoute()
 
@@ -248,6 +281,7 @@ const genProgress = ref(0)
 const genStatus = ref('')
 const genDone = ref(false)
 const genLogs = ref([])
+const generatedText = ref('')
 const form = reactive({
   name: '',
   location: '',
@@ -296,6 +330,83 @@ function goStep3() {
   startGeneration()
 }
 
+function buildDocumentText() {
+  const stageMap = { feasibility: '可研/立项阶段', preliminary: '初步设计/报批', construction: '施工图/招投标', building: '施工阶段', settlement: '结算/审计' }
+  const typeMap = { bid: '投标文件', proposal: '方案说明', prelim: '初步设计说明', draw: '施工图设计说明', feas: '可研报告', constr: '施工组织设计', contract: '合同范本', cost: '概算/目标成本' }
+  const engMap = { pipeline: '市政管网（给水/排水）', road: '道路工程', building: '建筑工程', water: '水利工程', landscape: '园林绿化', mep: '机电安装', other: '其他' }
+  const typeName = typeMap[selectedType.value] || selectedType.value
+  const stageName = stageMap[form.stage] || form.stage
+  const engName = engMap[form.engType] || form.engType
+  const now = new Date().toLocaleDateString('zh-CN')
+
+  return `# ${form.name || '工程文档'}
+
+## 一、项目概况
+
+| 项目名称 | ${form.name || '-'} |
+| 项目地点 | ${form.location || '-'} |
+| 工程规模 | ${form.scale}${form.scaleUnit} |
+| 编制阶段 | ${stageName} |
+| 工程类型 | ${engName} |
+| 输出格式 | ${form.outputFormat.toUpperCase()} |
+| 编制日期 | ${now} |
+
+${form.note ? `## 补充说明\n\n${form.note}\n` : ''}
+
+## 二、建设条件
+
+### 2.1 项目背景
+
+${form.name}位于${form.location}，工程规模为${form.scale}${form.scaleUnit}，属于${engName}类项目。本阶段为${stageName}。
+
+### 2.2 建设条件分析
+
+项目所在区域地形地貌、水文地质、交通运输等条件已进行现场踏勘和资料收集。建设条件总体可行。
+
+## 三、工程方案
+
+### 3.1 方案概述
+
+根据项目特点和技术要求，本工程采用合理可行的技术方案，确保工程质量、安全、进度和投资控制目标的实现。
+
+### 3.2 主要技术指标
+
+- 工程规模：${form.scale}${form.scaleUnit}
+- 工程类型：${engName}
+- 编制阶段：${stageName}
+
+## 四、施工组织
+
+### 4.1 施工条件
+
+施工场地条件已具备，施工用水、用电、临时设施等可满足施工需要。
+
+### 4.2 施工进度计划
+
+根据工程规模和特点，合理编制施工进度计划，确保按期完成。
+
+## 五、投资估算
+
+### 5.1 估算依据
+
+本估算依据${stageName}要求，结合工程规模和当地市场价格水平编制。
+
+### 5.2 估算结果
+
+| 序号 | 费用项目 | 估算金额（万元） |
+|------|----------|----------------|
+| 1 | 建安工程费 | - |
+| 2 | 设备购置费 | - |
+| 3 | 工程建设其他费 | - |
+| 4 | 预备费 | - |
+| **合计** | | **-** |
+
+---
+
+*本文件由工程助手 AI 自动生成，仅供参考，请结合实际情况修改完善。*
+*生成时间：${now}*`
+}
+
 function resetForm() {
   step.value = 1
   generating.value = false
@@ -342,6 +453,7 @@ function startGeneration() {
       genStatus.value = '生成完成'
       generating.value = false
       step.value = 4
+      generatedText.value = buildDocumentText()
     }
   }, 600)
 }
@@ -354,8 +466,48 @@ function handleGenerate() {
   startGeneration()
 }
 
-function handleExport() {
-  ElMessage.success('正在导出 ' + form.outputFormat.toUpperCase() + ' 文件...')
+async function handleExport() {
+  if (!generatedText.value) {
+    ElMessage.warning('请先生成文档')
+    return
+  }
+  try {
+    const lines = generatedText.value.split('\n')
+    const children = []
+    for (const rawLine of lines) {
+      const line = rawLine.trimEnd()
+      if (!line) {
+        children.push(new Paragraph({ text: '', spacing: { after: 120 } }))
+        continue
+      }
+      if (line.startsWith('# ')) {
+        children.push(new Paragraph({ text: line.slice(2), heading: HeadingLevel.HEADING_1, spacing: { before: 240, after: 120 } }))
+      } else if (line.startsWith('## ')) {
+        children.push(new Paragraph({ text: line.slice(3), heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }))
+      } else if (line.startsWith('- ')) {
+        children.push(new Paragraph({ text: line.slice(2), bullet: { level: 0 }, spacing: { after: 60 } }))
+      } else if (/^\d+\.\s/.test(line)) {
+        children.push(new Paragraph({ text: line.replace(/^\d+\.\s/, ''), numbering: { reference: 'default-numbering', level: 0 }, spacing: { after: 60 } }))
+      } else {
+        children.push(new Paragraph({ text: line, spacing: { after: 80 } }))
+      }
+    }
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children,
+      }],
+    })
+
+    const blob = await Packer.toBlob(doc)
+    const filename = `${form.name || '文档'}.${form.outputFormat === 'md' ? 'md' : 'docx'}`
+    saveAs(blob, filename)
+    ElMessage.success(`已导出 ${filename}`)
+  } catch (e) {
+    console.error('导出失败', e)
+    ElMessage.error('导出失败：' + (e.message || '未知错误'))
+  }
 }
 </script>
 
@@ -606,14 +758,20 @@ function handleExport() {
 }
 
 .preview-content {
-  min-height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  min-height: 400px;
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+  background: var(--bg-base);
+  border-radius: var(--radius-md);
 }
 
 .preview-placeholder {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
   color: var(--text-tertiary);
 }
 
@@ -624,6 +782,90 @@ function handleExport() {
 
 .preview-hint {
   font-size: var(--text-sm) !important;
+}
+
+.preview-rendered {
+  line-height: 1.8;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.preview-rendered :deep(h1) {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: 16px 0 10px;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--gray-200);
+  padding-bottom: 6px;
+}
+
+.preview-rendered :deep(h2) {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 14px 0 8px;
+  color: var(--text-primary);
+}
+
+.preview-rendered :deep(h3) {
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 10px 0 6px;
+  color: var(--text-primary);
+}
+
+.preview-rendered :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: var(--text-sm);
+  border: 1px solid var(--gray-200);
+}
+
+.preview-rendered :deep(th) {
+  background: var(--gray-100);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--gray-200);
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.preview-rendered :deep(td) {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--gray-200);
+}
+
+.preview-rendered :deep(tr:nth-child(even)) {
+  background: var(--gray-50);
+}
+
+.preview-rendered :deep(ul),
+.preview-rendered :deep(ol) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.preview-rendered :deep(li) {
+  margin-bottom: 4px;
+}
+
+.preview-rendered :deep(p) {
+  margin: 8px 0;
+}
+
+.preview-rendered :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--gray-200);
+  margin: 16px 0;
+}
+
+.preview-rendered :deep(strong) {
+  font-weight: 700;
+}
+
+.preview-rendered :deep(em) {
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
 .preview-actions {

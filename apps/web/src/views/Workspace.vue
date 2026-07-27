@@ -138,24 +138,59 @@
             </div>
           </div>
         </el-col>
-      </el-row>
-    </div>
+ </el-row>
+ 
+<!-- AI 配置状态栏 -->
+<el-row :gutter="20" class="stats-row">
+ <el-col :span="24">
+ <el-card shadow="never" class="config-status-card">
+ <div class="config-status-content">
+ <div class="config-status-left">
+ <el-icon :size="18" :color="aiConfigured ? '#059669' : '#d97706'"><Cpu /></el-icon>
+ <span class="config-status-text">
+ <strong>AI 服务：</strong>
+ <span v-if="aiConfigured" style="color:#059669">已配置</span>
+ <span v-else style="color:#d97706">未配置</span>
+ </span>
+ </div>
+ <el-button v-if="!aiConfigured" type="primary" size="small" @click="router.push('/settings')">
+ 前往配置
+ </el-button>
+ <el-button v-else type="default" size="small" @click="router.push('/settings')">
+ 修改配置
+ </el-button>
+ </div>
+ </el-card>
+ </el-col>
+</el-row>
+ </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import {
-  Cpu, EditPen, MagicStick, Document, Grid, ArrowRight,
-  HomeFilled, TrendCharts, Wallet, ChatDotRound, Setting
-} from '@element-plus/icons-vue'
-
-const router = useRouter()
-
-const prompt = ref('')
-const generating = ref(false)
+	import { ref, onMounted } from 'vue'
+	import { useRouter } from 'vue-router'
+	import { ElMessage } from 'element-plus'
+	import { api } from '@/api'
+	import {
+ Cpu, EditPen, MagicStick, Document, Grid, ArrowRight,
+ HomeFilled, TrendCharts, Wallet, ChatDotRound, Setting
+	} from '@element-plus/icons-vue'
+	
+	const router = useRouter()
+	
+	const prompt = ref('')
+	const generating = ref(false)
+	const aiConfigured = ref(null)
+	
+	onMounted(async () => {
+	  try {
+	    const r = await api.get('/ai/config')
+	    aiConfigured.value = r?.api_key_set === true
+	  } catch {
+	    aiConfigured.value = false
+	  }
+	})
 
 const quickTypes = ref([
   { key: 'bid',    label: '投标文件',   icon: '📑', active: false },
@@ -513,6 +548,7 @@ function handleQuickGen() {
 .stat-content {
   display: flex;
   flex-direction: column;
+  gap: var(--space-1);
 }
 
 .stat-value {
@@ -526,6 +562,52 @@ function handleQuickGen() {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   margin-top: 2px;
+}
+
+/* ---------- AI 配置引导 ---------- */
+.guide-card {
+ border: 1px solid #dbeafe;
+ background: linear-gradient(135deg, #eff6ff, #f8faff);
+ border-radius: var(--radius-lg);
+}
+
+.guide-card :deep(.el-card__body) {
+ padding: var(--space-4) var(--space-5) !important;
+}
+
+.guide-content {
+ display: flex;
+ align-items: center;
+ gap: var(--space-4);
+}
+
+.guide-icon-wrap {
+ width: 48px;
+ height: 48px;
+ border-radius: var(--radius-full);
+ background: #dbeafe;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ flex-shrink: 0;
+}
+
+.guide-text {
+ flex: 1;
+ display: flex;
+ flex-direction: column;
+ gap: var(--space-1);
+}
+
+.guide-title {
+ font-size: var(--text-md);
+ font-weight: 700;
+ color: var(--brand-700);
+}
+
+.guide-desc {
+ font-size: var(--text-sm);
+ color: var(--text-secondary);
 }
 
 /* ---------- 响应式 ---------- */

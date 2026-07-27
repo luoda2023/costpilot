@@ -57,24 +57,21 @@
             <span class="menu-label">文件预览</span>
           </template>
         </el-menu-item>
-        <el-menu-item index="/chat">
-          <el-icon><ChatDotRound /></el-icon>
-          <template #title>
-            <span class="menu-label">AI 助手</span>
-            <span class="menu-dot chat-dot"></span>
-          </template>
-        </el-menu-item>
-      </el-menu>
+ <el-menu-item index="/chat">
+ <el-icon><ChatDotRound /></el-icon>
+ <template #title>
+ <span class="menu-label">AI 助手</span>
+ <span class="menu-dot chat-dot"></span>
+ </template>
+ </el-menu-item>
+ <el-menu-item index="/settings">
+ <el-icon><Setting /></el-icon>
+ <template #title><span class="menu-label">AI 配置</span></template>
+ </el-menu-item>
+ </el-menu>
+</el-aside>
 
-      <div class="sidebar-footer">
-        <el-menu-item index="/settings">
-          <el-icon><Setting /></el-icon>
-          <template #title><span class="menu-label">系统设置</span></template>
-        </el-menu-item>
-      </div>
-    </el-aside>
-
-    <!-- 主体 -->
+ <!-- 主体 -->
     <el-container class="main-area">
       <el-header class="top-bar">
         <div class="breadcrumb">
@@ -320,8 +317,8 @@ html, body, #app {
 }
 
 .brand-icon-img {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   object-fit: contain;
   flex-shrink: 0;
