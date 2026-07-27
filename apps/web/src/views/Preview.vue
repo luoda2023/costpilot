@@ -108,7 +108,13 @@ const currentExt = computed(() => currentFile.value ? currentFile.value.split('.
 const previewUrl = computed(() => {
   if (!currentFile.value) return ''
   if (['md','txt','yml','yaml','json','csv','log'].includes(currentExt.value)) return ''
-  return '/v1/preview/file?path=' + encodeURIComponent(currentFile.value)
+  // file:// 协议下必须用绝对地址，包含完整路径
+  const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:'
+  if (isFileProtocol) {
+    return 'http://127.0.0.1:8765/api/v1/preview/file?path=' + encodeURIComponent(currentFile.value)
+  }
+  // http 模式下 baseURL=/api/v1，只需补 /preview/file
+  return '/preview/file?path=' + encodeURIComponent(currentFile.value)
 })
 
 async function loadRoot() { await loadByPath() }
