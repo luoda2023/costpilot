@@ -2,8 +2,9 @@
 工程助手 - AI 智能辅助 API
 
 提供 AI 驱动的智能导入/填充功能:
-  POST /api/v1/ai/parse-table   理解任意格式表格数据,返回结构化字段
-  POST /api/v1/ai/fill-fields   根据模板字段+用户描述,AI 自动填充字段值
+  POST /api/v1/ai/parse-table 理解任意格式表格数据,返回结构化字段
+  POST /api/v1/ai/import-excel 上传 Excel 文件,AI 完整读取后填充
+  POST /api/v1/ai/fill-fields 根据模板字段+用户描述,AI 自动填充字段值
   POST /api/v1/ai/parse-project 根据用户一句话描述,提取项目信息
 
 设计原则:
@@ -12,8 +13,10 @@
   - 所有接口返回结构化 JSON,前端直接填充
 """
 import json
+import io
+import re
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
 
@@ -134,6 +137,100 @@ def parse_table(payload: ParseTableIn):
   except Exception as e:
     raise HTTPException(500, f"解析失败: {e}")
 
+
+@router.post("/import-excel")
+async def import_excel(file: UploadFile = File(...)):
+  """
+  AI 读取上传的 Excel 文件,理解全部数据后返回结构化字段
+
+  流程:
+  1. 接收用户上传的 Excel/CSV 文件
+  2. 用 openpyxl 完整读取全部行
+  3. 将全部数据转为文本,发给 AI 理解列含义
+  4. AI 映射到 item_name/specialty/unit/qty/price 字段
+  5. 返回结构化 JSON 数组
+  """
+  ALLOWED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
+  filename = file.filename or 'file.xlsx'
+  ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+  if ext not in ALLOWED_EXTENSIONS:
+    raise HTTPException(400, f"不支持的文件格式: {ext}，请上传 .xlsx / .xls / .csv 文件")
+
+  try:
+    raw = await file.read()
+  except Exception as e:
+    raise HTTPException(400, f"文件读取失败: {e}")
+
+  # --- 用 openpyxl 完整读取 Excel ---
+  table_rows = []
+  try:
+    if ext == '.csv':
+      import csv
+      content = raw.decode('utf-8-sig', errors='replace')
+      reader = csv.reader(io.StringIO(content))
+      for row in reader:
+        table_rows.append(row)
+    else:
+      wb = openpyxl_load_workbook(raw)
+      ws = wb.active
+      for row in ws.iter_rows(values_only=True):
+        table_rows.append([str(v) if v is not None else '' for v in row])
+  except Exception as e:
+    raise HTTPException(422, f"Excel 解析失败: {e}")
+
+  if len(table_rows) < 2:
+    raise HTTPException(400, "文件内容不足，需要至少包含表头和一行数据")
+
+  # --- 转文本给 AI ---
+  headers = table_rows[0]
+  data_rows = table_rows[1:]
+
+  # 限制行数防止 AI 超长(最多 200 行)
+  MAX_ROWS = 200
+  if len(data_rows) > MAX_ROWS:
+    data_rows = data_rows[:MAX_ROWS]
+
+  table_text = "表头: " + "\t".join(headers) + "\n"
+  for i, row in enumerate(data_rows, 1):
+    table_text += f"第{i}行: " + "\t".join(row) + "\n"
+
+  system_prompt = """你是一个造价工程师,负责解析Excel表格数据。
+表格列名可能不标准(如"项目名称/材料名称/名称/清单项目"→item_name)。
+
+请理解表格的每一列含义,将每行数据映射到以下目标字段:
+- item_name: 项目/材料名称(必填)
+- specialty: 专业分类(土建/市政/安装/装饰/园林/钢结构/门窗幕墙/涂料等,根据名称判断)
+- unit: 单位(如 m³/m²/t/个/套/根/㎡/m)
+- qty: 数量(数字,没有则填0)
+- price: 综合单价(数字,没有则填0)
+
+注意: 请仔细阅读每一列的表头和数据,准确判断哪一列对应哪个字段。
+如果某列明显是"序号"、"编号"、"备注"等无关列,请忽略。
+
+输出严格 JSON 格式,不要输出任何其他文字:
+{"rows":[{"item_name":"...","specialty":"...","unit":"...","qty":0,"price":0}]}"""
+
+  try:
+    raw_ai = _call_ai(system_prompt, f"请解析以下Excel表格的全部数据:\n\n{table_text}")
+    data = json.loads(raw_ai)
+    rows = data.get("rows", [])
+    return ParseTableOut(
+      rows=rows,
+      total=len(rows),
+      parsed=sum(1 for r in rows if r.get("item_name")),
+    )
+  except json.JSONDecodeError:
+    raise HTTPException(422, f"AI 返回格式异常,无法解析: {raw_ai[:200]}")
+  except (AIConfigError, AIClientError) as e:
+    raise HTTPException(503, f"AI 服务不可用: {e}")
+  except Exception as e:
+    raise HTTPException(500, f"解析失败: {e}")
+
+def openpyxl_load_workbook(raw_bytes):
+  """加载 Excel 工作簿(兼容 xlsx 和 xls)"""
+  import openpyxl
+  buf = io.BytesIO(raw_bytes)
+  return openpyxl.load_workbook(buf, data_only=True)
 
 @router.post("/fill-fields", response_model=FillFieldsOut)
 def fill_fields(payload: FillFieldsIn):

@@ -90,7 +90,6 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PricesAPI, FeesAPI, api } from '@/api'
-import * as XLSX from 'xlsx'
 
 const activeTab = ref('search')
 const keyword = ref('')
@@ -161,51 +160,41 @@ async function onAiImportFile(e) {
   if (!file) return
   aiImporting.value = true
   try {
- const data = await file.arrayBuffer()
- const wb = XLSX.read(data, { type: 'array' })
- const ws = wb.Sheets[wb.SheetNames[0]]
- const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
- if (!json.length) { ElMessage.warning('文件为空，请检查'); return }
+    ElMessage.info('AI 正在读取并理解表格...')
+    const formData = new FormData()
+    formData.append('file', file)
+    const parsed = await api.post('/ai/import-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    })
 
- // 转文本让 AI 理解
- const headers = Object.keys(json[0]).join(',')
- const sampleRows = json.slice(0, 20).map(r => Object.values(r).join(',')).join('\n')
- const tableText = `表头: ${headers}\n数据:\n${sampleRows}`
+    if (!parsed.rows || !parsed.rows.length) {
+      ElMessage.warning('AI 未能解析表格数据')
+      return
+    }
 
- ElMessage.info('AI 正在理解表格...')
- const parsed = await api.post('/ai/parse-table', {
- content: tableText,
- source_type: 'auto',
- target_fields: ['item_name', 'specialty', 'unit', 'qty', 'price'],
- })
+    // 提取价格数据
+    const prices = parsed.rows
+      .filter(r => r.item_name && r.price)
+      .map(r => ({
+        item_name: r.item_name,
+        specialty: r.specialty || '',
+        unit: r.unit || '',
+        price: r.price,
+        region: '',
+        source_file: 'AI 智能导入',
+      }))
 
- if (!parsed.rows || !parsed.rows.length) {
- ElMessage.warning('AI 未能解析表格数据')
- return
- }
+    if (!prices.length) { ElMessage.warning('AI 未识别到价格数据'); return }
 
- // 提取价格数据
- const prices = parsed.rows
- .filter(r => r.item_name && r.price)
- .map(r => ({
- item_name: r.item_name,
- specialty: r.specialty || '',
- unit: r.unit || '',
- price: r.price,
- region: '',
- source_file: 'AI 智能导入',
- }))
-
- if (!prices.length) { ElMessage.warning('AI 未识别到价格数据'); return }
-
- // 将价格追加到显示列表
- results.value.unshift(...prices)
- ElMessage.success(`AI 识别完成，导入 ${prices.length} 条价格`)
+    // 将价格追加到显示列表
+    results.value.unshift(...prices)
+    ElMessage.success(`AI 识别完成，导入 ${prices.length} 条价格`)
   } catch (err) {
- ElMessage.error('AI 导入失败: ' + (err.message || '格式错误'))
+    ElMessage.error('AI 导入失败: ' + (err.response?.data?.detail || err.message || '格式错误'))
   } finally {
- aiImporting.value = false
- e.target.value = ''
+    aiImporting.value = false
+    e.target.value = ''
   }
 }
 

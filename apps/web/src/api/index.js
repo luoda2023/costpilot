@@ -31,7 +31,7 @@ http.interceptors.response.use(
 // 顶层便捷 API — 支持 params 透传
 export const api = {
   get: (url, config) => http.get(url, config).then((r) => r.data),
-  post: (url, body) => http.post(url, body).then((r) => r.data),
+  post: (url, body, config) => http.post(url, body, config).then((r) => r.data),
   delete: (url) => http.delete(url).then((r) => r.data),
 }
 
