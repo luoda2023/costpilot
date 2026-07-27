@@ -91,11 +91,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { api } from '@/api'
 
 const emit = defineEmits(['configured'])
 
-const apiUrl = '/api/v1'
 const testing = ref(false)
 const saving = ref(false)
 const testResult = ref(null)
@@ -110,7 +109,7 @@ const form = reactive({
 // 启动时如果已有配置，自动填入
 onMounted(async () => {
   try {
-    const r = await axios.get(apiUrl + '/ai/config')
+    const r = await api.get('/ai/config')
     if (r.data) {
       form.base_url = r.data.base_url || ''
       form.api_key = ''
@@ -128,17 +127,17 @@ async function handleTest() {
   testing.value = true
   testResult.value = null
   try {
-    await axios.post(apiUrl + '/ai/switch', {
+    await api.post('/ai/switch', {
       provider: 'custom',
       base_url: form.base_url,
       api_key: form.api_key,
       model: form.model,
       temperature: form.temperature,
     })
-    const t = await axios.post(apiUrl + '/ai/test')
-    testResult.value = t.data
+    const t = await api.post('/ai/test')
+    testResult.value = t
   } catch (e) {
-    testResult.value = { ok: false, msg: '测试失败: ' + (e.response?.data?.detail || e.message) }
+    testResult.value = { ok: false, msg: '测试失败: ' + (e.response?.data?.detail || e.message || 'Network Error') }
   } finally {
     testing.value = false
   }
@@ -151,7 +150,7 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    await axios.post(apiUrl + '/ai/switch', {
+    await api.post('/ai/switch', {
       provider: 'custom',
       base_url: form.base_url,
       api_key: form.api_key,
@@ -161,7 +160,7 @@ async function handleSave() {
     ElMessage.success('配置已保存')
     setTimeout(() => emit('configured'), 800)
   } catch (e) {
-    ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message))
+    ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message || 'Network Error'))
   } finally {
     saving.value = false
   }
