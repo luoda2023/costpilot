@@ -130,7 +130,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import axios from 'axios'
+import { api } from '@/api'
 import AiSetupWizard from '@/components/AiSetupWizard.vue'
 
 const route = useRoute()
@@ -138,8 +138,8 @@ const aiConfigured = ref(null)
 
 onMounted(async () => {
   try {
-    const r = await axios.get('/api/v1/ai/config')
-    aiConfigured.value = r.data?.api_key_set === true
+    const r = await api.get('/ai/config')
+    aiConfigured.value = r?.api_key_set === true
   } catch {
     aiConfigured.value = false
   }
