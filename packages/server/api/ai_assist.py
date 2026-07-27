@@ -45,7 +45,7 @@ class FillFieldsIn(BaseModel):
 
 class FillFieldsOut(BaseModel):
   """字段填充响应"""
-  values: Dict[str, str]  # {field_key: filled_value}
+  values: Dict[str, Any]  # {field_key: filled_value}, 支持字符串/数字/布尔值
 
 class ParseProjectIn(BaseModel):
   description: str  # 如"帮我建一个北京某高层住宅的估算项目"
