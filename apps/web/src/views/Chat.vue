@@ -70,12 +70,13 @@
       <div class="input-area" v-if="currentId">
         <div class="input-wrapper">
           <el-input
-            v-model="inputText"
-            type="textarea"
-            :rows="2"
-            placeholder="输入问题，Ctrl+Enter 发送"
-            :disabled="sending"
-            @keydown.enter.ctrl="send"
+v-model="inputText"
+ type="textarea"
+ :rows="2"
+ placeholder="输入问题，Ctrl+Enter 发送"
+ :disabled="sending"
+ v-auto-halfwidth
+ @keydown.enter.ctrl="send"
           />
           <el-button type="primary" :loading="sending" @click="send" circle :icon="Promotion" class="send-btn" />
         </div>

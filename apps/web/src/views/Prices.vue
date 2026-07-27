@@ -4,11 +4,12 @@
       <!-- 综合单价查询 -->
       <el-tab-pane label="综合单价查询" name="search">
 <div class="search-bar">
-  <el-input
-    v-model="keyword"
-    placeholder="输入项目名搜索，如：钢板桩、防火门、C30混凝土..."
-    clearable
-    @keyup.enter="doSearch"
+<el-input
+ v-model="keyword"
+ placeholder="输入项目名搜索，如：钢板桩、防火门、C30混凝土..."
+ clearable
+ v-auto-halfwidth
+ @keyup.enter="doSearch"
     class="search-input"
   >
     <template #prefix><el-icon><Search /></el-icon></template>

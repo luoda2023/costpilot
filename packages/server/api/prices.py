@@ -7,8 +7,9 @@ from pydantic import BaseModel
 
 from packages.server.db.database import get_db
 from packages.server.db.models import (
-    Specialty, PriceUnit, TopicPrice, RegionInfoPrice
+ Specialty, PriceUnit, TopicPrice, RegionInfoPrice
 )
+from packages.server.utils.format import to_half_width
 
 router = APIRouter()
 
@@ -113,15 +114,17 @@ def list_prices(
 
 @router.get("/search", response_model=List[PriceUnitOut])
 def search_prices(
-    q: str = Query(..., min_length=1, description="项目名关键词"),
-    limit: int = Query(20, le=100),
-    db: Session = Depends(get_db),
+ q: str = Query(..., min_length=1, description="项目名关键词"),
+ limit: int = Query(20, le=100),
+ db: Session = Depends(get_db),
 ):
-    """模糊搜索价格(SQL LIKE)
+ """模糊搜索价格(SQL LIKE)
 
-    MVP 阶段用 LIKE;后续 M2 升级为 FTS5 全文索引
-    """
-    pattern = f"%{q}%"
+ MVP 阶段用 LIKE;后续 M2 升级为 FTS5 全文索引
+ """
+ # 全角→半角转换, 避免全角字符搜索不到
+ q = to_half_width(q)
+ pattern = f"%{q}%"
     query = (
         db.query(PriceUnit, Specialty.name)
         .join(Specialty, PriceUnit.specialty_id == Specialty.id)

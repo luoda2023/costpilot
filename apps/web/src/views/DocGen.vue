@@ -81,19 +81,19 @@
           <el-row :gutter="20">
             <el-col :xs="24" :md="12">
               <el-form-item label="项目名称" required>
-                <el-input v-model="form.name" placeholder="例如：XX县污水管网改造工程" />
+                <el-input v-model="form.name" placeholder="例如：XX县污水管网改造工程" v-auto-halfwidth />
               </el-form-item>
             </el-col>
             <el-col :xs="24" :md="12">
               <el-form-item label="项目地点" required>
-                <el-input v-model="form.location" placeholder="例如：湖南省湘西州" />
+                <el-input v-model="form.location" placeholder="例如：湖南省湘西州" v-auto-halfwidth />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="20">
             <el-col :xs="24" :md="12">
               <el-form-item label="工程规模" required>
-                <el-input v-model="form.scale" placeholder="例如：DN800管道11公里">
+                <el-input v-model="form.scale" placeholder="例如：DN800管道11公里" v-auto-halfwidth>
                   <template #append>
                     <el-select v-model="form.scaleUnit" style="width: 90px">
                       <el-option label="公里" value="km" />
@@ -143,12 +143,13 @@
             </el-col>
           </el-row>
           <el-form-item label="补充说明">
-            <el-input
-              v-model="form.note"
-              type="textarea"
-              :rows="3"
-              placeholder="额外要求，例如：需要包含工程数量表、需要引用湘西信息价等"
-            />
+<el-input
+ v-model="form.note"
+ type="textarea"
+ :rows="3"
+ placeholder="可补充工程概况、特殊要求等"
+ v-auto-halfwidth
+ />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="goStep3">

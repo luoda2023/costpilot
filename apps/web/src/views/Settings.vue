@@ -11,13 +11,13 @@
               </el-select>
             </el-form-item>
             <el-form-item label="Base URL">
-              <el-input v-model="form.base_url" placeholder="https://api.deepseek.com/v1" />
+              <el-input v-model="form.base_url" placeholder="https://api.deepseek.com/v1" v-auto-halfwidth />
             </el-form-item>
             <el-form-item label="API Key">
-              <el-input v-model="form.api_key" type="password" show-password :placeholder="form.provider === 'ollama' ? '本地无需密钥' : 'sk-...'" />
+              <el-input v-model="form.api_key" type="password" show-password :placeholder="form.provider === 'ollama' ? '本地无需密钥' : 'sk-...'" v-auto-halfwidth />
             </el-form-item>
             <el-form-item label="Model">
-              <el-input v-model="form.model" placeholder="deepseek-chat" />
+              <el-input v-model="form.model" placeholder="deepseek-chat" v-auto-halfwidth />
             </el-form-item>
             <el-form-item label="Temperature">
               <el-slider v-model="form.temperature" :min="0" :max="1" :step="0.1" show-input style="width:100%" />

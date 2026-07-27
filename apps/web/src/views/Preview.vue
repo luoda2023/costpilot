@@ -10,7 +10,7 @@
               <el-button size="small" @click="loadRoot">刷新</el-button>
             </div>
           </template>
-          <el-input v-model="pathInput" placeholder="输入路径回车" size="small" clearable @keyup.enter="loadByPath" style="margin-bottom:8px">
+          <el-input v-model="pathInput" placeholder="输入路径回车" size="small" clearable @keyup.enter="loadByPath" style="margin-bottom:8px" v-auto-halfwidth>
             <template #append><el-button size="small" @click="loadByPath">进入</el-button></template>
           </el-input>
           <el-tree

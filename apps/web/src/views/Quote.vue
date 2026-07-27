@@ -19,7 +19,7 @@
 
           <el-form :inline="true" :model="projectInfo" class="proj-form" size="small">
             <el-form-item label="项目名">
-              <el-input v-model="projectInfo.name" style="width:200px" />
+              <el-input v-model="projectInfo.name" style="width:200px" v-auto-halfwidth />
             </el-form-item>
             <el-form-item label="地区">
               <el-select v-model="projectInfo.region" filterable style="width:140px">
@@ -45,7 +45,7 @@
           <el-table :data="rows" border size="small" max-height="480">
             <el-table-column type="index" width="40" />
             <el-table-column label="项目名称" min-width="200">
-              <template #default="{ row }"><el-input v-model="row.item_name" placeholder="例:C30 商品混凝土" size="small" /></template>
+              <template #default="{ row }"><el-input v-model="row.item_name" placeholder="例:C30 商品混凝土" size="small" v-auto-halfwidth /></template>
             </el-table-column>
             <el-table-column label="专业" width="120">
               <template #default="{ row }">
@@ -55,7 +55,7 @@
               </template>
             </el-table-column>
             <el-table-column label="单位" width="70">
-              <template #default="{ row }"><el-input v-model="row.unit" placeholder="m³" size="small" /></template>
+              <template #default="{ row }"><el-input v-model="row.unit" placeholder="m³" size="small" v-auto-halfwidth /></template>
             </el-table-column>
             <el-table-column label="工程量" width="100">
               <template #default="{ row }"><el-input-number v-model="row.qty" :min="0" :precision="2" :controls="false" size="small" style="width:100%" /></template>
@@ -124,7 +124,7 @@
     <!-- 价格匹配对话框 -->
     <el-dialog v-model="searchDialog" title="从价格库匹配" width="800" :close-on-click-modal="false">
       <div class="dialog-search">
-        <el-input v-model="searchKw" placeholder="关键词：钢板桩、防火门、C30..." style="flex:1" @keyup.enter="doSearch" size="small">
+        <el-input v-model="searchKw" placeholder="关键词：钢板桩、防火门、C30..." style="flex:1" @keyup.enter="doSearch" size="small" v-auto-halfwidth>
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button @click="doSearch" size="small">查询</el-button>

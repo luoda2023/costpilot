@@ -19,6 +19,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
+from packages.server.utils.format import to_half_width
 
 router = APIRouter()
 
@@ -121,13 +122,18 @@ def parse_table(payload: ParseTableIn):
 不要输出任何其他文字。"""
 
   try:
-    raw = _call_ai(system_prompt, f"请解析以下表格数据:\n\n{payload.content[:10000]}")
-    # 解析 JSON
-    data = json.loads(raw)
-    rows = data.get("rows", [])
-    return ParseTableOut(
-      rows=rows,
-      total=len(rows),
+raw = _call_ai(system_prompt, f"请解析以下表格数据:\n\n{payload.content[:10000]}")
+ # 解析 JSON
+ data = json.loads(raw)
+ rows = data.get("rows", [])
+ # 全角→半角清洗
+ for row in rows:
+  for key in ('item_name', 'specialty', 'unit', 'price', 'qty'):
+   if key in row and isinstance(row[key], str):
+    row[key] = to_half_width(row[key])
+ return ParseTableOut(
+  rows=rows,
+  total=len(rows),
       parsed=sum(1 for r in rows if r.get("item_name")),
     )
   except json.JSONDecodeError:
@@ -212,11 +218,16 @@ async def import_excel(file: UploadFile = File(...)):
 
   try:
     raw_ai = _call_ai(system_prompt, f"请解析以下Excel表格的全部数据:\n\n{table_text}")
-    data = json.loads(raw_ai)
-    rows = data.get("rows", [])
-    return ParseTableOut(
-      rows=rows,
-      total=len(rows),
+data = json.loads(raw_ai)
+ rows = data.get("rows", [])
+ # 全角→半角清洗
+ for row in rows:
+  for key in ('item_name', 'specialty', 'unit', 'price', 'qty'):
+   if key in row and isinstance(row[key], str):
+    row[key] = to_half_width(row[key])
+ return ParseTableOut(
+  rows=rows,
+  total=len(rows),
       parsed=sum(1 for r in rows if r.get("item_name")),
     )
   except json.JSONDecodeError:
@@ -263,9 +274,11 @@ def fill_fields(payload: FillFieldsIn):
 不要输出任何其他文字。"""
 
   try:
-    raw = _call_ai(system_prompt, f"用户描述: {payload.description}")
-    data = json.loads(raw)
-    return FillFieldsOut(values=data)
+raw = _call_ai(system_prompt, f"用户描述: {payload.description}")
+ data = json.loads(raw)
+ # 全角→半角清洗
+ data = {k: to_half_width(v) if isinstance(v, str) else v for k, v in data.items()}
+ return FillFieldsOut(values=data)
   except json.JSONDecodeError:
     raise HTTPException(422, f"AI 返回格式异常: {raw[:200]}")
   except (AIConfigError, AIClientError) as e:
@@ -297,15 +310,19 @@ def parse_project(payload: ParseProjectIn):
 
 不要输出任何其他文字。"""
 
-  try:
-    raw = _call_ai(system_prompt, f"用户描述: {payload.description}")
-    data = json.loads(raw)
-    return ParseProjectOut(
-      name=data.get("name", "")[:30],
-      region=data.get("region", "全国"),
-      stage=data.get("stage", "估算"),
-      note=data.get("note", ""),
-    )
+try:
+ raw = _call_ai(system_prompt, f"用户描述: {payload.description}")
+ data = json.loads(raw)
+ # 全角→半角清洗
+ for key in ('name', 'region', 'stage', 'note'):
+  if key in data and isinstance(data[key], str):
+   data[key] = to_half_width(data[key])
+ return ParseProjectOut(
+  name=data.get("name", "")[:30],
+  region=data.get("region", "全国"),
+  stage=data.get("stage", "估算"),
+  note=data.get("note", ""),
+ )
   except json.JSONDecodeError:
     raise HTTPException(422, f"AI 返回格式异常: {raw[:200]}")
   except (AIConfigError, AIClientError) as e:

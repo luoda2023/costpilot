@@ -45,6 +45,7 @@
  placeholder="输入一句话描述，AI 自动填充所有字段，如：某高层住宅 1# 楼，建筑面积 12000㎡，框架结构"
  size="small"
  clearable
+ v-auto-halfwidth
  @keyup.enter="aiFill"
  >
  <template #prefix><el-icon :size="14"><MagicStick /></el-icon></template>
@@ -55,13 +56,13 @@
 </div>
 	 <el-form :model="fieldValues" label-width="140" label-position="right" size="small">
 <el-form-item v-for="f in fields" :key="f.field_key" :label="f.field_label" :required="f.required">
-              <el-input v-if="f.field_type === 'text'" v-model="fieldValues[f.field_key]" :placeholder="f.default_value || ''" />
-              <el-input-number v-else-if="f.field_type === 'number'" v-model="fieldValues[f.field_key]" style="width:100%" />
-              <el-date-picker v-else-if="f.field_type === 'date'" v-model="fieldValues[f.field_key]" type="date" value-format="YYYY-MM-DD" style="width:100%" />
-              <el-select v-else-if="f.field_type === 'select'" v-model="fieldValues[f.field_key]" style="width:100%">
-                <el-option v-for="o in (f.options || [])" :key="o" :label="o" :value="o" />
-              </el-select>
-              <el-input v-else v-model="fieldValues[f.field_key]" type="textarea" :rows="3" :placeholder="f.default_value || ''" />
+<el-input v-if="f.field_type === 'text'" v-model="fieldValues[f.field_key]" :placeholder="f.default_value || ''" v-auto-halfwidth />
+<el-input-number v-else-if="f.field_type === 'number'" v-model="fieldValues[f.field_key]" style="width:100%" />
+<el-date-picker v-else-if="f.field_type === 'date'" v-model="fieldValues[f.field_key]" type="date" value-format="YYYY-MM-DD" style="width:100%" />
+<el-select v-else-if="f.field_type === 'select'" v-model="fieldValues[f.field_key]" style="width:100%">
+<el-option v-for="o in (f.options || [])" :key="o" :label="o" :value="o" />
+</el-select>
+<el-input v-else v-model="fieldValues[f.field_key]" type="textarea" :rows="3" :placeholder="f.default_value || ''" v-auto-halfwidth />
 </el-form-item>
  </el-form>
  </div>

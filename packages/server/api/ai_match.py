@@ -20,6 +20,7 @@ from sqlalchemy import or_
 from packages.server.db.database import get_db
 from packages.server.db.models import PriceUnit, Specialty
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
+from packages.server.utils.format import to_half_width
 
 router = APIRouter()
 
@@ -65,8 +66,10 @@ class AiMatchOut(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _clean_keyword(text: str) -> str:
-    """从项目名中提取搜索关键词"""
-    # 去标点
+ """从项目名中提取搜索关键词"""
+ # 全角→半角转换
+ text = to_half_width(text)
+ # 去标点
     text = re.sub(r'[，。！？、：；""''【】（） \t_/,-]', '', text)
     # 去常见项目名后缀
     text = re.sub(r'(项目|工程|清单|项)$', '', text)

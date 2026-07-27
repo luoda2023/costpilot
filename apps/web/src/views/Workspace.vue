@@ -11,13 +11,14 @@
         <h1 class="hero-title">一句话，生成专业工程文档</h1>
         <p class="hero-subtitle">从投标文件到施工图说明，覆盖可研、初设、方案、施组全流程</p>
         <div class="hero-input-row">
-          <el-input
-            v-model="prompt"
-            placeholder="描述你的需求，例如：某DN800污水管网改造工程投标文件..."
-            size="large"
-            class="hero-input"
-            @keyup.enter="handleQuickGen"
-          >
+<el-input
+ v-model="prompt"
+ placeholder="描述你的需求，例如：某DN800污水管网改造工程投标文件..."
+ size="large"
+ class="hero-input"
+ v-auto-halfwidth
+ @keyup.enter="handleQuickGen"
+ >
             <template #prefix>
               <el-icon color="#94a3b8"><EditPen /></el-icon>
             </template>
