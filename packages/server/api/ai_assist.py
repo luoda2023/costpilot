@@ -36,9 +36,9 @@ class ParseTableOut(BaseModel):
   parsed: int
 
 class FillFieldsIn(BaseModel):
-  """字段填充请求"""
-  fields: List[Dict[str, str]]  # [{field_key, field_label, field_type, default_value}]
-  description: str  # 用户描述,如"某高层住宅1#楼,建筑面积12000㎡,框架结构"
+    """字段填充请求"""
+    fields: List[Dict[str, Any]]  # [{field_key, field_label, field_type, required, default_value}]
+    description: str  # 用户描述,如"某高层住宅1#楼,建筑面积12000㎡,框架结构"
 
 class FillFieldsOut(BaseModel):
   """字段填充响应"""
@@ -58,22 +58,32 @@ class ParseProjectOut(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _call_ai(system_prompt: str, user_prompt: str) -> str:
-  """调用 AI 并返回响应文本,自动提取 JSON 块"""
-  client = get_ai_client()
-  resp = client.chat(messages=[
-    {"role": "system", "content": system_prompt},
-    {"role": "user", "content": user_prompt},
-  ])
-  content = resp.get("content", "")
-  # 尝试提取 JSON 块(跳过 markdown 代码块标记)
-  content = content.strip()
-  if content.startswith("```"):
-    lines = content.split("\n")
-    start = next((i for i, l in enumerate(lines) if "```" in l), -1)
-    end = next((i for i in range(start + 1, len(lines)) if "```" in lines[i]), len(lines))
-    if start >= 0:
-      content = "\n".join(lines[start + 1:end]).strip()
-  return content
+    """调用 AI 并返回响应文本,自动提取 JSON 块"""
+    client = get_ai_client()
+    resp = client.chat(messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ])
+    content = resp.get("content", "")
+    # 尝试提取 JSON 块(跳过 markdown 代码块标记)
+    content = content.strip()
+    # 先处理 markdown 代码块 ```json ... ```
+    if content.startswith("```"):
+        lines = content.split("\n")
+        start = next((i for i, l in enumerate(lines) if "```" in l), -1)
+        end = next((i for i in range(start + 1, len(lines)) if "```" in lines[i]), len(lines))
+        if start >= 0:
+            content = "\n".join(lines[start + 1:end]).strip()
+    # 如果内容不是纯 JSON(有中文等),尝试用正则提取第一个 { ... } 或 [ ... ]
+    if not (content.startswith("{") or content.startswith("[")):
+        import re
+        # 找 {...} 或 [...] 块
+        for pattern in [r'(\{.*\})', r'(\[.*\])']:
+            m = re.search(pattern, content, re.DOTALL)
+            if m:
+                content = m.group(1)
+                break
+    return content
 
 # ---------------------------------------------------------------------------
 # 路由

@@ -1,0 +1,1 @@
+{"content":"项目名称,单位,数量\nC30混凝土,m³,100\n钢筋,t,50","source_type":"csv","target_fields":["item_name","specialty","unit","qty","price"]}
