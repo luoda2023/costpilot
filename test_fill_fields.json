@@ -1,1 +1,0 @@
-{"fields":[{"field_key":"project_name","field_label":"项目名称","required":true,"field_type":"text"},{"field_key":"location","field_label":"项目地点","required":true,"field_type":"text"},{"field_key":"scale","field_label":"工程规模","required":false,"field_type":"text"}],"description":"XX县污水管网改造工程，DN800管道11公里，位于湖南省湘西州"}
