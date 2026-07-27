@@ -89,14 +89,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { api } from '@/api'
 import VueOfficePDF from '@vue-office/pdf/lib/v3'
 import VueOfficeDocx from '@vue-office/docx/lib/v3'
 import VueOfficeExcel from '@vue-office/excel/lib/v3'
 import '@vue-office/docx/lib/v3/index.css'
 import '@vue-office/excel/lib/v3/index.css'
 
-const apiUrl = '/api/v1'
 const rootPath = 'H:/AI-model'
 const pathInput = ref(rootPath)
 const treeData = ref([])
@@ -109,21 +108,21 @@ const currentExt = computed(() => currentFile.value ? currentFile.value.split('.
 const previewUrl = computed(() => {
   if (!currentFile.value) return ''
   if (['md','txt','yml','yaml','json','csv','log'].includes(currentExt.value)) return ''
-  return apiUrl + '/preview/file?path=' + encodeURIComponent(currentFile.value)
+  return '/v1/preview/file?path=' + encodeURIComponent(currentFile.value)
 })
 
 async function loadRoot() { await loadByPath() }
 async function loadByPath() {
   try {
-    const r = await axios.get(apiUrl + '/files/list', { params: { path: pathInput.value } })
-    treeData.value = r.data.items
+    const r = await api.get('/files/list', { params: { path: pathInput.value } })
+    treeData.value = r.items
   } catch (e) { ElMessage.error('读取失败：' + (e.response?.data?.detail || e.message)) }
 }
 async function loadNode(node, resolve) {
   if (!node.data?.is_dir) return resolve([])
   try {
-    const r = await axios.get(apiUrl + '/files/list', { params: { path: node.data.path } })
-    resolve(r.data.items)
+    const r = await api.get('/files/list', { params: { path: node.data.path } })
+    resolve(r.items)
   } catch { resolve([]) }
 }
 async function onNodeClick(data) {
@@ -132,12 +131,12 @@ async function onNodeClick(data) {
   loadingPreview.value = true; previewError.value = false; textContent.value = ''
   try {
     if (['md','txt','yml','yaml','json','csv','log'].includes(currentExt.value)) {
-      const r = await axios.get(apiUrl + '/preview/text', { params: { path: data.path } })
-      textContent.value = r.data
+      const r = await api.get('/preview/text', { params: { path: data.path } })
+      textContent.value = r
     }
-} catch { previewError.value = true }
+  } catch { previewError.value = true }
   finally { loadingPreview.value = false }
-  }
+}
   function onPreviewError(err) { previewError.value = true; ElMessage.error('预览失败') }
 function openExternal() {
   if (window.engineeringAssistant?.openExternal) window.engineeringAssistant.openExternal(currentFile.value)

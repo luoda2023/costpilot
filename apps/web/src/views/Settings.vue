@@ -78,7 +78,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { api } from '@/api'
 
 const apiUrl = '/api/v1'
 const providers = ref([])
@@ -89,27 +89,27 @@ const testing = ref(false); const applying = ref(false); const reloading = ref(f
   const loadingKb = ref(false)
 
 async function loadProviders() {
-  try { const r = await axios.get(apiUrl + '/ai/providers'); providers.value = r.data }
+  try { providers.value = await api.get('/ai/providers') }
   catch { ElMessage.error('加载 Provider 列表失败') }
 }
 async function loadCurrent() {
   try {
-    const r = await axios.get(apiUrl + '/ai/config')
-    current.value = r.data
+    const r = await api.get('/ai/config')
+    current.value = r
     Object.assign(form, {
-      provider: r.data.provider,
-      base_url: r.data.base_url,
-      model: r.data.model,
-      temperature: r.data.temperature,
-      max_tokens: r.data.max_tokens,
+      provider: r.provider,
+      base_url: r.base_url,
+      model: r.model,
+      temperature: r.temperature,
+      max_tokens: r.max_tokens,
     })
   } catch { ElMessage.error('加载当前配置失败') }
 }
 async function loadKbStats() {
   loadingKb.value = true
   try {
-    const [stats, prog] = await Promise.all([axios.get(apiUrl + '/kb/stats'), axios.get(apiUrl + '/kb/progress')])
-    kb.value = { ...stats.data, ...prog.data }
+    const [stats, prog] = await Promise.all([api.get('/kb/stats'), api.get('/kb/progress')])
+    kb.value = { ...stats, ...prog }
   } catch { kb.value = { error: '未就绪' } }
   finally { loadingKb.value = false }
 }
@@ -121,13 +121,12 @@ async function testConnection() {
   testing.value = true
   testResult.value = null
   try {
-    // 先切换配置并保存，再测试连接
-    const r = await axios.post(apiUrl + '/ai/switch', form)
-    if (r.data.ok) {
-      const t = await axios.post(apiUrl + '/ai/test')
-      testResult.value = t.data
+    const r = await api.post('/ai/switch', form)
+    if (r.ok) {
+      const t = await api.post('/ai/test')
+      testResult.value = t
     } else {
-      testResult.value = { ok: false, msg: r.data.msg }
+      testResult.value = { ok: false, msg: r.msg }
     }
   } catch (e) {
     testResult.value = { ok: false, msg: '连接失败: ' + (e.response?.data?.detail || e.message) }
@@ -136,12 +135,12 @@ async function testConnection() {
 async function applyChange() {
   applying.value = true
   try {
-    const r = await axios.post(apiUrl + '/ai/switch', form)
-    if (r.data.ok) {
-      ElMessage.success(`已切换: ${r.data.current.provider} / ${r.data.current.model}`)
+    const r = await api.post('/ai/switch', form)
+    if (r.ok) {
+      ElMessage.success(`已切换: ${r.current.provider} / ${r.current.model}`)
       await loadCurrent()
     } else {
-      ElMessage.error(r.data.msg)
+      ElMessage.error(r.msg)
     }
   } catch (e) {
     ElMessage.error('应用配置失败: ' + (e.response?.data?.detail || e.message))
@@ -150,8 +149,8 @@ async function applyChange() {
 async function reloadYaml() {
   reloading.value = true
   try {
-    const r = await axios.post(apiUrl + '/ai/reload')
-    if (r.data?.ok) {
+    const r = await api.post('/ai/reload')
+    if (r.ok) {
       ElMessage.success('config.yaml 已重载')
     } else {
       ElMessage.info('已重载配置文件')
