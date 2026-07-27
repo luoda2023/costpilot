@@ -472,8 +472,21 @@ async function handleExport() {
     return
   }
   try {
+    const format = form.outputFormat || 'docx'
+
+    // 如果是 Markdown 格式，直接下载文本
+    if (format === 'md') {
+      const blob = new Blob([generatedText.value], { type: 'text/markdown;charset=utf-8' })
+      const filename = `${form.name || '文档'}.md`
+      saveAs(blob, filename)
+      ElMessage.success(`已导出 ${filename}`)
+      return
+    }
+
+    // --- docx 格式 ---
     const lines = generatedText.value.split('\n')
     const children = []
+
     for (const rawLine of lines) {
       const line = rawLine.trimEnd()
       if (!line) {
@@ -484,10 +497,21 @@ async function handleExport() {
         children.push(new Paragraph({ text: line.slice(2), heading: HeadingLevel.HEADING_1, spacing: { before: 240, after: 120 } }))
       } else if (line.startsWith('## ')) {
         children.push(new Paragraph({ text: line.slice(3), heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }))
+      } else if (line.startsWith('### ')) {
+        children.push(new Paragraph({ text: line.slice(4), heading: HeadingLevel.HEADING_3, spacing: { before: 160, after: 80 } }))
       } else if (line.startsWith('- ')) {
         children.push(new Paragraph({ text: line.slice(2), bullet: { level: 0 }, spacing: { after: 60 } }))
       } else if (/^\d+\.\s/.test(line)) {
-        children.push(new Paragraph({ text: line.replace(/^\d+\.\s/, ''), numbering: { reference: 'default-numbering', level: 0 }, spacing: { after: 60 } }))
+        children.push(new Paragraph({ text: line.replace(/^\d+\.\s/, ''), spacing: { after: 60 } }))
+      } else if (line.startsWith('|')) {
+        // 跳过表格分隔行(|---|)
+        if (/^\|[\s\-:]+\|/.test(line)) continue
+        // 表格行保持原样
+        children.push(new Paragraph({ text: line, spacing: { after: 60 } }))
+      } else if (line.startsWith('---') || line.startsWith('***')) {
+        children.push(new Paragraph({ text: '', spacing: { after: 120 }, thematicBreak: true }))
+      } else if (line.startsWith('*') && line.endsWith('*') && line.length > 2) {
+        children.push(new Paragraph({ text: line.slice(1, -1), spacing: { after: 80 }, italics: true }))
       } else {
         children.push(new Paragraph({ text: line, spacing: { after: 80 } }))
       }
@@ -501,7 +525,7 @@ async function handleExport() {
     })
 
     const blob = await Packer.toBlob(doc)
-    const filename = `${form.name || '文档'}.${form.outputFormat === 'md' ? 'md' : 'docx'}`
+    const filename = `${form.name || '文档'}.docx`
     saveAs(blob, filename)
     ElMessage.success(`已导出 ${filename}`)
   } catch (e) {
