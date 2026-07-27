@@ -7,7 +7,7 @@ import axios from 'axios'
 // 检测当前协议，自动选择 base URL
 const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:'
 const API_HOST = 'http://127.0.0.1:8765'
-const BASE = isFileProtocol ? `${API_HOST}/api` : '/api'
+const BASE = isFileProtocol ? `${API_HOST}/api/v1` : '/api/v1'
 
 const http = axios.create({
   baseURL: BASE,
@@ -28,48 +28,48 @@ http.interceptors.response.use(
   }
 )
 
-// 顶层便捷 API
+// 顶层便捷 API — 支持 params 透传
 export const api = {
-  get: (url) => http.get(url).then((r) => r.data),
+  get: (url, config) => http.get(url, config).then((r) => r.data),
   post: (url, body) => http.post(url, body).then((r) => r.data),
   delete: (url) => http.delete(url).then((r) => r.data),
 }
 
 // 业务接口
 export const PricesAPI = {
-  stats: () => api.get('/v1/prices/stats'),
-  specialties: () => api.get('/v1/prices/specialties'),
-  list: (params = {}) => api.get('/v1/prices' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
-  search: (q, limit = 20) => api.get(`/v1/prices/search?q=${encodeURIComponent(q)}&limit=${limit}`),
-  topics: (topic) => api.get('/v1/prices/topics' + (topic ? `?topic=${encodeURIComponent(topic)}` : '')),
+  stats: () => api.get('/prices/stats'),
+  specialties: () => api.get('/prices/specialties'),
+  list: (params = {}) => api.get('/prices', { params }),
+  search: (q, limit = 20) => api.get(`/prices/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  topics: (topic) => api.get('/prices/topics' + (topic ? `?topic=${encodeURIComponent(topic)}` : '')),
 }
 
 export const FeesAPI = {
-  list: (params = {}) => api.get('/v1/fees' + (Object.keys(params).length ? '?' + new URLSearchParams(params) : '')),
+  list: (params = {}) => api.get('/fees', { params }),
 }
 
 export const TemplatesAPI = {
-  types: () => api.get('/v1/templates/types'),
-  list: (typeId) => api.get('/v1/templates' + (typeId ? `?type_id=${typeId}` : '')),
-  get: (id) => api.get(`/v1/templates/${id}`),
-  fields: (id) => api.get(`/v1/templates/${id}/fields`),
+  types: () => api.get('/templates/types'),
+  list: (typeId) => api.get('/templates' + (typeId ? `?type_id=${typeId}` : '')),
+  get: (id) => api.get(`/templates/${id}`),
+  fields: (id) => api.get(`/templates/${id}/fields`),
 }
 
 export const ProjectsAPI = {
-  list: () => api.get('/v1/projects'),
-  create: (data) => api.post('/v1/projects', data),
-  get: (id) => api.get(`/v1/projects/${id}`),
-  delete: (id) => api.delete(`/v1/projects/${id}`),
-  quantities: (id) => api.get(`/v1/projects/${id}/quantities`),
-  addQuantity: (id, data) => api.post(`/v1/projects/${id}/quantities`, data),
+  list: () => api.get('/projects'),
+  create: (data) => api.post('/projects', data),
+  get: (id) => api.get(`/projects/${id}`),
+  delete: (id) => api.delete(`/projects/${id}`),
+  quantities: (id) => api.get(`/projects/${id}/quantities`),
+  addQuantity: (id, data) => api.post(`/projects/${id}/quantities`, data),
 }
 
 export const ChatAPI = {
-  createSession: (projectId) => api.post('/v1/chat/sessions' + (projectId ? `?project_id=${projectId}` : '')),
-  listSessions: () => api.get('/v1/chat/sessions'),
-  messages: (sid) => api.get(`/v1/chat/sessions/${sid}/messages`),
-  send: (sid, content) => api.post(`/v1/chat/sessions/${sid}/messages`, { content }),
-  deleteSession: (sid) => api.delete(`/v1/chat/sessions/${sid}`),
+  createSession: (projectId) => api.post('/chat/sessions' + (projectId ? `?project_id=${projectId}` : '')),
+  listSessions: () => api.get('/chat/sessions'),
+  messages: (sid) => api.get(`/chat/sessions/${sid}/messages`),
+  send: (sid, content) => api.post(`/chat/sessions/${sid}/messages`, { content }),
+  deleteSession: (sid) => api.delete(`/chat/sessions/${sid}`),
 }
 
 // 兼容 main.js 中所引用的 'api'

@@ -173,7 +173,7 @@ async function onAiImportFile(e) {
  const tableText = `表头: ${headers}\n数据:\n${sampleRows}`
 
  ElMessage.info('AI 正在理解表格...')
- const parsed = await api.post('/v1/ai/parse-table', {
+ const parsed = await api.post('/ai/parse-table', {
  content: tableText,
  source_type: 'auto',
  target_fields: ['item_name', 'specialty', 'unit', 'qty', 'price'],

@@ -159,7 +159,7 @@ async function aiFill() {
   if (!selectedTemplate.value || !aiDescription.value.trim()) return
   aiFilling.value = true
   try {
- const result = await api.post('/v1/ai/fill-fields', {
+ const result = await api.post('/ai/fill-fields', {
  fields: fields.value.map(f => ({
  field_key: f.field_key,
  field_label: f.field_label,
@@ -183,7 +183,7 @@ async function exportDocx() {
   if (!selectedTemplate.value) { ElMessage.warning('请先选择模板'); return }
   try {
     const payload = { template_id: selectedTemplate.value.id, field_values: fieldValues }
-    const r = await (await import('@/api')).api.post('/v1/templates/render', payload)
+    const r = await (await import('@/api')).api.post('/templates/render', payload)
     ElMessage.success(`docx 已生成 (${r.size_kb} KB)`)
     window.open('/api' + r.download_url, '_blank')
   } catch (e) { ElMessage.error('导出失败: ' + (e.response?.data?.detail || e.message)) }

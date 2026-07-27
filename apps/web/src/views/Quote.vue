@@ -202,7 +202,7 @@ const regions = ['北京市','上海市','天津市','重庆市','广东省','�
 
  // AI 智能解析表格结构
  ElMessage.info('AI 正在理解表格结构...')
- const parsed = await api.post('/v1/ai/parse-table', {
+ const parsed = await api.post('/ai/parse-table', {
  content: tableText,
  source_type: 'auto',
  target_fields: ['item_name', 'specialty', 'unit', 'qty', 'price'],
@@ -225,7 +225,7 @@ const regions = ['北京市','上海市','天津市','重庆市','广东省','�
  if (!rawRows.length) { ElMessage.warning('AI 未识别到有效数据行'); return }
 
  // 发送到后端 AI 匹配价格库
- const result = await api.post('/v1/quotes/ai-match', { rows: rawRows })
+ const result = await api.post('/quotes/ai-match', { rows: rawRows })
 
  // 将匹配结果填入表格
  const matched = result.matched || []
@@ -283,7 +283,7 @@ async function compose() {
   }
   composing.value = true
   try {
-    result.value = await api.post('/v1/quotes/compose', {
+    result.value = await api.post('/quotes/compose', {
       items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })),
       region: projectInfo.region, stage: projectInfo.stage, tax_method: projectInfo.tax_method,
     })
@@ -294,14 +294,14 @@ async function compose() {
 async function exportExcel() {
   exportingX.value = true
   try {
-    const r = await api.post('/v1/quotes/export/excel', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo } })
+    const r = await api.post('/quotes/export/excel', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo } })
     ElMessage.success(`Excel 已生成 (${r.size_kb} KB)`); window.open('http://127.0.0.1:8765/api' + r.download_url, '_blank')
   } catch { ElMessage.error('导出失败') } finally { exportingX.value = false }
 }
 async function exportWord() {
   exportingW.value = true
   try {
-    const r = await api.post('/v1/quotes/export/word', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo } })
+    const r = await api.post('/quotes/export/word', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo } })
     ElMessage.success(`Word 已生成 (${r.size_kb} KB)`); window.open('http://127.0.0.1:8765/api' + r.download_url, '_blank')
   } catch { ElMessage.error('导出失败') } finally { exportingW.value = false }
 }
@@ -312,7 +312,7 @@ async function saveQuote() {
   if (!result.value) return
   saving.value = true
   try {
-    await api.post('/v1/quotes/save', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo }, result: result.value })
+    await api.post('/quotes/save', { items: rows.value.map(r => ({ item_name: r.item_name, unit: r.unit, qty: r.qty, price: r.price, specialty: r.specialty, remark: r.remark || null })), project_info: { ...projectInfo }, result: result.value })
     ElMessage.success('报价已保存')
   } catch (e) { ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message)) }
   finally { saving.value = false }
