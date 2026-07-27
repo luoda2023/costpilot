@@ -153,18 +153,19 @@ onMounted(loadRoot)
 </script>
 
 <style scoped>
-.preview-page { height: calc(100vh - 100px); }
+.preview-page { height: 100vh; }
 .tree-card { height: 100%; border-radius:8px; overflow:auto; }
-.preview-card { height: 100%; border-radius:8px; }
+.preview-card { height: 100%; border-radius:8px; display: flex; flex-direction: column; }
+.preview-card :deep(.el-card__body) { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 .card-header { display:flex; justify-content:space-between; align-items:center; }
 .card-title { font-size:15px; font-weight:600; color: var(--text-primary); line-height:1.5; }
 .header-actions { display:flex; gap:8px; align-items:center; }
 .tree-node { display:flex; align-items:center; gap:6px; }
 .node-label { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.5; }
 .placeholder { padding:80px 0; text-align:center; }
-.preview-body { height: calc(100vh - 180px); overflow:auto; }
-.img-wrap { text-align:center; padding:12px; }
-.img-wrap img { max-width:100%; max-height:70vh; border-radius:4px; }
-.text-preview { white-space:pre-wrap; font-family:'Courier New',monospace; font-size:13px; line-height:1.6; background: var(--gray-50); padding:12px; margin:0; min-height:400px; }
-.office-viewer { width:100%; height:70vh; overflow:auto; }
+.preview-body { flex: 1; overflow: auto; }
+.img-wrap { text-align:center; flex: 1; display: flex; align-items: center; justify-content: center; }
+.img-wrap img { max-width:100%; max-height:100%; border-radius:4px; }
+.text-preview { white-space:pre-wrap; font-family:'Courier New',monospace; font-size:13px; line-height:1.6; background: var(--gray-50); padding:12px; margin:0; flex: 1; overflow: auto; }
+.office-viewer { flex: 1; min-height: 0; overflow: auto; }
 </style>
