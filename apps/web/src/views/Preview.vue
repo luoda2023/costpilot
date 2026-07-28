@@ -96,7 +96,11 @@ import VueOfficeExcel from '@vue-office/excel/lib/v3'
 import '@vue-office/docx/lib/v3/index.css'
 import '@vue-office/excel/lib/v3/index.css'
 
-const rootPath = 'H:/AI-model'
+// 页面标题
+document.title = '造价通 - 预览'
+
+// 根路径：优先从 localStorage 读取（用户可配置），否则默认
+const rootPath = localStorage.getItem('preview_root_path') || 'H:/AI-model'
 const pathInput = ref(rootPath)
 const treeData = ref([])
 const currentFile = ref('')
@@ -127,22 +131,22 @@ async function loadByPath() {
 async function loadNode(node, resolve) {
   if (!node.data?.is_dir) return resolve([])
   try {
-    const r = await api.get('/files/list', { params: { path: node.data.path } })
-    resolve(r.items)
-  } catch { resolve([]) }
-}
-async function onNodeClick(data) {
+   const r = await api.get('/files/list', { params: { path: node.data.path } })
+   resolve(r.items)
+  } catch { ElMessage.error('加载目录失败'); resolve([]) }
+ }
+ async function onNodeClick(data) {
   if (data.is_dir) return
   currentFile.value = data.path
   loadingPreview.value = true; previewError.value = false; textContent.value = ''
   try {
-    if (['md','txt','yml','yaml','json','csv','log'].includes(currentExt.value)) {
-      const r = await api.get('/preview/text', { params: { path: data.path } })
-      textContent.value = r
-    }
-  } catch { previewError.value = true }
+   if (['md','txt','yml','yaml','json','csv','log'].includes(currentExt.value)) {
+    const r = await api.get('/preview/text', { params: { path: data.path } })
+    textContent.value = r
+   }
+  } catch { previewError.value = true; ElMessage.error('文件加载失败，请检查文件是否存在') }
   finally { loadingPreview.value = false }
-}
+ }
   function onPreviewError(err) { previewError.value = true; ElMessage.error('预览失败') }
 function openExternal() {
   if (window.engineeringAssistant?.openExternal) window.engineeringAssistant.openExternal(currentFile.value)

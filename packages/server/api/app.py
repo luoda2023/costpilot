@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from packages.server.db.database import init_db
+from packages.server.utils.logger import logger, setup_request_logging
 
 # 显式导入 router(避免子模块导入失败)
 from packages.server.api.health import router as health_router
@@ -25,17 +26,21 @@ app = FastAPI(
 
 # CORS - 桌面端 Electron 渲染进程可访问
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+ CORSMiddleware,
+ allow_origins=["*"],
+ allow_credentials=True,
+ allow_methods=["*"],
+ allow_headers=["*"],
 )
+
+# 请求日志
+setup_request_logging(app)
 
 
 @app.on_event("startup")
 def on_startup():
-    init_db()
+ init_db()
+ logger.info("服务启动完成, 数据库已初始化")
 
 
 # ============================================================

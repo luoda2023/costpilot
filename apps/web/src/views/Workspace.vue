@@ -174,10 +174,13 @@
 	import { ElMessage } from 'element-plus'
 	import { api } from '@/api'
 	import {
- Cpu, EditPen, MagicStick, Document, Grid, ArrowRight,
- HomeFilled, TrendCharts, Wallet, ChatDotRound, Setting
+	 Cpu, EditPen, MagicStick, Document, Grid, ArrowRight,
+	 HomeFilled, TrendCharts, Wallet, ChatDotRound, Setting
 	} from '@element-plus/icons-vue'
-	
+
+	// 页面标题
+	document.title = '造价通 - 工作台'
+
 	const router = useRouter()
 	
 	const prompt = ref('')

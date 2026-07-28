@@ -10,6 +10,7 @@ from packages.server.db.models import (
  Specialty, PriceUnit, TopicPrice, RegionInfoPrice
 )
 from packages.server.utils.format import to_half_width
+from packages.server.utils.logger import logger
 
 router = APIRouter()
 

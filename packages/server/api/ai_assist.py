@@ -20,6 +20,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
 from packages.server.utils.format import to_half_width
+from packages.server.utils.logger import logger
 
 router = APIRouter()
 
@@ -136,12 +137,15 @@ raw = _call_ai(system_prompt, f"请解析以下表格数据:\n\n{payload.content
   total=len(rows),
       parsed=sum(1 for r in rows if r.get("item_name")),
     )
-  except json.JSONDecodeError:
-    raise HTTPException(422, f"AI 返回格式异常,无法解析: {raw[:200]}")
-  except (AIConfigError, AIClientError) as e:
-    raise HTTPException(503, f"AI 服务不可用: {e}")
-  except Exception as e:
-    raise HTTPException(500, f"解析失败: {e}")
+except json.JSONDecodeError:
+  logger.warning("parse-table AI 返回非 JSON: %.200s", raw)
+  raise HTTPException(422, "AI 返回格式异常，请重试")
+ except (AIConfigError, AIClientError) as e:
+  logger.error("parse-table AI 服务不可用: %s", e)
+  raise HTTPException(503, "AI 服务暂不可用，请检查配置")
+ except Exception as e:
+  logger.error("parse-table 解析失败: %s", e, exc_info=True)
+  raise HTTPException(500, "表格解析失败，请稍后重试")
 
 
 @router.post("/import-excel")
@@ -156,16 +160,22 @@ async def import_excel(file: UploadFile = File(...)):
   4. AI 映射到 item_name/specialty/unit/qty/price 字段
   5. 返回结构化 JSON 数组
   """
-  ALLOWED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
-  filename = file.filename or 'file.xlsx'
-  ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-  if ext not in ALLOWED_EXTENSIONS:
-    raise HTTPException(400, f"不支持的文件格式: {ext}，请上传 .xlsx / .xls / .csv 文件")
+ALLOWED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
+	MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+	filename = file.filename or 'file.xlsx'
+	ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+	if ext not in ALLOWED_EXTENSIONS:
+	 raise HTTPException(400, f"不支持的文件格式: {ext}，请上传 .xlsx / .xls / .csv 文件")
 
-  try:
-    raw = await file.read()
-  except Exception as e:
-    raise HTTPException(400, f"文件读取失败: {e}")
+	try:
+	 raw = await file.read()
+	 if len(raw) > MAX_FILE_SIZE:
+	  raise HTTPException(413, "文件过大，请上传 10MB 以内的文件")
+	except HTTPException:
+	 raise
+	except Exception as e:
+	 logger.error("import-excel 文件读取失败: %s", e, exc_info=True)
+	 raise HTTPException(400, "文件读取失败，请检查文件是否损坏")
 
   # --- 用 openpyxl 完整读取 Excel ---
   table_rows = []
@@ -181,8 +191,9 @@ async def import_excel(file: UploadFile = File(...)):
       ws = wb.active
       for row in ws.iter_rows(values_only=True):
         table_rows.append([str(v) if v is not None else '' for v in row])
-  except Exception as e:
-    raise HTTPException(422, f"Excel 解析失败: {e}")
+except Exception as e:
+  logger.error("import-excel openpyxl 解析失败: %s", e, exc_info=True)
+  raise HTTPException(422, "Excel 解析失败，请确保文件内容为有效表格格式")
 
   if len(table_rows) < 2:
     raise HTTPException(400, "文件内容不足，需要至少包含表头和一行数据")
@@ -230,12 +241,15 @@ data = json.loads(raw_ai)
   total=len(rows),
       parsed=sum(1 for r in rows if r.get("item_name")),
     )
-  except json.JSONDecodeError:
-    raise HTTPException(422, f"AI 返回格式异常,无法解析: {raw_ai[:200]}")
-  except (AIConfigError, AIClientError) as e:
-    raise HTTPException(503, f"AI 服务不可用: {e}")
-  except Exception as e:
-    raise HTTPException(500, f"解析失败: {e}")
+except json.JSONDecodeError:
+  logger.warning("import-excel AI 返回非 JSON: %.200s", raw_ai)
+  raise HTTPException(422, "AI 返回格式异常，请重试")
+ except (AIConfigError, AIClientError) as e:
+  logger.error("import-excel AI 服务不可用: %s", e)
+  raise HTTPException(503, "AI 服务暂不可用，请检查配置")
+ except Exception as e:
+  logger.error("import-excel 解析失败: %s", e, exc_info=True)
+  raise HTTPException(500, "导入解析失败，请稍后重试")
 
 def openpyxl_load_workbook(raw_bytes):
   """加载 Excel 工作簿(兼容 xlsx 和 xls)"""
@@ -279,12 +293,15 @@ raw = _call_ai(system_prompt, f"用户描述: {payload.description}")
  # 全角→半角清洗
  data = {k: to_half_width(v) if isinstance(v, str) else v for k, v in data.items()}
  return FillFieldsOut(values=data)
-  except json.JSONDecodeError:
-    raise HTTPException(422, f"AI 返回格式异常: {raw[:200]}")
-  except (AIConfigError, AIClientError) as e:
-    raise HTTPException(503, f"AI 服务不可用: {e}")
-  except Exception as e:
-    raise HTTPException(500, f"填充失败: {e}")
+except json.JSONDecodeError:
+  logger.warning("fill-fields AI 返回非 JSON: %.200s", raw)
+  raise HTTPException(422, "AI 返回格式异常，请重试")
+ except (AIConfigError, AIClientError) as e:
+  logger.error("fill-fields AI 服务不可用: %s", e)
+  raise HTTPException(503, "AI 服务暂不可用，请检查配置")
+ except Exception as e:
+  logger.error("fill-fields 填充失败: %s", e, exc_info=True)
+  raise HTTPException(500, "字段填充失败，请稍后重试")
 
 
 @router.post("/parse-project", response_model=ParseProjectOut)
@@ -323,9 +340,12 @@ try:
   stage=data.get("stage", "估算"),
   note=data.get("note", ""),
  )
-  except json.JSONDecodeError:
-    raise HTTPException(422, f"AI 返回格式异常: {raw[:200]}")
-  except (AIConfigError, AIClientError) as e:
-    raise HTTPException(503, f"AI 服务不可用: {e}")
-  except Exception as e:
-    raise HTTPException(500, f"解析失败: {e}")
+except json.JSONDecodeError:
+  logger.warning("parse-project AI 返回非 JSON: %.200s", raw)
+  raise HTTPException(422, "AI 返回格式异常，请重试")
+ except (AIConfigError, AIClientError) as e:
+  logger.error("parse-project AI 服务不可用: %s", e)
+  raise HTTPException(503, "AI 服务暂不可用，请检查配置")
+ except Exception as e:
+  logger.error("parse-project 解析失败: %s", e, exc_info=True)
+  raise HTTPException(500, "项目解析失败，请稍后重试")

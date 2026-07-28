@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse
+from packages.server.utils.logger import logger
 
 # 文件浏览 router
 router = APIRouter()
@@ -17,10 +18,13 @@ router = APIRouter()
 preview_router = APIRouter()
 
 # 限制可访问的根路径(防止越权访问)
-ALLOWED_ROOTS = [
+# 优先从环境变量读取，其次是硬编码默认值
+_DEFAULT_ROOTS = [
     "H:/AI-model",
     "H:\\AI-model",
 ]
+_ALLOWED_ROOTS_ENV = os.environ.get("ALLOWED_ROOTS", "")
+ALLOWED_ROOTS = [r.strip() for r in _ALLOWED_ROOTS_ENV.split(",") if r.strip()] if _ALLOWED_ROOTS_ENV else _DEFAULT_ROOTS
 
 
 def _safe_path(p: str) -> Path:

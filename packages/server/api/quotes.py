@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from packages.server.templates.pricing import QuantityItem, compose_quote, QuoteResult
 from packages.server.templates.excel_export import export_quote_to_excel
 from packages.server.templates.word_export import export_quote_to_word
+from packages.server.utils.logger import logger
 
 router = APIRouter()
 

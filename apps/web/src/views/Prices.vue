@@ -9,8 +9,9 @@
  placeholder="输入项目名搜索，如：钢板桩、防火门、C30混凝土..."
  clearable
  v-auto-halfwidth
+ @input="onKeywordInput"
  @keyup.enter="doSearch"
-    class="search-input"
+ class="search-input"
   >
     <template #prefix><el-icon><Search /></el-icon></template>
   </el-input>
@@ -88,9 +89,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PricesAPI, FeesAPI, api } from '@/api'
+
+// 页面标题
+document.title = '造价通 - 价格查询'
 
 const activeTab = ref('search')
 const keyword = ref('')
@@ -100,6 +104,7 @@ const specialties = ref([])
 const units = ref([])
 const filterSpecialty = ref('')
 const filterUnit = ref('')
+const searchTimer = ref(null)
 
 const topics = ['管道铺设与修复', '深基坑开挖与支护', '钢板桩', '降水工程', '桩基与地基处理']
 const topicFilter = ref('')
@@ -114,25 +119,38 @@ const feeLoading = ref(false)
 const aiImporting = ref(false)
 const fileInputRef = ref(null)
 
+// 分页
+const page = ref(1)
+const pageSize = ref(50)
+const total = ref(0)
+
+/** 搜索防抖：用户停止输入 300ms 后自动搜索 */
+function onKeywordInput() {
+  if (searchTimer.value) clearTimeout(searchTimer.value)
+  searchTimer.value = setTimeout(() => doSearch(), 300)
+}
+
 async function doSearch() {
   if (!keyword.value.trim() && !filterSpecialty.value && !filterUnit.value) { return loadList() }
   loading.value = true
+  page.value = 1
   try { results.value = await PricesAPI.search(keyword.value.trim(), filterSpecialty.value || undefined, filterUnit.value || undefined) }
-  catch { results.value = [] }
+  catch { ElMessage.warning('查询失败，请稍后重试'); results.value = [] }
   finally { loading.value = false }
 }
 
 async function loadList() {
   loading.value = true
+  page.value = 1
   try { results.value = await PricesAPI.list({ limit: 200, specialty: filterSpecialty.value || undefined, unit: filterUnit.value || undefined }) }
-  catch { results.value = [] }
+  catch { ElMessage.warning('加载失败，请稍后重试'); results.value = [] }
   finally { loading.value = false }
 }
 
 async function loadTopics() {
   topicLoading.value = true
   try { topicResults.value = await PricesAPI.topics(topicFilter.value) }
-  catch { topicResults.value = [] }
+  catch { ElMessage.warning('加载专题数据失败'); topicResults.value = [] }
   finally { topicLoading.value = false }
 }
 
@@ -142,16 +160,17 @@ async function loadFees() {
   if (feeRegion.value) params.region = feeRegion.value
   if (feeType.value) params.fee_type = feeType.value
   try { feeRates.value = await FeesAPI.list(params) }
-  catch { feeRates.value = [] }
+  catch { ElMessage.warning('加载费率数据失败'); feeRates.value = [] }
   finally { feeLoading.value = false }
 }
 
 async function loadSpecialties() {
-  try { specialties.value = await PricesAPI.specialties() } catch {}
+  try { specialties.value = await PricesAPI.specialties() }
+  catch { ElMessage.warning('加载专业列表失败') }
   try {
- const all = await PricesAPI.list({ limit: 500 })
- units.value = [...new Set(all.map(x => x.unit).filter(Boolean))].sort()
-  } catch {}
+   const all = await PricesAPI.list({ limit: 500 })
+   units.value = [...new Set(all.map(x => x.unit).filter(Boolean))].sort()
+  } catch { /* 单位列表非必须，静默处理 */ }
 }
 
 function triggerAiImport() { fileInputRef.value?.click() }
@@ -200,6 +219,9 @@ async function onAiImportFile(e) {
 }
 
 onMounted(() => { loadList(); loadTopics(); loadFees(); loadSpecialties() })
+
+// 清理防抖定时器
+onUnmounted(() => { if (searchTimer.value) clearTimeout(searchTimer.value) })
 </script>
 
 <style scoped>

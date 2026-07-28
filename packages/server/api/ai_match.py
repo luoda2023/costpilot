@@ -21,6 +21,7 @@ from packages.server.db.database import get_db
 from packages.server.db.models import PriceUnit, Specialty
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
 from packages.server.utils.format import to_half_width
+from packages.server.utils.logger import logger
 
 router = APIRouter()
 

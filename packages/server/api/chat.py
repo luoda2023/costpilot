@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from packages.server.db.database import get_db
 from packages.server.db.models import ChatSession, ChatMessage, Project
 from packages.server.ai.chat_engine import answer
+from packages.server.utils.logger import logger
 
 router = APIRouter()
 
@@ -54,7 +55,20 @@ def create_session(project_id: Optional[int] = None, db: Session = Depends(get_d
 
 @router.get("/sessions", response_model=List[SessionOut])
 def list_sessions(db: Session = Depends(get_db)):
-    return db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+ return db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+
+
+@router.delete("/sessions/{sid}")
+def delete_session(sid: int, db: Session = Depends(get_db)):
+ """删除会话及其所有消息"""
+ session = db.query(ChatSession).get(sid)
+ if not session:
+  raise HTTPException(404, "会话不存在")
+ db.query(ChatMessage).filter(ChatMessage.session_id == sid).delete()
+ db.delete(session)
+ db.commit()
+ logger.info("删除会话 %d", sid)
+ return {"ok": True}
 
 
 @router.get("/sessions/{sid}/messages", response_model=List[MessageOut])

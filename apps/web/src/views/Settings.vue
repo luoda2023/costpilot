@@ -80,6 +80,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
 
+// 页面标题
+document.title = '造价通 - 系统设置'
+
 const apiUrl = '/api/v1'
 const providers = ref([])
 const current = ref({})

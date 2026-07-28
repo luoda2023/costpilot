@@ -93,24 +93,26 @@ import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promo
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 
+document.title = '造价通 - AI 智能问答'
+
 // 初始化 markdown-it 渲染器（html: false 防止 XSS）
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
   breaks: true,
-  highlight: (str, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return `<pre class="code-block"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
-      } catch {}
-    }
-    // 无语言识别，自动检测
-    try {
-      const result = hljs.highlightAuto(str)
-      return `<pre class="code-block"><code class="hljs">${result.value}</code></pre>`
-    } catch {}
-    return `<pre class="code-block"><code>${md.utils.escapeHtml(str)}</code></pre>`
+highlight: (str, lang) => {
+ if (lang && hljs.getLanguage(lang)) {
+ try {
+ return `<pre class="code-block"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
+ } catch { /* 渲染异常不影响主体 */ }
+ }
+ // 无语言识别，自动检测
+ try {
+ const result = hljs.highlightAuto(str)
+ return `<pre class="code-block"><code class="hljs">${result.value}</code></pre>`
+ } catch { /* 渲染异常不影响主体 */ }
+ return `<pre class="code-block"><code>${md.utils.escapeHtml(str)}</code></pre>`
   }
 })
 
@@ -133,7 +135,7 @@ function renderMarkdown(text) {
 }
 
 async function loadSessions() {
-  try { sessions.value = await ChatAPI.listSessions() } catch {}
+  try { sessions.value = await ChatAPI.listSessions() } catch { ElMessage.error('加载会话列表失败，请刷新重试') }
 }
 
 async function newSession() {
@@ -174,7 +176,15 @@ async function deleteSession(id) {
     sessions.value = sessions.value.filter(s => s.id !== id)
     if (currentId.value === id) { currentId.value = null; messages.value = [] }
     ElMessage.success('已删除')
-  } catch (e) { if (e !== 'cancel') ElMessage.error('删除失败') }
+  } catch (e) {
+ if (e !== 'cancel') {
+ if (e.response?.status === 404) {
+ ElMessage.error('会话已被删除')
+ } else {
+ ElMessage.error('删除失败')
+ }
+ }
+ }
 }
 
 async function send() {

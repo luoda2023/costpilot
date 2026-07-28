@@ -67,9 +67,9 @@
   <template #default="{ row }">{{ fmt(row.qty * row.price) }}</template>
 </el-table-column>
 </｜DSML｜table-column>
-            <el-table-column label="操作" width="60">
-              <template #default="{ $index }"><el-button size="small" type="danger" link @click="rows.splice($index, 1)">删除</el-button></template>
-            </el-table-column>
+<el-table-column label="操作" width="60">
+ <template #default="{ $index }"><el-button size="small" type="danger" link @click="confirmDeleteRow($index)">删除</el-button></template>
+ </el-table-column>
           </el-table>
           <div v-if="!rows.length" class="empty-tip"><el-empty description="点击 + 添加行 或 从价格库匹配" :image-size="50" /></div>
         </el-card>
@@ -148,6 +148,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, PricesAPI } from '@/api'
 
+// 页面标题
+document.title = '造价通 - 报价生成'
+
 const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
   const specialties = ref([])
   const projectInfo = reactive({ name: '未命名项目', region: '北京市', stage: '预算', tax_method: '一般计税' })
@@ -176,10 +179,29 @@ const regions = ['北京市','上海市','天津市','重庆市','广东省','�
  if (typeof v === 'number') return isNaN(v) ? 0 : v
  const cleaned = String(v).split(' ')[0].replace(/[^\d.\-]/g, '')
  const n = parseFloat(cleaned)
- return isNaN(n) ? 0 : n
-	}
+return isNaN(n) ? 0 : n
+		}
 
-	function triggerImport() {
+ /** 清空全部行（带确认） */
+ async function clearRows() {
+  if (!rows.value.length) return
+  try {
+   await ElMessageBox.confirm('确定要清空所有清单行吗？', '确认清空', { confirmButtonText: '清空', cancelButtonText: '取消', type: 'warning' })
+   rows.value = [{ item_name: '', specialty: '', unit: '', qty: 0, price: 0 }]
+   result.value = null
+   ElMessage.success('已清空')
+  } catch {}
+ }
+
+ /** 确认删除单行 */
+ async function confirmDeleteRow(index) {
+  try {
+   await ElMessageBox.confirm('确定要删除该行吗？', '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
+   rows.value.splice(index, 1)
+  } catch {}
+ }
+
+		function triggerImport() {
  fileInputRef.value?.click()
 	}
 

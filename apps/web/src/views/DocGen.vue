@@ -236,18 +236,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import { api } from '@/api'
 import { saveAs } from 'file-saver'
 import {
-  Document, Paragraph, TextRun, HeadingLevel, AlignmentType,
-  Packer, Table, TableRow, TableCell, WidthType, BorderStyle
+ Document, Paragraph, TextRun, HeadingLevel, AlignmentType,
+ Packer, Table, TableRow, TableCell, WidthType, BorderStyle
 } from 'docx'
+
+// 页面标题
+document.title = '造价通 - 文档生成'
 
 const md = new MarkdownIt({
   html: false,
@@ -409,17 +412,20 @@ ${form.name}位于${form.location}，工程规模为${form.scale}${form.scaleUni
 }
 
 function resetForm() {
-  step.value = 1
-  generating.value = false
-  genProgress.value = 0
-  genStatus.value = ''
-  genDone.value = false
-  genLogs.value = []
-  Object.assign(form, {
+  ElMessageBox.confirm('确定要重置所有表单字段吗？', '确认重置', { confirmButtonText: '重置', cancelButtonText: '取消', type: 'warning' }).then(() => {
+   step.value = 1
+   generating.value = false
+   genProgress.value = 0
+   genStatus.value = ''
+   genDone.value = false
+   genLogs.value = []
+   Object.assign(form, {
     name: '', location: '', scale: '', scaleUnit: 'km',
     stage: '', engType: '', outputFormat: 'docx', note: '',
-  })
-}
+   })
+   ElMessage.success('已重置')
+  }).catch(() => {})
+ }
 
 function startGeneration() {
   generating.value = true
