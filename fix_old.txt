@@ -1,0 +1,25 @@
+
+不要输出任何其他文字。"""
+
+    try:
+        raw = _call_ai(system_prompt, f"用户描述: {payload.description}")
+        data = json.loads(raw)
+        # 全角→半角清洗
+        for key in ("name", "region", "stage", "note"):
+            if key in data and isinstance(data[key], str):
+                data[key] = to_half_width(data[key])
+        return ParseProjectOut(
+            name=data.get("name", "")[:30],
+            region=data.get("region", "全国"),
+            stage=data.get("stage", "估算"),
+            note=data.get("note", ""),
+        )
+    except json.JSONDecodeError:
+        logger.warning("parse-project AI 返回非 JSON: %.200s", raw)
+        raise HTTPException(422, "AI 返回格式异常，请重试")
+    except (AIConfigError, AIClientError) as e:
+        logger.error("parse-project AI 服务不可用: %s", e)
+        raise HTTPException(503, "AI 服务暂不可用，请检查配置")
+    except Exception as e:
+        logger.error("parse-project 解析失败: %s", e, exc_info=True)
+        raise HTTPException(500, "项目解析失败，请稍后重试")

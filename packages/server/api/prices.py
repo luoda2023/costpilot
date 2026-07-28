@@ -84,12 +84,12 @@ def prices_stats(db: Session = Depends(get_db)):
 
 @router.get("", response_model=List[PriceUnitOut])
 def list_prices(
-  specialty: Optional[str] = None,
-  region: Optional[str] = None,
-  keyword: Optional[str] = None,
-  unit: Optional[str] = None,
-  limit: int = Query(50, le=500),
-  offset: int = 0,
+    specialty: Optional[str] = None,
+    region: Optional[str] = None,
+    keyword: Optional[str] = None,
+    unit: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0,
   db: Session = Depends(get_db),
 ):
     """列表查价(分页)"""

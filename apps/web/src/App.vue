@@ -149,14 +149,18 @@ const healthCheckTimer = ref(null)
 const { shortcuts } = useShortcuts()
 
 // 后端健康检查(每 30 秒轮询)
+// 注意: 不能用 api.get 因为 baseURL=/api/v1, 直接 fetch /health
 async function checkHealth() {
   try {
-    const r = await api.get('/../health')
-    backendOnline.value = true
-    return r
+ const r = await fetch('/health')
+ if (r.ok) {
+ backendOnline.value = true
+ return r
+ }
+ throw new Error('not ok')
   } catch {
-    backendOnline.value = false
-    return null
+ backendOnline.value = false
+ return null
   }
 }
 
