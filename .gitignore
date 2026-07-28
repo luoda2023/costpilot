@@ -34,3 +34,8 @@ dist-electron/
 *.tmp
 *.bak
 ~$*
+data/sqlite/backups/*.db
+logs/*.log
+fix_*.py
+check_*.py
+*.db
