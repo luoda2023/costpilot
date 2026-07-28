@@ -23,32 +23,36 @@
           <el-icon><HomeFilled /></el-icon>
           <template #title>
             <span class="menu-label">工作台</span>
-            <span class="menu-dot active-dot"></span>
+            <span class="menu-shortcut">Ctrl+1</span>
           </template>
         </el-menu-item>
         <el-menu-item index="/docgen">
           <el-icon><MagicStick /></el-icon>
           <template #title>
-            <span class="menu-label">文档生成</span>
-            <el-tag size="small" type="danger" effect="plain" class="menu-badge">NEW</el-tag>
+<span class="menu-label">文档生成</span>
+ <el-tag size="small" type="danger" effect="plain" class="menu-badge">NEW</el-tag>
+ <span class="menu-shortcut">Ctrl+5</span>
           </template>
         </el-menu-item>
         <el-menu-item index="/prices">
           <el-icon><TrendCharts /></el-icon>
           <template #title>
             <span class="menu-label">价格库</span>
+ <span class="menu-shortcut">Ctrl+3</span>
           </template>
         </el-menu-item>
         <el-menu-item index="/quote">
           <el-icon><Wallet /></el-icon>
           <template #title>
             <span class="menu-label">报价</span>
+ <span class="menu-shortcut">Ctrl+4</span>
           </template>
         </el-menu-item>
         <el-menu-item index="/text-gen">
           <el-icon><EditPen /></el-icon>
           <template #title>
             <span class="menu-label">文本编制</span>
+ <span class="menu-shortcut">Ctrl+6</span>
           </template>
         </el-menu-item>
         <el-menu-item index="/preview">
@@ -61,12 +65,12 @@
  <el-icon><ChatDotRound /></el-icon>
  <template #title>
  <span class="menu-label">AI 助手</span>
- <span class="menu-dot chat-dot"></span>
+ <span class="menu-shortcut">Ctrl+2</span>
  </template>
  </el-menu-item>
  <el-menu-item index="/settings">
  <el-icon><Setting /></el-icon>
- <template #title><span class="menu-label">AI 配置</span></template>
+ <template #title><span class="menu-label">AI 配置</span><span class="menu-shortcut">Ctrl+8</span></template>
  </el-menu-item>
  </el-menu>
 </el-aside>
@@ -74,12 +78,16 @@
  <!-- 主体 -->
     <el-container class="main-area">
       <el-header class="top-bar">
-        <div class="breadcrumb">
-          <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-            <el-breadcrumb-item>{{ currentPageName }}</el-breadcrumb-item>
-          </el-breadcrumb>
-        </div>
+<div class="breadcrumb">
+ <el-breadcrumb separator="/">
+ <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+ <el-breadcrumb-item>{{ currentPageName }}</el-breadcrumb-item>
+ </el-breadcrumb>
+ <div class="backend-status" :class="{ online: backendOnline, offline: !backendOnline }">
+ <span class="status-dot"></span>
+ <span class="status-text">{{ backendOnline ? '已连接' : '断开' }}</span>
+ </div>
+</div>
         <div class="top-actions">
           <el-button circle size="small" class="action-btn">
             <el-icon><Search /></el-icon>
@@ -125,21 +133,49 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '@/api'
+import { ElMessage, ElNotification } from 'element-plus'
+import { api, isBackendOnline } from '@/api'
+import { useShortcuts } from '@/utils/shortcuts'
 import AiSetupWizard from '@/components/AiSetupWizard.vue'
 
 const route = useRoute()
 const aiConfigured = ref(null)
+const backendOnline = ref(true)
+const healthCheckTimer = ref(null)
+
+// 初始化快捷键
+const { shortcuts } = useShortcuts()
+
+// 后端健康检查(每 30 秒轮询)
+async function checkHealth() {
+  try {
+    const r = await api.get('/status')
+    backendOnline.value = true
+    return r
+  } catch {
+    backendOnline.value = false
+    return null
+  }
+}
 
 onMounted(async () => {
+  // 检查 AI 配置
   try {
     const r = await api.get('/ai/config')
     aiConfigured.value = r?.api_key_set === true
   } catch {
     aiConfigured.value = false
   }
+
+  // 启动健康检查轮询
+  await checkHealth()
+  healthCheckTimer.value = setInterval(checkHealth, 30000)
+})
+
+onUnmounted(() => {
+  if (healthCheckTimer.value) clearInterval(healthCheckTimer.value)
 })
 
 const activeMenu = computed(() => {
@@ -397,6 +433,17 @@ html, body, #app {
   font-size: var(--text-sm);
   font-weight: 500;
 }
+.menu-shortcut {
+  font-size: 11px;
+  color: var(--text-tertiary, #999);
+  margin-left: auto;
+  padding-left: 8px;
+  opacity: 0.6;
+  font-family: monospace;
+}
+.el-menu-item:hover .menu-shortcut {
+  opacity: 1;
+}
 
 .menu-badge {
   margin-left: auto;
@@ -457,8 +504,39 @@ html, body, #app {
 }
 
 .breadcrumb {
+ display: flex;
+ align-items: center;
+}
+
+.backend-status {
   display: flex;
   align-items: center;
+  gap: 4px;
+  margin-left: 16px;
+  font-size: 12px;
+  font-family: monospace;
+}
+.backend-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.backend-status.online .status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34,197,94,0.4);
+}
+.backend-status.offline .status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239,68,68,0.4);
+  animation: pulse 1.5s infinite;
+}
+.backend-status .status-text {
+  color: var(--text-tertiary, #999);
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 .breadcrumb :deep(.el-breadcrumb__inner) {

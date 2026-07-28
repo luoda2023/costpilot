@@ -1,10 +1,11 @@
 """工程助手 - FastAPI 主入口"""
 import sys
+import os
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from packages.server.db.database import init_db
+from packages.server.db.database import init_db, engine
 from packages.server.utils.logger import logger, setup_request_logging
 
 # 显式导入 router(避免子模块导入失败)
@@ -39,8 +40,46 @@ setup_request_logging(app)
 
 @app.on_event("startup")
 def on_startup():
- init_db()
- logger.info("服务启动完成, 数据库已初始化")
+    """启动时执行环境检查"""
+    # 1. 检查数据库
+    try:
+        init_db()
+        # 验证连接
+        with engine.connect() as conn:
+            conn.execute(conn.default_schema_name if hasattr(conn, 'default_schema_name') else None or __import__('sqlalchemy').text("SELECT 1"))
+        logger.info("✅ 数据库连接正常")
+    except Exception as e:
+        logger.critical("❌ 数据库连接失败: %s", e, exc_info=True)
+        print(f"[FATAL] 数据库连接失败: {e}")
+        print("[FATAL] 请确保已安装 SQLite 或配置正确的数据库路径")
+
+    # 2. 检查配置文件
+    config_path = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml"
+    if config_path.exists():
+        logger.info("✅ 配置文件存在: %s", config_path)
+    else:
+        logger.warning("⚠️ 配置文件不存在: %s", config_path)
+
+    # 3. 检查前端静态文件
+    static_path = _static_dir()
+    if static_path.exists():
+        logger.info("✅ 前端静态文件已就绪: %s", static_path)
+    else:
+        logger.warning("⚠️ 前端静态文件未构建: %s", static_path)
+
+    # 4. 检查日志目录
+    from packages.server.utils.logger import LOG_DIR
+    logger.info("✅ 日志目录: %s", LOG_DIR)
+
+    # 5. 输出启动信息
+    import platform
+    logger.info("=" * 50)
+    logger.info("🚀 工程助手 API 启动成功")
+    logger.info("  版本: %s", "0.1.0")
+    logger.info("  系统: %s %s", platform.system(), platform.release())
+    logger.info("  Python: %s", sys.version.split()[0])
+    logger.info("  文档: http://127.0.0.1:8765/docs")
+    logger.info("=" * 50)
 
 
 # ============================================================
@@ -84,12 +123,19 @@ app.include_router(knowledge_router, prefix="/api/v1/kb", tags=["知识库 RAG"]
 
 @app.get("/api/status")
 def api_status():
-    """纯 API 信息端点"""
-    return {
-        "name": "工程助手 API",
-        "version": "0.1.0",
-        "docs": "/docs",
-    }
+ """纯 API 信息端点"""
+ from packages.server.utils.logger import LOG_DIR
+ import platform
+ return {
+ "name": "工程助手 API",
+ "version": "0.1.0",
+ "system": f"{platform.system()} {platform.release()}",
+ "python": sys.version.split()[0],
+ "docs": "/docs",
+ "redoc": "/redoc",
+ "log_dir": str(LOG_DIR),
+ "static_files": str(_static_dir()) if _static_dir().exists() else "未构建",
+ }
 
 
 # ============================================================
