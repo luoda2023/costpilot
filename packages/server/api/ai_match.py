@@ -2,12 +2,6 @@
 
 提供:
 POST /api/v1/quotes/ai-match  批量智能匹配 Excel 导入行到价格库
-
-流程:
-1. 对每行做 SQL LIKE 粗筛, 取 top 10 候选
-2. 评分排序(完全匹配 100 → 包含 50 → 关键词 10)
-3. 高分行(>30)直接返回
-4. 低分行批量发给 AI 精匹配, 让 AI 理解语义做最佳匹配
 """
 import json
 import re
@@ -37,11 +31,9 @@ class ImportRowIn(BaseModel):
     specialty: str = ""
     price: float = 0
 
-
 class AiMatchIn(BaseModel):
     """批量导入请求"""
     rows: List[ImportRowIn]
-
 
 class MatchResultOut(BaseModel):
     """匹配结果"""
@@ -55,12 +47,10 @@ class MatchResultOut(BaseModel):
     confidence: str = "none"  # high / medium / low / none
     remark: str = ""
 
-
 class AiMatchOut(BaseModel):
     """批量匹配响应"""
     matched: List[MatchResultOut]
     stats: dict
-
 
 # ---------------------------------------------------------------------------
 # 辅助函数
@@ -68,36 +58,57 @@ class AiMatchOut(BaseModel):
 
 def _clean_keyword(text: str) -> str:
     """从项目名中提取搜索关键词"""
-    # 全角→半角转换
     text = to_half_width(text)
-    # 去标点
     text = re.sub(r'[，。！？、：；""''【】（） \t_/,-]', '', text)
-    # 去常见项目名后缀
     text = re.sub(r'(项目|工程|清单|项)$', '', text)
     return text.strip()
 
+def _get_price_value(price_str: str) -> float:
+    """从价格字段中提取综合单价（取最后一个数字，格式: id/人工/材料/综合单价）"""
+    if not price_str:
+        return 0
+    parts = price_str.split('/')
+    last = parts[-1].strip()
+    try:
+        return float(last.replace(',', '').replace('元', ''))
+    except ValueError:
+        return 0
+
+def _split_keywords(text: str) -> list:
+    """将关键词拆分为多个有意义的子关键词，用于模糊匹配"""
+    text = _clean_keyword(text)
+    tokens = re.findall(r'[\u4e00-\u9fa5]+|[A-Za-z0-9]+', text)
+    tokens = [t for t in tokens if len(t) >= 1]
+    if len(tokens) <= 1:
+        chars = re.findall(r'[\u4e00-\u9fa5]', text)
+        if len(chars) >= 2:
+            for i in range(len(chars) - 1):
+                tokens.append(''.join(chars[i:i+2]))
+    return tokens
 
 def _score_item(name: str, candidate_name: str, unit: str = "", candidate_unit: str = "") -> int:
     """评分: 完全匹配 100 → 包含 50 → 关键词 10"""
     if not name or not candidate_name:
         return 0
     score = 0
-    # 完全匹配
     if name == candidate_name:
         score = 100
     elif candidate_name in name or name in candidate_name:
         score = 50
     else:
-        # 关键词匹配
         keywords = re.findall(r'[\u4e00-\u9fa5a-zA-Z0-9]+', name)
         for kw in keywords:
             if len(kw) >= 2 and kw in candidate_name:
                 score += 10
-    # 单位一致加分
+            if len(kw) >= 6:
+                chars = re.findall(r'[\u4e00-\u9fa5]', kw)
+                for i in range(len(chars) - 1):
+                    sub = ''.join(chars[i:i+2])
+                    if sub in candidate_name:
+                        score += 5
     if unit and candidate_unit and unit == candidate_unit:
         score += 5
     return score
-
 
 def _generate_ai_prompt(rows_info: list) -> str:
     """为 AI 生成匹配提示词"""
@@ -122,7 +133,6 @@ def _generate_ai_prompt(rows_info: list) -> str:
     prompt_parts.append("请按格式输出匹配结果,每行一个:")
     return "\n".join(prompt_parts)
 
-
 def _parse_ai_response(response_text: str, rows_info: list) -> dict:
     """解析 AI 返回的匹配结果"""
     matches = {}
@@ -138,13 +148,12 @@ def _parse_ai_response(response_text: str, rows_info: list) -> dict:
                             'matched_item_name': parts[1],
                             'matched_price_id': int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else None,
                             'unit': parts[3] if len(parts) > 3 else '',
-                            'price': float(parts[4].replace('元','').replace(',','')) if len(parts) > 4 and parts[4] else 0,
+                            'price': float(parts[4].replace('元', '').replace(',', '')) if len(parts) > 4 and parts[4] else 0,
                             'specialty': parts[5] if len(parts) > 5 else '',
                         }
                     except (ValueError, IndexError):
                         pass
     return matches
-
 
 # ---------------------------------------------------------------------------
 # 路由
@@ -160,7 +169,7 @@ def ai_match_import(
         return AiMatchOut(matched=[], stats={"total": 0, "matched": 0, "unmatched": 0, "ai_matched": 0})
 
     results = []
-    fuzzy_rows = []  # 需要 AI 精匹配的行
+    fuzzy_rows = []
 
     for idx, row in enumerate(payload.rows):
         name = row.item_name.strip()
@@ -177,24 +186,27 @@ def ai_match_import(
         if not keyword:
             keyword = name[:6]
 
-        # Step 2: SQL 粗筛, 取 top 10
-        pattern = f"%{keyword}%"
+        # Step 2: 多关键词 SQL 粗筛, 用 OR 连接提高召回率
+        search_terms = [keyword]
+        split_terms = _split_keywords(name)
+        for t in split_terms:
+            if t not in search_terms and len(t) >= 2:
+                search_terms.append(t)
+        search_terms = search_terms[:5]
+
+        filters = [PriceUnit.item_name.like(f"%{t}%") for t in search_terms]
         candidates = (
             db.query(PriceUnit, Specialty.name)
             .join(Specialty, PriceUnit.specialty_id == Specialty.id)
-            .filter(PriceUnit.item_name.like(pattern))
+            .filter(or_(*filters))
             .order_by(PriceUnit.id)
-            .limit(10)
+            .limit(20)
             .all()
         )
 
         if not candidates:
-            # 无候选, 留待 AI 处理
             fuzzy_rows.append({
-                'idx': idx,
-                'name': name,
-                'unit': row.unit,
-                'candidates': [],
+                'idx': idx, 'name': name, 'unit': row.unit, 'candidates': [],
             })
             continue
 
@@ -208,43 +220,28 @@ def ai_match_import(
         best_score, best_pu, best_spec = scored[0]
 
         if best_score >= 30:
-            # 高分匹配, 直接返回
-            price_val = 0
-            try:
-                price_str = best_pu.price.split(' ')[0] if best_pu.price else '0'
-                price_val = float(price_str.replace(',', '').replace('元', ''))
-            except ValueError:
-                price_val = 0
-
+            price_val = _get_price_value(best_pu.price)
             results.append(MatchResultOut(
-                item_name=row.item_name,
-                qty=row.qty,
-                unit=best_pu.unit,
-                price=price_val,
-                specialty=best_spec,
-                matched_price_id=best_pu.id,
-                matched_item_name=best_pu.item_name,
+                item_name=row.item_name, qty=row.qty, unit=best_pu.unit,
+                price=price_val, specialty=best_spec,
+                matched_price_id=best_pu.id, matched_item_name=best_pu.item_name,
                 confidence="high" if best_score >= 80 else "medium",
                 remark=f"匹配: {best_pu.item_name} ({best_pu.unit})"
             ))
         else:
-            # 低分, 留待 AI 精匹配
             candidate_list = [
-                {'name': pu.item_name, 'unit': pu.unit, 'price': pu.price, 'specialty': spec_name, 'id': pu.id}
+                {'name': pu.item_name, 'unit': pu.unit, 'price': pu.price,
+                 'specialty': spec_name, 'id': pu.id}
                 for score, pu, spec_name in scored[:5]
             ]
             fuzzy_rows.append({
-                'idx': idx,
-                'name': name,
-                'unit': row.unit,
-                'candidates': candidate_list,
+                'idx': idx, 'name': name, 'unit': row.unit, 'candidates': candidate_list,
             })
 
     # Step 4: AI 批量精匹配 + SQL 回退
     ai_matched = {}
     ai_available = False
     if fuzzy_rows:
-        # 尝试 AI 匹配
         try:
             client = get_ai_client()
             ai_available = True
@@ -256,14 +253,12 @@ def ai_match_import(
             ai_text = resp.get("content", "")
             ai_matched = _parse_ai_response(ai_text, fuzzy_rows)
         except (AIClientError, AIConfigError):
-            ai_available = False  # AI 不可用
+            ai_available = False
 
-        # 对 AI 未匹配或 AI 不可用的行，SQL 回退：取评分最高候选
         for frow in fuzzy_rows:
             idx = frow['idx']
             if idx in ai_matched and ai_matched[idx].get('matched_price_id'):
-                continue  # AI 匹配成功
-            # SQL 回退
+                continue
             candidates = frow.get('candidates', [])
             if not candidates:
                 continue
@@ -274,12 +269,7 @@ def ai_match_import(
             scored_candidates.sort(key=lambda x: x[0], reverse=True)
             best_score, best_c = scored_candidates[0]
             if best_score >= 10:
-                price_val = 0
-                try:
-                    price_str = str(best_c['price']).split(' ')[0]
-                    price_val = float(price_str.replace(',', '').replace('元', ''))
-                except ValueError:
-                    price_val = 0
+                price_val = _get_price_value(str(best_c['price']))
                 ai_matched[idx] = {
                     'matched_item_name': best_c['name'],
                     'matched_price_id': best_c['id'],
@@ -288,38 +278,30 @@ def ai_match_import(
                     'specialty': best_c['specialty'],
                 }
 
-    # 填充匹配结果
-    for frow in fuzzy_rows:
-        idx = frow['idx']
-        name = frow['name']
-        unit = frow['unit']
-        match = ai_matched.get(idx)
+        for frow in fuzzy_rows:
+            idx = frow['idx']
+            name = frow['name']
+            unit = frow['unit']
+            match = ai_matched.get(idx)
 
-        if match and match.get('matched_price_id'):
-            results.append(MatchResultOut(
-                item_name=name,
-                qty=payload.rows[idx].qty,
-                unit=match.get('unit', unit),
-                price=match.get('price', 0),
-                specialty=match.get('specialty', ''),
-                matched_price_id=match['matched_price_id'],
-                matched_item_name=match.get('matched_item_name', ''),
-                confidence="medium" if not ai_available else "low",
-                remark=f"匹配: {match.get('matched_item_name', '')}"
-            ))
-        else:
-            # 无匹配, 保留原始数据
-            results.append(MatchResultOut(
-                item_name=name,
-                qty=payload.rows[idx].qty,
-                unit=unit,
-                price=payload.rows[idx].price,
-                specialty=payload.rows[idx].specialty,
-                confidence="none",
-                remark="未匹配到价格库"
-            ))
+            if match and match.get('matched_price_id'):
+                results.append(MatchResultOut(
+                    item_name=name, qty=payload.rows[idx].qty,
+                    unit=match.get('unit', unit), price=match.get('price', 0),
+                    specialty=match.get('specialty', ''),
+                    matched_price_id=match['matched_price_id'],
+                    matched_item_name=match.get('matched_item_name', ''),
+                    confidence="medium" if not ai_available else "low",
+                    remark=f"匹配: {match.get('matched_item_name', '')}"
+                ))
+            else:
+                results.append(MatchResultOut(
+                    item_name=name, qty=payload.rows[idx].qty,
+                    unit=unit, price=payload.rows[idx].price,
+                    specialty=payload.rows[idx].specialty, confidence="none",
+                    remark="未匹配到价格库"
+                ))
 
-    # 统计
     matched_count = sum(1 for r in results if r.confidence in ("high", "medium"))
     ai_matched_count = sum(1 for r in results if r.confidence == "low")
     unmatched_count = sum(1 for r in results if r.confidence == "none")
