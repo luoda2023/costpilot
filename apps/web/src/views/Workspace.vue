@@ -62,34 +62,34 @@
                   <el-icon color="#2563eb"><Document /></el-icon>
                   <span class="header-title">最近文档</span>
                 </div>
-                <el-button link type="primary" size="small">查看全部</el-button>
+                <el-button link type="primary" size="small" @click="router.push('/docgen')">查看全部</el-button>
               </div>
             </template>
-            <el-table :data="recentDocs" style="width: 100%" :show-header="false" size="small">
-              <el-table-column prop="name" label="文档名称" min-width="200">
-                <template #default="{ row }">
-                  <div class="doc-name-cell">
-                    <el-icon color="#2563eb"><Document /></el-icon>
-                    <span>{{ row.name }}</span>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column prop="type" label="类型" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="typeTagType(row.type)" effect="light">
-                    {{ row.type }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="date" label="日期" width="110" align="center" />
-              <el-table-column label="" width="50" align="center">
-                <template #default>
-                  <el-button link circle size="small" class="row-action">
-                    <el-icon><ArrowRight /></el-icon>
-                  </el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+<el-table :data="recentDocs" style="width: 100%" :show-header="false" size="small" @row-click="openRecentDoc">
+ <el-table-column prop="name" label="文档名称" min-width="200">
+ <template #default="{ row }">
+ <div class="doc-name-cell">
+ <el-icon color="#2563eb"><Document /></el-icon>
+ <span>{{ row.name }}</span>
+ </div>
+ </template>
+ </el-table-column>
+ <el-table-column prop="type" label="类型" width="100" align="center">
+ <template #default="{ row }">
+ <el-tag size="small" :type="typeTagType(row.type)" effect="light">
+ {{ row.type }}
+ </el-tag>
+ </template>
+ </el-table-column>
+ <el-table-column prop="date" label="日期" width="110" align="center" />
+ <el-table-column label="" width="50" align="center">
+ <template #default="{ row }">
+ <el-button link circle size="small" class="row-action" @click.stop="openRecentDoc(row)">
+ <el-icon><ArrowRight /></el-icon>
+ </el-button>
+ </template>
+ </el-table-column>
+ </el-table>
           </el-card>
         </el-col>
 
@@ -127,18 +127,18 @@
       </el-row>
 
       <!-- 数据看板 -->
-      <el-row :gutter="20" class="stats-row">
-        <el-col :xs="12" :sm="6" v-for="stat in stats" :key="stat.label">
-          <div class="stat-card" :style="{ borderTopColor: stat.color }">
-            <div class="stat-icon-wrap" :style="{ background: stat.bg }">
-              <el-icon :size="20" :color="stat.color">{{ stat.icon }}</el-icon>
-            </div>
-            <div class="stat-content">
-              <span class="stat-value">{{ stat.value }}</span>
-              <span class="stat-label">{{ stat.label }}</span>
-            </div>
-          </div>
-        </el-col>
+<el-row :gutter="20" class="stats-row">
+ <el-col :xs="12" :sm="6" v-for="stat in stats" :key="stat.label">
+ <div class="stat-card" :style="{ borderTopColor: stat.color }" @click="openStat(stat)" style="cursor:pointer">
+ <div class="stat-icon-wrap" :style="{ background: stat.bg }">
+ <el-icon :size="20" :color="stat.color">{{ stat.icon }}</el-icon>
+ </div>
+ <div class="stat-content">
+ <span class="stat-value">{{ stat.value }}</span>
+ <span class="stat-label">{{ stat.label }}</span>
+ </div>
+ </div>
+ </el-col>
  </el-row>
  
 <!-- AI 配置状态栏 -->
@@ -248,7 +248,22 @@ function selectType(t) {
 }
 
 function goDocGen(key) {
-  router.push(`/docgen?type=${key}`)
+ router.push(`/docgen?type=${key}`)
+}
+
+function openRecentDoc(row) {
+  console.log('打开最近文档:', row)
+  // 跳转到文档生成页，并带入文档类型和名称
+  const typeMap = { '投标文件': 'bid', '初步设计': 'prelim', '施工图说明': 'draw', '专项方案': 'proposal', '可研报告': 'feas', '施工组织设计': 'constr', '合同范本': 'contract', '概算/目标成本': 'cost' }
+  const targetType = typeMap[row.type] || 'bid'
+  router.push(`/docgen?type=${targetType}&name=${encodeURIComponent(row.name)}`)
+}
+
+function openStat(stat) {
+  // 统计卡片点击跳转
+  const routes = { '已生成文档': '/docgen', '价格库条目': '/prices', '覆盖专业': '/prices', '文档模板': '/docgen' }
+  const target = routes[stat.label] || '/docgen'
+  router.push(target)
 }
 
 function handleQuickGen() {

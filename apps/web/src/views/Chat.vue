@@ -294,6 +294,8 @@ onMounted(loadSessions)
   display: flex;
   flex-direction: column;
   background: var(--bg-base);
+  min-height: 0;     /* 确保 flex 子项可以收缩，防止溢出 */
+  overflow: hidden;  /* 防止 chat-main 整体出滚动条，滚动条在 message-list 内部 */
 }
 
 .message-list {
@@ -550,6 +552,7 @@ onMounted(loadSessions)
   border-top: 1px solid var(--gray-200);
   padding: var(--space-3) var(--space-4) var(--space-4);
   background: var(--bg-surface);
+  flex-shrink: 0;  /* 防止输入框被压缩 */
 }
 
 .input-wrapper {

@@ -341,10 +341,37 @@ async def import_excel(file: UploadFile = File(...)):
 
 
 def openpyxl_load_workbook(raw_bytes):
-  """加载 Excel 工作簿(兼容 xlsx 和 xls)"""
-  import openpyxl
-  buf = io.BytesIO(raw_bytes)
-  return openpyxl.load_workbook(buf, data_only=True)
+    """加载 Excel 工作簿(兼容 xlsx 和 xls)"""
+    import openpyxl
+    buf = io.BytesIO(raw_bytes)
+    try:
+        return openpyxl.load_workbook(buf, data_only=True)
+    except Exception:
+        # openpyxl 无法读取 .xls 老格式, 尝试用 xlrd 回退
+        try:
+            import xlrd
+            buf.seek(0)
+            old_wb = xlrd.open_workbook(file_contents=raw_bytes)
+            # 将 xlrd 数据转为 openpyxl 格式返回
+            ws = old_wb.sheet_by_index(0)
+            rows = []
+            for row_idx in range(ws.nrows):
+                rows.append([str(ws.cell_value(row_idx, c)) if ws.cell_value(row_idx, c) != '' else '' for c in range(ws.ncols)])
+            # 返回一个简单的包装对象，模拟 openpyxl 的 active 和 iter_rows
+            class FakeWorksheet:
+                def __init__(self, data):
+                    self._data = data
+                def iter_rows(self, values_only=True):
+                    for row in self._data:
+                        yield row
+            class FakeWorkbook:
+                def __init__(self, data):
+                    self.active = FakeWorksheet(data)
+            return FakeWorkbook(rows)
+        except ImportError:
+            raise  # 重新抛出原始异常
+        except Exception:
+            raise  # 重新抛出原始异常
 
 @router.post("/parse-project", response_model=ParseProjectOut)
 def parse_project(payload: ParseProjectIn):

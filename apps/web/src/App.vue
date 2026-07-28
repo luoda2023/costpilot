@@ -149,19 +149,22 @@ const healthCheckTimer = ref(null)
 const { shortcuts } = useShortcuts()
 
 // 后端健康检查(每 30 秒轮询)
-// 注意: 不能用 api.get 因为 baseURL=/api/v1, 直接 fetch /health
+// 注意: 不能用 api.get 因为 baseURL=/api/v1, 必须用绝对地址
+// 在 Electron 中从 file:// 加载时, fetch('/health') 会变成 file:///health
+const HEALTH_URL = window.location.protocol === 'file:' ? 'http://127.0.0.1:8765/health' : '/health'
+
 async function checkHealth() {
-  try {
- const r = await fetch('/health')
+ try {
+ const r = await fetch(HEALTH_URL)
  if (r.ok) {
  backendOnline.value = true
  return r
  }
  throw new Error('not ok')
-  } catch {
+ } catch {
  backendOnline.value = false
  return null
-  }
+ }
 }
 
 onMounted(async () => {
