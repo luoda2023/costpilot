@@ -169,7 +169,7 @@
 </template>
 
 <script setup>
-	import { ref, onMounted } from 'vue'
+	import { ref, onMounted, onUnmounted } from 'vue'
 	import { useRouter } from 'vue-router'
 	import { ElMessage } from 'element-plus'
 	import { api } from '@/api'
@@ -187,14 +187,19 @@
 	const generating = ref(false)
 	const aiConfigured = ref(null)
 	
-	onMounted(async () => {
-	  try {
-	    const r = await api.get('/ai/config')
-	    aiConfigured.value = r?.api_key_set === true
-	  } catch {
-	    aiConfigured.value = false
-	  }
-	})
+onMounted(async () => {
+ try {
+ const r = await api.get('/ai/config')
+ aiConfigured.value = r?.api_key_set === true
+ } catch {
+ aiConfigured.value = false
+ }
+})
+
+onUnmounted(() => {
+  // 清理可能的定时器
+  if (window._workspaceTimer) clearTimeout(window._workspaceTimer)
+})
 
 const quickTypes = ref([
   { key: 'bid',    label: '投标文件',   icon: '📑', active: false },
@@ -248,11 +253,11 @@ function goDocGen(key) {
 
 function handleQuickGen() {
   if (!prompt.value.trim()) {
-    ElMessage.warning('请先描述你的需求')
-    return
+ ElMessage.warning('请先描述你的需求')
+ return
   }
   generating.value = true
-  setTimeout(() => {
+  window._workspaceTimer = setTimeout(() => {
     generating.value = false
     ElMessage.success('已创建生成任务，跳转到文档生成...')
     router.push('/docgen')

@@ -5,7 +5,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from packages.server.db.database import init_db, engine
+from sqlalchemy import text
+from packages.server.db.database import init_db, engine, backup_db
 from packages.server.utils.logger import logger, setup_request_logging
 
 # 显式导入 router(避免子模块导入失败)
@@ -41,17 +42,24 @@ setup_request_logging(app)
 @app.on_event("startup")
 def on_startup():
     """启动时执行环境检查"""
-    # 1. 检查数据库
-    try:
-        init_db()
-        # 验证连接
-        with engine.connect() as conn:
-            conn.execute(conn.default_schema_name if hasattr(conn, 'default_schema_name') else None or __import__('sqlalchemy').text("SELECT 1"))
-        logger.info("✅ 数据库连接正常")
-    except Exception as e:
-        logger.critical("❌ 数据库连接失败: %s", e, exc_info=True)
-        print(f"[FATAL] 数据库连接失败: {e}")
-        print("[FATAL] 请确保已安装 SQLite 或配置正确的数据库路径")
+# 1. 检查数据库
+ try:
+  init_db()
+  # 验证连接是否可用
+  with engine.connect() as conn:
+   conn.execute(text("SELECT 1"))
+  logger.info("✅ 数据库连接正常")
+except Exception as e:
+	 logger.critical("❌ 数据库连接失败: %s", e, exc_info=True)
+	 print(f"[FATAL] 数据库连接失败: {e}")
+	 print("[FATAL] 请确保已安装 SQLite 或配置正确的数据库路径")
+
+ # 1b. 数据库备份(每天首次启动自动备份)
+ try:
+  backup_path = backup_db()
+  logger.info("✅ 数据库备份完成: %s", backup_path)
+ except Exception as e:
+  logger.warning("⚠️ 数据库备份失败(非致命): %s", e)
 
     # 2. 检查配置文件
     config_path = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml"

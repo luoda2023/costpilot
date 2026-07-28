@@ -286,6 +286,7 @@ const genStatus = ref('')
 const genDone = ref(false)
 const genLogs = ref([])
 const generatedText = ref('')
+const genTimer = ref(null)
 const form = reactive({
   name: '',
   location: '',
@@ -433,6 +434,8 @@ function startGeneration() {
   genStatus.value = '正在分析需求...'
   genDone.value = false
   genLogs.value = []
+  // 清理上一次的定时器
+  if (genTimer.value) clearInterval(genTimer.value)
 
   const logs = [
     '读取格式谱模板结构',
@@ -447,15 +450,16 @@ function startGeneration() {
     '格式化排版',
   ]
 
-  let i = 0
-  const interval = setInterval(() => {
+let i = 0
+  genTimer.value = setInterval(() => {
     if (i < logs.length) {
       genLogs.value.push({ text: logs[i], new: true })
       genProgress.value = Math.round(((i + 1) / logs.length) * 100)
       genStatus.value = i < logs.length - 1 ? '正在生成...' : '即将完成'
       i++
-    } else {
-      clearInterval(interval)
+} else {
+  clearInterval(genTimer.value)
+  genTimer.value = null
       genDone.value = true
       genStatus.value = '生成完成'
       generating.value = false
@@ -535,11 +539,19 @@ async function handleExport() {
     const filename = `${form.name || '文档'}.docx`
     saveAs(blob, filename)
     ElMessage.success(`已导出 ${filename}`)
-  } catch (e) {
-    console.error('导出失败', e)
-    ElMessage.error('导出失败：' + (e.message || '未知错误'))
+} catch (e) {
+ console.error('导出失败', e)
+ ElMessage.error('导出失败：' + (e.message || '未知错误'))
   }
 }
+
+// 页面卸载时清理定时器
+onUnmounted(() => {
+  if (genTimer.value) {
+    clearInterval(genTimer.value)
+    genTimer.value = null
+  }
+})
 </script>
 
 <style scoped>

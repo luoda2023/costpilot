@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+from packages.server.utils.logger import logger
 
 def _db_path() -> Path:
     """数据库文件路径
@@ -55,7 +56,39 @@ def init_db():
 
 
 def reset_db():
-    """重建所有表（开发期清库用）"""
-    from .models import Base
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+ """重建所有表（开发期清库用）"""
+ from .models import Base
+ Base.metadata.drop_all(bind=engine)
+ Base.metadata.create_all(bind=engine)
+
+
+def backup_db(max_backups: int = 10) -> Path:
+ """备份当前数据库文件到 data/sqlite/backups/
+
+ 自动清理超出 max_backups 的旧备份。
+ 返回备份文件路径。
+ """
+ import shutil
+ from datetime import datetime
+
+ db_file = _db_path()
+ if not db_file.exists():
+  logger.warning("数据库文件不存在，跳过备份: %s", db_file)
+  return db_file
+
+ backup_dir = db_file.parent / "backups"
+ backup_dir.mkdir(parents=True, exist_ok=True)
+
+ timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+ backup_path = backup_dir / f"工程助手_{timestamp}.db"
+
+ shutil.copy2(db_file, backup_path)
+ logger.info("数据库已备份: %s (%d bytes)", backup_path, backup_path.stat().st_size)
+
+ # 清理旧备份：保留最近 max_backups 个
+ backups = sorted(backup_dir.glob("工程助手_*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+ for old in backups[max_backups:]:
+  old.unlink()
+  logger.info("清理旧备份: %s", old)
+
+ return backup_path
