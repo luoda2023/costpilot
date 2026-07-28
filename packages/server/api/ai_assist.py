@@ -182,6 +182,7 @@ async def import_excel(file: UploadFile = File(...)):
   """
   ALLOWED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
   MAX_FILE_SIZE = 10 * 1024 * 1024
+  MAX_ROWS = 500
   filename = file.filename or 'file.xlsx'
   ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
   if ext not in ALLOWED_EXTENSIONS:
