@@ -92,16 +92,16 @@ def list_prices(
   offset: int = 0,
   db: Session = Depends(get_db),
 ):
-  """列表查价(分页)"""
-  q = db.query(PriceUnit, Specialty.name).join(Specialty, PriceUnit.specialty_id == Specialty.id)
-  if specialty:
-    q = q.filter(Specialty.name == specialty)
-  if region:
-    q = q.filter(PriceUnit.region == region)
-  if keyword:
-    q = q.filter(PriceUnit.item_name.like(f"%{keyword}%"))
-  if unit:
-    q = q.filter(PriceUnit.unit == unit)
+    """列表查价(分页)"""
+    q = db.query(PriceUnit, Specialty.name).join(Specialty, PriceUnit.specialty_id == Specialty.id)
+    if specialty:
+        q = q.filter(Specialty.name == specialty)
+    if region:
+        q = q.filter(PriceUnit.region == region)
+    if keyword:
+        q = q.filter(PriceUnit.item_name.like(f"%{keyword}%"))
+    if unit:
+        q = q.filter(PriceUnit.unit == unit)
     q = q.order_by(PriceUnit.id).offset(offset).limit(limit)
     results = []
     for pu, spec_name in q.all():
@@ -115,17 +115,17 @@ def list_prices(
 
 @router.get("/search", response_model=List[PriceUnitOut])
 def search_prices(
- q: str = Query(..., min_length=1, description="项目名关键词"),
- limit: int = Query(20, le=100),
- db: Session = Depends(get_db),
+    q: str = Query(..., min_length=1, description="项目名关键词"),
+    limit: int = Query(20, le=100),
+    db: Session = Depends(get_db),
 ):
- """模糊搜索价格(SQL LIKE)
+    """模糊搜索价格(SQL LIKE)
 
- MVP 阶段用 LIKE;后续 M2 升级为 FTS5 全文索引
- """
- # 全角→半角转换, 避免全角字符搜索不到
- q = to_half_width(q)
- pattern = f"%{q}%"
+    MVP 阶段用 LIKE;后续 M2 升级为 FTS5 全文索引
+    """
+    # 全角→半角转换, 避免全角字符搜索不到
+    q = to_half_width(q)
+    pattern = f"%{q}%"
     query = (
         db.query(PriceUnit, Specialty.name)
         .join(Specialty, PriceUnit.specialty_id == Specialty.id)

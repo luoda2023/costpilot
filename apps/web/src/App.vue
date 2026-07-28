@@ -151,7 +151,7 @@ const { shortcuts } = useShortcuts()
 // 后端健康检查(每 30 秒轮询)
 async function checkHealth() {
   try {
-    const r = await api.get('/status')
+    const r = await api.get('/../health')
     backendOnline.value = true
     return r
   } catch {

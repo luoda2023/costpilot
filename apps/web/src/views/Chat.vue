@@ -297,9 +297,10 @@ onMounted(loadSessions)
 }
 
 .message-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-6);
+ flex: 1;
+ min-height: 0;  /* 允许 flex 子项收缩，确保滚动条在消息区内 */
+ overflow-y: auto;
+ padding: var(--space-6);
 }
 
 /* 欢迎页 */

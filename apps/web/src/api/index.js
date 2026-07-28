@@ -178,12 +178,17 @@ export const ProjectsAPI = {
 }
 
 export const ChatAPI = {
-  createSession: (projectId) => api.post('/chat/sessions' + (projectId ? `?project_id=${projectId}` : '')),
-  listSessions: () => api.get('/chat/sessions'),
-  messages: (sid) => api.get(`/chat/sessions/${sid}/messages`),
-  send: (sid, content) => api.post(`/chat/sessions/${sid}/messages`, { content }),
-  deleteSession: (sid) => api.delete(`/chat/sessions/${sid}`),
+ createSession: (projectId) => api.post('/chat/sessions' + (projectId ? `?project_id=${projectId}` : '')),
+ listSessions: () => api.get('/chat/sessions'),
+ messages: (sid) => api.get(`/chat/sessions/${sid}/messages`),
+ send: (sid, content) => api.post(`/chat/sessions/${sid}/messages`, { content }),
+ deleteSession: (sid) => api.delete(`/chat/sessions/${sid}`),
+}
+
+export const DocGenAPI = {
+ outline: (docType, stage, engType) => api.get('/ai/doc-gen/outline', { params: { doc_type: docType, stage, eng_type: engType || 'default' } }),
+ generateSection: (data) => api.post('/ai/doc-gen/section', data),
 }
 
 // 兼容 main.js 中所引用的 'api'
-export default { http, api, PricesAPI, FeesAPI, TemplatesAPI, ProjectsAPI, ChatAPI, isBackendOnline }
+export default { http, api, PricesAPI, FeesAPI, TemplatesAPI, ProjectsAPI, ChatAPI, DocGenAPI, isBackendOnline }

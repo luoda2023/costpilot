@@ -242,7 +242,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
-import { api } from '@/api'
+import { api, DocGenAPI } from '@/api'
 import { saveAs } from 'file-saver'
 import {
  Document, Paragraph, TextRun, HeadingLevel, AlignmentType,
@@ -326,16 +326,33 @@ function selectType(key) {
   step.value = 1
 }
 
-function goStep3() {
+async function goStep3() {
   if (!form.name || !form.location || !form.scale) {
-    ElMessage.warning('请填写必填项（项目名称、地点、规模）')
-    return
+ ElMessage.warning('请填写必填项（项目名称、地点、规模）')
+ return
   }
   step.value = 3
-  startGeneration()
+  await startGeneration()
 }
 
-function buildDocumentText() {
+const outlineSections = ref([]) // 当前大纲 [{title, key, word_count}]
+
+// 获取文档大纲
+async function loadOutline() {
+  if (!form.stage || !form.engType) {
+ outlineSections.value = []
+ return
+  }
+  try {
+ const res = await DocGenAPI.outline(selectedType.value, form.stage, form.engType)
+ outlineSections.value = res.data?.sections || []
+  } catch (e) {
+ console.error('获取大纲失败', e)
+ outlineSections.value = []
+  }
+}
+
+async function buildDocumentText() {
   const stageMap = { feasibility: '可研/立项阶段', preliminary: '初步设计/报批', construction: '施工图/招投标', building: '施工阶段', settlement: '结算/审计' }
   const typeMap = { bid: '投标文件', proposal: '方案说明', prelim: '初步设计说明', draw: '施工图设计说明', feas: '可研报告', constr: '施工组织设计', contract: '合同范本', cost: '概算/目标成本' }
   const engMap = { pipeline: '市政管网（给水/排水）', road: '道路工程', building: '建筑工程', water: '水利工程', landscape: '园林绿化', mep: '机电安装', other: '其他' }
@@ -343,138 +360,136 @@ function buildDocumentText() {
   const stageName = stageMap[form.stage] || form.stage
   const engName = engMap[form.engType] || form.engType
   const now = new Date().toLocaleDateString('zh-CN')
+  const projectInfo = { name: form.name, location: form.location, scale: form.scale, scaleUnit: form.scaleUnit, stage: form.stage, engType: form.engType, note: form.note }
+  const headerLines = ['# ' + (form.name || '工程文档'), '']
+  headerLines.push('| 项目名称 | ' + (form.name || '-') + ' |')
+  headerLines.push('| 项目地点 | ' + (form.location || '-') + ' |')
+  headerLines.push('| 工程规模 | ' + form.scale + form.scaleUnit + ' |')
+  headerLines.push('| 编制阶段 | ' + stageName + ' |')
+  headerLines.push('| 工程类型 | ' + engName + ' |')
+  headerLines.push('| 输出格式 | ' + form.outputFormat.toUpperCase() + ' |')
+  headerLines.push('| 编制日期 | ' + now + ' |')
+  headerLines.push('')
+  if (form.note) {
+    headerLines.push('## 补充说明', '')
+    headerLines.push(form.note)
+    headerLines.push('')
+  }
+  headerLines.push('---', '')
+  headerLines.push('*本文件由工程助手 AI 自动生成，仅供参考，请结合实际情况修改完善。*')
+  headerLines.push('*生成时间：' + now + '*')
+  const header = headerLines.join('\n')
 
-  return `# ${form.name || '工程文档'}
+  if (outlineSections.value.length === 0) {
+    return header + '\n' + buildFallbackContent()
+  }
 
-## 一、项目概况
+  const structuredContent = await buildStructuredContent(projectInfo)
+  return header + '\n' + structuredContent
+}
+function buildFallbackContent() {
+  const stageMap = { feasibility: '可研/立项阶段', preliminary: '初步设计/报批', construction: '施工图/招投标', building: '施工阶段', settlement: '结算/审计' }
+  const engMap = { pipeline: '市政管网（给水/排水）', road: '道路工程', building: '建筑工程', water: '水利工程', landscape: '园林绿化', mep: '机电安装', other: '其他' }
+  const stageName = stageMap[form.stage] || form.stage
+  const engName = engMap[form.engType] || form.engType
 
-| 项目名称 | ${form.name || '-'} |
-| 项目地点 | ${form.location || '-'} |
-| 工程规模 | ${form.scale}${form.scaleUnit} |
-| 编制阶段 | ${stageName} |
-| 工程类型 | ${engName} |
-| 输出格式 | ${form.outputFormat.toUpperCase()} |
-| 编制日期 | ${now} |
+  const lines = ['## 一、项目概况', '']
+  lines.push(form.name + '位于' + form.location + '，工程规模为' + form.scale + form.scaleUnit + '，属于' + engName + '类项目。本阶段为' + stageName + '。')
+  lines.push('', '## 二、工程方案', '')
+  lines.push('根据项目特点和技术要求，本工程采用合理可行的技术方案，确保工程质量、安全、进度和投资控制目标的实现。')
+  lines.push('', '## 三、施工组织', '')
+  lines.push('施工场地条件已具备，施工用水、用电、临时设施等可满足施工需要。')
+  lines.push('', '## 四、投资估算', '')
+  lines.push('本估算依据' + stageName + '要求，结合工程规模和当地市场价格水平编制。')
+  lines.push('', '---', '')
+  lines.push('*本文件由工程助手 AI 自动生成，仅供参考，请结合实际情况修改完善。*')
+  lines.push('*生成时间：' + new Date().toLocaleDateString('zh-CN') + '*')
+  return lines.join('\n')
 
-${form.note ? `## 补充说明\n\n${form.note}\n` : ''}
-
-## 二、建设条件
-
-### 2.1 项目背景
-
-${form.name}位于${form.location}，工程规模为${form.scale}${form.scaleUnit}，属于${engName}类项目。本阶段为${stageName}。
-
-### 2.2 建设条件分析
-
-项目所在区域地形地貌、水文地质、交通运输等条件已进行现场踏勘和资料收集。建设条件总体可行。
-
-## 三、工程方案
-
-### 3.1 方案概述
-
-根据项目特点和技术要求，本工程采用合理可行的技术方案，确保工程质量、安全、进度和投资控制目标的实现。
-
-### 3.2 主要技术指标
-
-- 工程规模：${form.scale}${form.scaleUnit}
-- 工程类型：${engName}
-- 编制阶段：${stageName}
-
-## 四、施工组织
-
-### 4.1 施工条件
-
-施工场地条件已具备，施工用水、用电、临时设施等可满足施工需要。
-
-### 4.2 施工进度计划
-
-根据工程规模和特点，合理编制施工进度计划，确保按期完成。
-
-## 五、投资估算
-
-### 5.1 估算依据
-
-本估算依据${stageName}要求，结合工程规模和当地市场价格水平编制。
-
-### 5.2 估算结果
-
-| 序号 | 费用项目 | 估算金额（万元） |
-|------|----------|----------------|
-| 1 | 建安工程费 | - |
-| 2 | 设备购置费 | - |
-| 3 | 工程建设其他费 | - |
-| 4 | 预备费 | - |
-| **合计** | | **-** |
-
----
-
-*本文件由工程助手 AI 自动生成，仅供参考，请结合实际情况修改完善。*
-*生成时间：${now}*`
+}
+async function buildStructuredContent(projectInfo) {
+  let content = ''
+  const stageMap = { feasibility: '可研/立项阶段', preliminary: '初步设计/报批', construction: '施工图/招投标', building: '施工阶段', settlement: '结算/审计' }
+  const stageName = stageMap[form.stage] || form.stage
+  const sections = outlineSections.value
+  
+  for (const section of sections) {
+ content += '## ' + section.title + '\n'
+    genStatus.value = '正在生成：' + section.title
+    try {
+ const res = await DocGenAPI.generateSection({
+ section_title: section.title,
+ section_key: section.key,
+ doc_type: selectedType.value,
+ stage: form.stage,
+ eng_type: form.engType,
+ project_info: projectInfo,
+ word_count: section.word_count,
+ context: content,
+})
+      const sectionContent = res.data?.content || ''
+      content += sectionContent + '\n'
+      genLogs.value.push({ text: '完成：' + section.title, new: true })
+    } catch (e) {
+ console.error('生成章节失败:', section.title, e)
+    content += '*（本章节生成失败，请手动补充）*'
+    }
+  }
+  return content
 }
 
 function resetForm() {
   ElMessageBox.confirm('确定要重置所有表单字段吗？', '确认重置', { confirmButtonText: '重置', cancelButtonText: '取消', type: 'warning' }).then(() => {
-   step.value = 1
-   generating.value = false
-   genProgress.value = 0
-   genStatus.value = ''
-   genDone.value = false
-   genLogs.value = []
-   Object.assign(form, {
-    name: '', location: '', scale: '', scaleUnit: 'km',
-    stage: '', engType: '', outputFormat: 'docx', note: '',
-   })
-   ElMessage.success('已重置')
+ step.value = 1
+ generating.value = false
+ genProgress.value = 0
+ genStatus.value = ''
+ genDone.value = false
+ genLogs.value = []
+ outlineSections.value = []
+ Object.assign(form, {
+ name: '', location: '', scale: '', scaleUnit: 'km',
+ stage: '', engType: '', outputFormat: 'docx', note: '',
+ })
+ ElMessage.success('已重置')
   }).catch(() => {})
- }
+}
 
-function startGeneration() {
+async function startGeneration() {
   generating.value = true
   genProgress.value = 0
   genStatus.value = '正在分析需求...'
   genDone.value = false
   genLogs.value = []
-  // 清理上一次的定时器
-  if (genTimer.value) clearInterval(genTimer.value)
+  if (genTimer.value) clearTimeout(genTimer.value)
 
-  const logs = [
-    '读取格式谱模板结构',
-    '分析项目参数与工程类型',
-    '检索价格信息库数据',
-    '匹配当地信息价',
-    '生成第一章：总论',
-    '生成第二章：建设条件',
-    '生成第三章：工程方案',
-    '生成第四章：施工组织',
-    '生成第五章：投资估算',
-    '格式化排版',
-  ]
+  await loadOutline()
 
-let i = 0
-  genTimer.value = setInterval(() => {
-    if (i < logs.length) {
-      genLogs.value.push({ text: logs[i], new: true })
-      genProgress.value = Math.round(((i + 1) / logs.length) * 100)
-      genStatus.value = i < logs.length - 1 ? '正在生成...' : '即将完成'
-      i++
-} else {
-  clearInterval(genTimer.value)
-  genTimer.value = null
-      genDone.value = true
-      genStatus.value = '生成完成'
-      generating.value = false
-      step.value = 4
-      generatedText.value = buildDocumentText()
-    }
-  }, 600)
+  const sections = outlineSections.value
+  const logs = sections.length > 0
+    ? ['读取格式谱模板结构', '分析项目参数与工程类型', ...sections.map(s => '生成' + s.title), '格式化排版']
+    : ['读取格式谱模板结构', '分析项目参数与工程类型', '生成文档内容', '格式化排版']
+
+  for (let i = 0; i < logs.length; i++) {
+    genLogs.value.push({ text: logs[i], new: true })
+    genProgress.value = Math.round(((i + 1) / logs.length) * 100)
+    genStatus.value = i < logs.length - 1 ? '正在生成...' : '即将完成'
+    await new Promise(r => setTimeout(r, 600))
+  }
+
+  genDone.value = true
+  genStatus.value = '生成完成'
+  generating.value = false
+  step.value = 4
+  generatedText.value = await buildDocumentText()
 }
 
-function handleGenerate() {
+async function handleGenerate() {
   if (step.value <= 2) {
-    goStep3()
-    return
+ await goStep3()
+ return
   }
-  startGeneration()
+  await startGeneration()
 }
 
 async function handleExport() {

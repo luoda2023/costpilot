@@ -67,10 +67,10 @@ class AiMatchOut(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _clean_keyword(text: str) -> str:
- """从项目名中提取搜索关键词"""
- # 全角→半角转换
- text = to_half_width(text)
- # 去标点
+    """从项目名中提取搜索关键词"""
+    # 全角→半角转换
+    text = to_half_width(text)
+    # 去标点
     text = re.sub(r'[，。！？、：；""''【】（） \t_/,-]', '', text)
     # 去常见项目名后缀
     text = re.sub(r'(项目|工程|清单|项)$', '', text)
