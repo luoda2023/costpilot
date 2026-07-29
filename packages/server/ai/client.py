@@ -15,8 +15,30 @@
 import json
 from typing import List, Dict, Optional, Any
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from packages.server.config import get_config
+
+
+def _create_session(timeout: int = 120) -> requests.Session:
+    """创建带连接池和重试机制的 Session（复用 TCP 连接，减少资源消耗）"""
+    session = requests.Session()
+    retry = Retry(
+        total=2,
+        backoff_factor=0.5,
+        allowed_methods={"POST", "GET"},
+        status_forcelist={429, 500, 502, 503, 504},
+    )
+    adapter = HTTPAdapter(
+        pool_connections=4,
+        pool_maxsize=8,
+        max_retries=retry,
+        pool_block=True,
+    )
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 # ---------------------------------------------------------------------------
@@ -40,10 +62,10 @@ class AIClient:
     OpenAI 兼容统一客户端
 
     用法:
-        from packages.server.ai.client import get_ai_client
-        client = get_ai_client()
-        resp = client.chat(messages=[{"role":"user","content":"你好"}])
-        print(resp["content"])
+      from packages.server.ai.client import get_ai_client
+      client = get_ai_client()
+      resp = client.chat(messages=[{"role":"user","content":"你好"}])
+      print(resp["content"])
     """
 
     def __init__(self, **overrides):
@@ -51,7 +73,6 @@ class AIClient:
         overrides: 可显式覆盖任意配置项(base_url/api_key/model/temperature/max_tokens/timeout)
         """
         cfg = get_config().ai.resolved()
-        # 合并 override
         self.provider = overrides.get("provider", cfg["provider"])
         self.base_url = overrides.get("base_url", cfg["base_url"])
         self.api_key = overrides.get("api_key", cfg["api_key"])
@@ -59,6 +80,7 @@ class AIClient:
         self.temperature = overrides.get("temperature", cfg["temperature"])
         self.max_tokens = overrides.get("max_tokens", cfg["max_tokens"])
         self.timeout = overrides.get("timeout", cfg["timeout"])
+        self._session = _create_session(self.timeout)
 
         # Ollama 不需要 api_key
         if self.provider != "ollama" and not self.api_key:
@@ -87,12 +109,12 @@ class AIClient:
         非流式 chat 调用
 
         返回:
-            {
-              "content":      str,                  # 助手回复文本
-              "tool_calls":   List[Dict] | None,    # 工具调用列表
-              "finish_reason": str,                 # stop / tool_calls / length
-              "raw":          dict,                 # 原始响应(调试用)
-            }
+        {
+            "content": str,  # 助手回复文本
+            "tool_calls": List[Dict] | None,  # 工具调用列表
+            "finish_reason": str,  # stop / tool_calls / length
+            "raw": dict,  # 原始响应(调试用)
+        }
         """
         url = self._endpoint()
         headers = self._headers()
@@ -108,7 +130,7 @@ class AIClient:
             payload["tool_choice"] = tool_choice
 
         try:
-            r = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
+            r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
         except requests.RequestException as e:
             raise AIClientError(f"AI HTTP 请求失败: {e}") from e
 
@@ -139,8 +161,8 @@ class AIClient:
         流式调用,逐 token 返回 content 字符串
 
         用法:
-            for chunk in client.chat_stream(messages):
-                print(chunk, end="", flush=True)
+          for chunk in client.chat_stream(messages):
+              print(chunk, end="", flush=True)
         """
         url = self._endpoint()
         headers = self._headers()
@@ -154,7 +176,7 @@ class AIClient:
         if tools:
             payload["tools"] = tools
 
-        with requests.post(url, json=payload, headers=headers, timeout=self.timeout, stream=True) as r:
+        with self._session.post(url, json=payload, headers=headers, timeout=self.timeout, stream=True) as r:
             if r.status_code != 200:
                 raise AIClientError(f"AI 流式调用失败 [{r.status_code}]: {r.text[:500]}")
             for line in r.iter_lines():
@@ -170,7 +192,6 @@ class AIClient:
                         delta = chunk["choices"][0].get("delta", {})
                         if delta.get("content"):
                             yield delta["content"]
-                        # tool_calls 流式增量此处简化处理,实际生产需合并累积
                     except (json.JSONDecodeError, KeyError, IndexError):
                         continue
 
@@ -202,7 +223,7 @@ class AIClient:
         """测试连接是否可用,返回 {"ok": bool, "msg": str}"""
         try:
             resp = self.chat(
-                messages=[{"role": "user", "content": "你好,这是一个连接测试,请回复\'测试通过\'"}],
+                messages=[{"role": "user", "content": "你好,这是一个连接测试,请回复'测试通过'"}],
             )
             return {
                 "ok": True,
@@ -248,14 +269,14 @@ if __name__ == "__main__":
         result = client.test_connection()
         if result["ok"]:
             print("✅", result["msg"])
-            print("   回复:", result["reply"])
+            print(" 回复:", result["reply"])
         else:
             print("❌", result["msg"])
     except AIConfigError as e:
         print(f"⚠ 配置未就绪: {e}")
         print()
         print("配置提示:")
-        print("  1. 编辑 H:\\AI-model\\工程助手\\config.yaml")
+        print("  1. 编辑 config.yaml")
         print("  2. 在 ai.api_key 填入对应 provider 的密钥")
         print("  3. 重新运行本测试")
     except Exception as e:

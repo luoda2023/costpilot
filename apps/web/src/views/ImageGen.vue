@@ -19,7 +19,7 @@
         <el-card shadow="never" class="side-card" style="margin-top:12px">
           <template #header><span class="card-title">生成记录</span></template>
           <div class="history-list" v-if="history.length > 0">
-            <div v-for="(item, i) in history" :key="i" class="history-item" @click="viewHistory(item)">
+            <div v-for="(item, i) in history" :key="i" class="history-item" @click="scrollToResult(item.id)">
               <el-image :src="item.url" fit="cover" class="history-thumb" />
               <div class="history-info">
                 <span class="history-mode">{{ item.mode === 'text-to-image' ? '文生图' : '图生图' }}</span>
@@ -45,6 +45,9 @@
                   <el-option label="1024×1792" value="1024x1792" />
                   <el-option label="1792×1024" value="1792x1024" />
                 </el-select>
+                <el-tooltip content="切换模式时自动清空参考图片" placement="top">
+                  <el-icon color="#909399" style="cursor:help"><InfoFilled /></el-icon>
+                </el-tooltip>
               </div>
             </div>
           </template>
@@ -95,14 +98,15 @@
               <el-icon v-if="!generating"><MagicStick /></el-icon>
               {{ generating ? '生成中...' : '生成图片' }}
             </el-button>
-            <el-button v-if="results.length > 0" @click="clearResults" size="default">
+            <el-button v-if="results.length > 0" @click="clearResults" size="default" :disabled="generating">
               清空结果
             </el-button>
+            <span v-if="generating" class="generating-hint">预计耗时 20~60秒</span>
           </div>
 
           <!-- 生成进度 -->
           <div v-if="generating" class="progress-bar">
-            <el-progress :percentage="progress" :status="progress === 100 ? 'success' : undefined" :stroke-width="4" />
+            <el-progress :percentage="progress" :stroke-width="4" :status="progress === 100 ? 'success' : undefined" />
             <p class="progress-text">AI 正在生成图片，请稍候...</p>
           </div>
         </el-card>
@@ -113,12 +117,12 @@
             <span class="card-title">生成结果 ({{ results.length }})</span>
           </template>
           <div class="image-grid">
-            <div v-for="(item, i) in results" :key="i" class="image-grid-item">
+            <div v-for="(item, i) in results" :key="item.id" class="image-grid-item">
               <el-image
                 :src="item.url"
                 fit="contain"
                 class="grid-image"
-                :preview-src-list="results.map(r => r.url)"
+                :preview-src-list="previewList"
                 :initial-index="i"
                 hide-on-click-modal
               >
@@ -136,7 +140,7 @@
               </el-image>
               <div class="image-item-footer">
                 <span class="image-mode-tag">{{ item.mode === 'fallback' ? '文生图(回落)' : mode === 'text-to-image' ? '文生图' : '图生图' }}</span>
-                <el-button size="small" text type="primary" @click="downloadImage(item.url, i)">
+                <el-button size="small" text type="primary" :loading="item.downloading" @click="downloadImage(item, i)">
                   <el-icon><Download /></el-icon> 下载
                 </el-button>
               </div>
@@ -182,35 +186,61 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { EditPen, PictureFilled, Plus, MagicStick, Download, WarningFilled, Loading } from '@element-plus/icons-vue'
+import { EditPen, PictureFilled, Plus, MagicStick, Download, WarningFilled, Loading, InfoFilled } from '@element-plus/icons-vue'
 import { api } from '@/api'
 
 document.title = '造价通 - 图片生成'
 
+// ============================================================
+// 常量
+// ============================================================
+const MAX_RESULTS = 20          // 结果列表上限
+const MAX_HISTORY = 10          // 历史记录上限
+const DOWNLOAD_TIMEOUT = 30000  // 下载超时 (30s)
+const STORAGE_KEY = 'img_gen_history'  // localStorage 键
+
+// ============================================================
+// 状态
+// ============================================================
 const mode = ref('text-to-image')
 const prompt = ref('')
 const imageSize = ref('1024x1024')
 const generating = ref(false)
 const progress = ref(0)
-const results = ref([])
-const history = ref([])
-const referenceImage = ref('')
+const results = ref([])         // { id, url, mode, prompt, revised_prompt, downloading }
+const history = ref([])         // { id, url, mode, time }
+const referenceImage = ref('')  // blob URL (需手动释放)
 const referenceFile = ref(null)
 const uploadRef = ref(null)
+let _idCounter = 0
+let _objectUrls = []            // 追踪所有待释放的 blob URL
 
+// 预览列表（缓存，避免每次渲染重建数组）
+const previewList = computed(() => results.value.map(r => r.url))
+
+// 是否可以生成
 const canGenerate = computed(() => {
-  if (mode.value === 'text-to-image') {
-    return prompt.value.trim().length > 0
-  }
-  return prompt.value.trim().length > 0 && referenceFile.value !== null
+  const hasPrompt = prompt.value.trim().length > 0
+  if (mode.value === 'text-to-image') return hasPrompt
+  return hasPrompt && referenceFile.value !== null
 })
 
+// ============================================================
+// 模式切换
+// ============================================================
 function onModeChange(index) {
   mode.value = index
+  // 切换到文生图时自动清理参考图片，避免残留
+  if (index === 'text-to-image') {
+    removeFile()
+  }
 }
 
+// ============================================================
+// 文件上传 & 内存管理
+// ============================================================
 function onFileChange(uploadFile) {
   const file = uploadFile.raw
   if (!file) return
@@ -221,23 +251,39 @@ function onFileChange(uploadFile) {
     return
   }
 
+  // 清理旧 blob URL
+  removeFile()
+
   referenceFile.value = file
-  // 生成预览URL
   referenceImage.value = URL.createObjectURL(file)
+  _objectUrls.push(referenceImage.value)
 }
 
 function removeFile() {
   if (referenceImage.value) {
     URL.revokeObjectURL(referenceImage.value)
+    _objectUrls = _objectUrls.filter(u => u !== referenceImage.value)
   }
   referenceImage.value = ''
   referenceFile.value = null
 }
 
+// ============================================================
+// 结果管理
+// ============================================================
 function clearResults() {
   results.value = []
 }
 
+function scrollToResult(id) {
+  // 找到对应结果卡片，滚动到可视区域
+  const el = document.querySelector(`[data-result-id="${id}"]`)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+// ============================================================
+// AI 图片生成
+// ============================================================
 async function generateImage() {
   if (!canGenerate.value) return
 
@@ -248,14 +294,12 @@ async function generateImage() {
     let resp
 
     if (mode.value === 'text-to-image') {
-      // 文生图
       resp = await api.post('/ai/generate-image', {
         prompt: prompt.value,
         size: imageSize.value,
       })
       progress.value = 80
     } else {
-      // 图生图
       const formData = new FormData()
       formData.append('image', referenceFile.value)
       formData.append('prompt', prompt.value)
@@ -270,22 +314,24 @@ async function generateImage() {
     if (resp.ok) {
       const url = resp.url || (resp.b64 ? `data:image/png;base64,${resp.b64}` : '')
       if (url) {
+        const id = ++_idCounter
+        // 添加到结果列表（头部插入）
         results.value.unshift({
+          id,
           url,
           mode: resp.mode || mode.value,
           prompt: prompt.value,
           revised_prompt: resp.revised_prompt || '',
+          downloading: false,
         })
-        // 添加到历史
-        history.value.unshift({
-          url,
-          mode: mode.value,
-          time: new Date().toLocaleTimeString(),
-        })
-        // 限制历史记录数量
-        if (history.value.length > 10) {
-          history.value = history.value.slice(0, 10)
+        // 限制结果列表上限
+        if (results.value.length > MAX_RESULTS) {
+          results.value = results.value.slice(0, MAX_RESULTS)
         }
+
+        // 添加到历史
+        addHistory({ id, url, mode: mode.value, time: new Date().toLocaleTimeString() })
+
         progress.value = 100
         ElMessage.success('图片生成成功！')
       } else {
@@ -303,28 +349,73 @@ async function generateImage() {
   }
 }
 
-async function downloadImage(url, index) {
+// ============================================================
+// 历史记录（localStorage 持久化）
+// ============================================================
+function addHistory(item) {
+  history.value.unshift(item)
+  if (history.value.length > MAX_HISTORY) {
+    history.value = history.value.slice(0, MAX_HISTORY)
+  }
   try {
-    const resp = await fetch(url)
-    const blob = await resp.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `AI生成图片_${index + 1}.png`
-    a.click()
-    URL.revokeObjectURL(a.href)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history.value))
   } catch {
-    // 如果跨域下载失败，直接打开新窗口
-    window.open(url, '_blank')
+    // localStorage 满了，忽略
   }
 }
 
-function viewHistory(item) {
-  // 点击历史记录，查看该图片
-  const idx = results.value.findIndex(r => r.url === item.url)
-  if (idx >= 0) {
-    // 已经存在结果中
+function loadHistory() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      history.value = JSON.parse(raw).slice(0, MAX_HISTORY)
+    }
+  } catch {
+    // 解析失败，忽略
   }
 }
+
+// ============================================================
+// 图片下载
+// ============================================================
+async function downloadImage(item, index) {
+  if (item.downloading) return
+  item.downloading = true
+
+  try {
+    // 带超时的 fetch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT)
+    const resp = await fetch(item.url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+
+    const blob = await resp.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `AI生成图片_${index + 1}.png`
+    a.click()
+    // 释放临时 blob URL
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+  } catch {
+    // 跨域或失败时降级为新窗口打开
+    ElMessage.info('图片已在新窗口打开，请右键另存为')
+    window.open(item.url, '_blank')
+  } finally {
+    item.downloading = false
+  }
+}
+
+// ============================================================
+// 生命周期
+// ============================================================
+loadHistory()
+
+onUnmounted(() => {
+  // 清理所有 blob URL，防止内存泄漏
+  _objectUrls.forEach(url => URL.revokeObjectURL(url))
+  _objectUrls = []
+})
 </script>
 
 <style scoped>
@@ -423,6 +514,11 @@ function viewHistory(item) {
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.generating-hint {
+  font-size: 12px;
+  color: #909399;
 }
 
 .progress-bar {

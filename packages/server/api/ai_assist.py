@@ -18,6 +18,7 @@ import re
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
+import requests as req_lib
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
 from packages.server.ai.image_client import get_image_client, ImageClientError
 from packages.server.utils.format import to_half_width
@@ -1006,17 +1007,25 @@ async def image_to_image(
         if len(img_bytes) > 5 * 1024 * 1024:
             return {"ok": False, "msg": "图片文件过大，请控制在5MB以内"}
 
-        # 调用图片AI的 variations/edits 端点
-        from packages.server.ai.image_client import get_image_client, ImageClientError
-        client = get_image_client()
+        # 魔数校验：验证文件头而非content-type（防止伪造）
+        _MAGIC_BYTES = {
+            b'\x89PNG\r\n\x1a\n': 'png',
+            b'\xff\xd8\xff': 'jpeg',
+            b'GIF87a': 'gif',
+            b'GIF89a': 'gif',
+            b'RIFF': 'webp',
+        }
+        if not any(img_bytes[:len(magic)] == magic for magic in _MAGIC_BYTES):
+            return {"ok": False, "msg": "图片格式校验失败，仅支持 PNG/JPG/WebP/GIF"}
 
+        # 调用图片AI
+        client = get_image_client()
         url = (client.base_url.rstrip("/") + "/images/variations")
         headers = {
             "Authorization": f"Bearer {client.api_key}",
         }
 
         # 构建 multipart 请求
-        import requests as req_lib
         files = {
             "image": (image.filename or "image.png", img_bytes, image.content_type or "image/png"),
             "prompt": (None, prompt),
@@ -1029,7 +1038,7 @@ async def image_to_image(
             return {"ok": False, "msg": f"图生图 HTTP 请求失败: {e}"}
 
         if r.status_code != 200:
-            # 如果不支持 variations，回落为文生图：用prompt直接生成
+            # 如果不支持 variations，回落为文生图
             logger.warning("图生图API不支持(status=%d)，回落为文生图模式", r.status_code)
             result = client.generate(prompt, size)
             if result.get("url"):

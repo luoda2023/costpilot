@@ -79,7 +79,7 @@ def on_startup():
     from packages.server.utils.logger import LOG_DIR
     logger.info("✅ 日志目录: %s", LOG_DIR)
 
-    # 5. 输出启动信息
+# 5. 输出启动信息
     import platform
     logger.info("=" * 50)
     logger.info("🚀 工程助手 API 启动成功")
@@ -88,6 +88,28 @@ def on_startup():
     logger.info("  Python: %s", sys.version.split()[0])
     logger.info("  文档: http://127.0.0.1:8765/docs")
     logger.info("=" * 50)
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    """关闭时释放资源，防止内存泄漏"""
+    try:
+        # 关闭数据库连接池
+        from packages.server.db.database import engine
+        engine.dispose()
+        logger.info("✅ 数据库连接池已释放")
+    except Exception as e:
+        logger.warning("⚠️ 数据库释放失败: %s", e)
+
+    try:
+        # 释放 AI 客户端 Session（关闭连接池）
+        from packages.server.ai.client import reset_ai_client
+        from packages.server.ai.image_client import reset_image_client
+        reset_ai_client()
+        reset_image_client()
+        logger.info("✅ AI 客户端连接已释放")
+    except Exception as e:
+        logger.warning("⚠️ AI 客户端释放失败: %s", e)
 
 
 # ============================================================

@@ -15,12 +15,34 @@
 import json
 import base64
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from typing import Optional, Dict, Any
 from packages.server.config import get_config
 
 
 class ImageClientError(Exception):
     """图片 AI 调用异常"""
+
+
+def _create_session(timeout: int = 120) -> requests.Session:
+    """创建带连接池和重试机制的 Session"""
+    session = requests.Session()
+    retry = Retry(
+        total=2,
+        backoff_factor=0.5,
+        allowed_methods={"POST", "GET"},
+        status_forcelist={429, 500, 502, 503, 504},
+    )
+    adapter = HTTPAdapter(
+        pool_connections=4,
+        pool_maxsize=8,
+        max_retries=retry,
+        pool_block=True,
+    )
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
 
 
 class ImageClient:
@@ -40,6 +62,7 @@ class ImageClient:
         self.api_key = overrides.get("api_key", cfg["api_key"])
         self.model = overrides.get("model", cfg["model"])
         self.timeout = overrides.get("timeout", cfg["timeout"])
+        self._session = _create_session(self.timeout)
 
         if not self.api_key:
             raise ImageClientError(
@@ -80,7 +103,7 @@ class ImageClient:
             "size": size,
         }
         try:
-            r = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
+            r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
         except requests.RequestException as e:
             raise ImageClientError(f"图片 AI HTTP 请求失败: {e}") from e
 
@@ -106,7 +129,6 @@ class ImageClient:
             "Authorization": f"Bearer {self.api_key}",
             "X-DashScope-Async": "enable",
         }
-        # 通义万相尺寸格式: 1024*1024
         size_qwen = size.replace("x", "*")
         payload = {
             "model": self.model or "wanx-v1",
@@ -120,7 +142,7 @@ class ImageClient:
             },
         }
         try:
-            r = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
+            r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
         except requests.RequestException as e:
             raise ImageClientError(f"通义万相 HTTP 请求失败: {e}") from e
 
@@ -128,7 +150,6 @@ class ImageClient:
             raise ImageClientError(f"通义万相调用失败 [{r.status_code}]: {r.text[:500]}")
 
         data = r.json()
-        # 通义万相返回 task_id, 需要轮询
         task_id = data.get("output", {}).get("task_id")
         if task_id:
             return self._poll_qwen(task_id, headers)
@@ -140,7 +161,7 @@ class ImageClient:
         url = (self.base_url.rstrip("/") + f"/api/v1/tasks/{task_id}")
         for _ in range(max_retries):
             try:
-                r = requests.get(url, headers=headers, timeout=30)
+                r = self._session.get(url, headers=headers, timeout=30)
                 if r.status_code == 200:
                     data = r.json()
                     status = data.get("output", {}).get("task_status")
@@ -175,7 +196,7 @@ class ImageClient:
             "n": 1,
         }
         try:
-            r = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
+            r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
         except requests.RequestException as e:
             raise ImageClientError(f"智谱 CogView HTTP 请求失败: {e}") from e
 
@@ -205,3 +226,9 @@ def get_image_client(**overrides) -> ImageClient:
     if _image_client is None:
         _image_client = ImageClient()
     return _image_client
+
+
+def reset_image_client():
+    """重置单例(config.yaml 改后用)"""
+    global _image_client
+    _image_client = None
