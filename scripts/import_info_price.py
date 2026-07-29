@@ -11,19 +11,25 @@ JSON_PATH = 'data/source/信息价_湘西/parsed/all_pages.json'
 
 def clean_item_name(raw: str) -> str:
     """从原始文本中提取物料名称"""
-    # 去掉末尾的价格数字
     s = raw.strip()
-    # 去掉末尾的数字/小数
-    s = re.sub(r'\s+[\d.]+$', '', s)
-    # 去掉末尾的kg/m/m²等单位
-    s = re.sub(r'\s+(kg|m|m²|m³|t|个|块|片|根|套|只|条|台)$', '', s)
+    # 去掉末尾的价格数字（小数）
+    s = re.sub(r'\s+[\d.]+\s*$', '', s)
+    # 去掉末尾的空单位和编码
+    s = re.sub(r'\s+(kg|m|m²|m³|t|个|块|片|根|套|只|条|台|Ke|kg|㎡)$', '', s)
+    # 去掉开头的编码（纯数字或字母数字混合>=6位）
+    s = re.sub(r'^[A-Z0-9]{6,}\s+', '', s)
+    # 去掉中间的编码
+    s = re.sub(r'\s+[A-Z0-9]{8,}\s+', ' ', s)
+    s = re.sub(r'\s+[A-Z0-9]{8,}$', '', s)
     # 去掉空括号
     s = re.sub(r'\s*[（(][\s]*[）)]', '', s)
     # 清理多余空格
     s = re.sub(r'\s+', ' ', s).strip()
-    # 去掉编码前缀
-    s = re.sub(r'^[A-Z0-9]+\s+', '', s)
-    return s[:200] if s else raw[:200]
+    # 去掉重复的单位
+    s = re.sub(r'\b(kg|m)\s+\1\b', r'\1', s)
+    if not s or len(s) < 3:
+        return ''
+    return s[:200]
 
 def clean_price(val) -> float:
     try:
