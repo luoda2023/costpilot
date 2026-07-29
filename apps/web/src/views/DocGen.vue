@@ -46,28 +46,33 @@
         </div>
       </div>
 
-      <!-- 步骤指示器 -->
-      <div class="steps-bar">
-        <div class="step" :class="{ active: step >= 1, done: step > 1 }">
-          <div class="step-num">1</div>
-          <span class="step-label">选择类型</span>
-        </div>
-        <div class="step-line" :class="{ active: step > 1 }"></div>
-        <div class="step" :class="{ active: step >= 2, done: step > 2 }">
-          <div class="step-num">2</div>
-          <span class="step-label">填写参数</span>
-        </div>
-        <div class="step-line" :class="{ active: step > 2 }"></div>
-        <div class="step" :class="{ active: step >= 3, done: step > 3 }">
-          <div class="step-num">3</div>
-          <span class="step-label">AI 生成</span>
-        </div>
-        <div class="step-line" :class="{ active: step > 3 }"></div>
-        <div class="step" :class="{ active: step >= 4 }">
-          <div class="step-num">4</div>
-          <span class="step-label">预览导出</span>
-        </div>
-      </div>
+<!-- 步骤指示器 -->
+ <div class="steps-bar">
+ <div class="step" :class="{ active: step >= 1, done: step > 1 }">
+ <div class="step-num">1</div>
+ <span class="step-label">选类型</span>
+ </div>
+ <div class="step-line" :class="{ active: step > 1 }"></div>
+ <div class="step" :class="{ active: step >= 2, done: step > 2 }">
+ <div class="step-num">2</div>
+ <span class="step-label">填参数</span>
+ </div>
+ <div class="step-line" :class="{ active: step > 2 }"></div>
+ <div class="step" :class="{ active: step >= 3, done: step > 3 }">
+ <div class="step-num">3</div>
+ <span class="step-label">编大纲</span>
+ </div>
+ <div class="step-line" :class="{ active: step > 3 }"></div>
+ <div class="step" :class="{ active: step >= 4, done: step > 4 }">
+ <div class="step-num">4</div>
+ <span class="step-label">AI 生成</span>
+ </div>
+ <div class="step-line" :class="{ active: step > 4 }"></div>
+ <div class="step" :class="{ active: step >= 5 }">
+ <div class="step-num">5</div>
+ <span class="step-label">预览导出</span>
+ </div>
+ </div>
 
       <!-- 参数表单 -->
       <el-card class="form-card" shadow="never" v-if="step <= 2">
@@ -157,11 +162,79 @@
               <el-icon><ArrowRight /></el-icon>
             </el-button>
           </el-form-item>
-        </el-form>
-      </el-card>
+</el-form>
+ </el-card>
 
-      <!-- AI 生成中 -->
-      <el-card class="gen-card" shadow="never" v-if="step === 3">
+ <!-- 大纲编辑器（Step 3） -->
+ <el-card class="outline-card" shadow="never" v-if="step === 3">
+ <template #header>
+ <div class="outline-header">
+ <div class="outline-header-left">
+ <span class="outline-title">编辑文档大纲</span>
+ <el-tag size="small" type="info" class="outline-total">总字数：{{ totalWordCount }} 字</el-tag>
+ </div>
+ <div class="outline-header-actions">
+ <el-button size="small" @click="addSection">+ 新增章节</el-button>
+ <el-button size="small" type="primary" @click="confirmOutline">确认大纲，开始生成</el-button>
+ </div>
+ </div>
+ </template>
+ <div class="outline-body">
+ <draggable
+ v-model="outlineSections"
+ group="sections"
+ handle=".drag-handle"
+ item-key="key"
+ :animation="200"
+ class="outline-list"
+ >
+ <template #item="{ element, index }">
+ <div class="outline-item" :key="element.key || index">
+ <div class="drag-handle" title="拖拽排序">
+ <el-icon><Rank /></el-icon>
+ </div>
+ <div class="outline-item-main">
+ <div class="outline-item-header">
+ <span class="outline-num">{{ index + 1 }}</span>
+ <el-input
+ v-model="element.title"
+ size="small"
+ class="outline-title-input"
+ placeholder="章节标题"
+ />
+ <el-tag v-if="element.key" size="small" type="info" class="outline-key-tag">{{ element.key }}</el-tag>
+ <el-switch
+ v-model="element.has_image"
+ size="small"
+ active-text="配图"
+ class="outline-image-switch"
+ />
+ <el-button size="small" :icon="Top" @click="moveSection(index, -1)" :disabled="index === 0" circle />
+ <el-button size="small" :icon="Bottom" @click="moveSection(index, 1)" :disabled="index === outlineSections.length - 1" circle />
+ <el-button size="small" type="danger" :icon="Delete" @click="removeSection(index)" circle />
+ </div>
+ <div class="outline-item-slider">
+ <span class="slider-label">字数：</span>
+ <el-slider
+ v-model="element.word_count"
+ :min="500"
+ :max="10000"
+ :step="500"
+ :show-tooltip="true"
+ style="flex:1;margin:0 12px;"
+ />
+ <span class="slider-value">{{ element.word_count }} 字</span>
+ </div>
+ </div>
+ </div>
+ </template>
+ </draggable>
+ <el-empty v-if="outlineSections.length === 0" description="暂无章节，请点击新增" :image-size="50" />
+ </div>
+ </el-card>
+
+ <!-- AI 生成中 -->
+ <el-card class="gen-card" shadow="never" v-if="step === 4">
         <template #header>
           <div class="gen-header">
             <span class="gen-title">AI 正在生成文档</span>
@@ -188,7 +261,7 @@
       </el-card>
 
       <!-- 预览导出 -->
-      <el-card class="preview-card" shadow="never" v-if="step === 4">
+      <el-card class="preview-card" shadow="never" v-if="step === 5">
         <template #header>
           <div class="preview-header">
             <span class="preview-title">文档预览</span>
@@ -239,11 +312,12 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy } from '@element-plus/icons-vue'
+import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy, Rank, Top, Bottom, Delete } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import { api, DocGenAPI } from '@/api'
 import { saveAs } from 'file-saver'
+import draggable from 'vuedraggable'
 import {
  Document, Paragraph, TextRun, HeadingLevel, AlignmentType,
  Packer, Table, TableRow, TableCell, WidthType, BorderStyle
@@ -331,8 +405,15 @@ async function goStep3() {
  ElMessage.warning('请填写必填项（项目名称、地点、规模）')
  return
   }
+  // 进入大纲编辑
   step.value = 3
-  await startGeneration()
+  await loadOutline()
+  // 确保每个章节有 has_image 和默认字数
+  outlineSections.value = outlineSections.value.map(s => ({
+    ...s,
+    has_image: false,
+    word_count: s.word_count || 2000,
+  }))
 }
 
 const outlineSections = ref([]) // 当前大纲 [{title, key, word_count}]
@@ -409,32 +490,36 @@ function buildFallbackContent() {
 }
 async function buildStructuredContent(projectInfo) {
   let content = ''
-  const stageMap = { feasibility: '可研/立项阶段', preliminary: '初步设计/报批', construction: '施工图/招投标', building: '施工阶段', settlement: '结算/审计' }
-  const stageName = stageMap[form.stage] || form.stage
   const sections = outlineSections.value
+  const total = sections.length
   
-  for (const section of sections) {
- content += '## ' + section.title + '\n'
-    genStatus.value = '正在生成：' + section.title
+  for (let i = 0; i < total; i++) {
+    const section = sections[i]
+    content += '## ' + section.title + '\n'
+    genStatus.value = '正在生成：' + section.title + ' (' + (i + 1) + '/' + total + ')'
+    genProgress.value = Math.round(((i + 1) / (total + 2)) * 100)
     try {
- const res = await DocGenAPI.generateSection({
- section_title: section.title,
- section_key: section.key,
- doc_type: selectedType.value,
- stage: form.stage,
- eng_type: form.engType,
- project_info: projectInfo,
- word_count: section.word_count,
- context: content,
-})
+      const res = await DocGenAPI.generateSection({
+        section_title: section.title,
+        section_key: section.key,
+        doc_type: selectedType.value,
+        stage: form.stage,
+        eng_type: form.engType,
+        project_info: projectInfo,
+        word_count: section.word_count,
+        context: content,
+        has_image: section.has_image || false,
+      })
       const sectionContent = res.data?.content || ''
       content += sectionContent + '\n'
-      genLogs.value.push({ text: '完成：' + section.title, new: true })
+      genLogs.value.push({ text: '完成：' + section.title + ' (' + (res.data?.actual_words || 0) + '字)', new: true })
     } catch (e) {
- console.error('生成章节失败:', section.title, e)
-    content += '*（本章节生成失败，请手动补充）*'
+      console.error('生成章节失败:', section.title, e)
+      content += '*（本章节生成失败，请手动补充）*\n'
     }
   }
+  genProgress.value = 100
+  genStatus.value = '生成完成'
   return content
 }
 
@@ -455,6 +540,44 @@ function resetForm() {
   }).catch(() => {})
 }
 
+// ---- 大纲编辑 ----
+
+const totalWordCount = computed(() => {
+  return outlineSections.value.reduce((sum, s) => sum + (s.word_count || 0), 0)
+})
+
+function moveSection(index, dir) {
+  const target = index + dir
+  if (target < 0 || target >= outlineSections.value.length) return
+  const arr = outlineSections.value
+  ;[arr[index], arr[target]] = [arr[target], arr[index]]
+}
+
+function addSection() {
+  outlineSections.value.push({
+    title: '新章节',
+    key: 'custom_' + Date.now(),
+    word_count: 2000,
+    has_image: false,
+  })
+}
+
+function removeSection(index) {
+  ElMessageBox.confirm('确定删除此章节？', '提示', { type: 'warning' }).then(() => {
+    outlineSections.value.splice(index, 1)
+    ElMessage.success('已删除')
+  }).catch(() => {})
+}
+
+function confirmOutline() {
+  if (outlineSections.value.length === 0) {
+    ElMessage.warning('请至少保留一个章节')
+    return
+  }
+  step.value = 4
+  startGeneration()
+}
+
 async function startGeneration() {
   generating.value = true
   genProgress.value = 0
@@ -463,24 +586,23 @@ async function startGeneration() {
   genLogs.value = []
   if (genTimer.value) clearTimeout(genTimer.value)
 
-  await loadOutline()
-
   const sections = outlineSections.value
   const logs = sections.length > 0
-    ? ['读取格式谱模板结构', '分析项目参数与工程类型', ...sections.map(s => '生成' + s.title), '格式化排版']
-    : ['读取格式谱模板结构', '分析项目参数与工程类型', '生成文档内容', '格式化排版']
+ ? ['读取格式谱模板结构', '分析项目参数与工程类型', ...sections.map(s => '生成' + s.title), '格式化排版']
+ : ['读取格式谱模板结构', '分析项目参数与工程类型', '生成文档内容', '格式化排版']
 
-  for (let i = 0; i < logs.length; i++) {
-    genLogs.value.push({ text: logs[i], new: true })
-    genProgress.value = Math.round(((i + 1) / logs.length) * 100)
-    genStatus.value = i < logs.length - 1 ? '正在生成...' : '即将完成'
-    await new Promise(r => setTimeout(r, 600))
+  // 真正生成前先展示进度UI
+  for (let i = 0; i < Math.min(logs.length, 3); i++) {
+ genLogs.value.push({ text: logs[i], new: true })
+ genProgress.value = Math.round(((i + 1) / (logs.length + sections.length)) * 100)
+ genStatus.value = '正在准备...'
+ await new Promise(r => setTimeout(r, 300))
   }
 
   genDone.value = true
   genStatus.value = '生成完成'
   generating.value = false
-  step.value = 4
+  step.value = 5
   generatedText.value = await buildDocumentText()
 }
 
@@ -488,6 +610,10 @@ async function handleGenerate() {
   if (step.value <= 2) {
  await goStep3()
  return
+  }
+  if (step.value === 3) {
+    confirmOutline()
+    return
   }
   await startGeneration()
 }
@@ -771,6 +897,41 @@ onUnmounted(() => {
 }
 
 .gen-header,
+/* 大纲编辑器 */
+.outline-card { margin-top: var(--space-4); }
+.outline-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); }
+.outline-header-left { display: flex; align-items: center; gap: var(--space-3); }
+.outline-title { font-size: var(--text-md); font-weight: 700; color: var(--text-primary); }
+.outline-total { font-size: var(--text-xs); }
+.outline-body { min-height: 200px; }
+.outline-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.outline-item {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  padding: var(--space-3); background: var(--gray-50);
+  border: 1px solid var(--gray-200); border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+.outline-item:hover { border-color: var(--brand-300); background: #f8faff; }
+.drag-handle {
+  cursor: grab; padding: var(--space-1); color: var(--gray-400);
+  display: flex; align-items: center; margin-top: 4px;
+}
+.drag-handle:active { cursor: grabbing; color: var(--brand-500); }
+.outline-item-main { flex: 1; min-width: 0; }
+.outline-item-header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.outline-num {
+  width: 24px; height: 24px; border-radius: var(--radius-full);
+  background: var(--brand-500); color: #fff; font-size: var(--text-xs);
+  font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.outline-title-input { width: 240px; }
+.outline-key-tag { font-size: var(--text-xs); }
+.outline-image-switch { margin-left: auto; }
+.outline-image-switch :deep(.el-switch__label) { font-size: var(--text-xs); }
+.outline-item-slider { display: flex; align-items: center; margin-top: var(--space-2); padding-left: 28px; }
+.slider-label { font-size: var(--text-xs); color: var(--text-tertiary); white-space: nowrap; }
+.slider-value { font-size: var(--text-xs); color: var(--brand-600); font-weight: 600; min-width: 50px; text-align: right; }
+
 .preview-header {
   display: flex;
   align-items: center;

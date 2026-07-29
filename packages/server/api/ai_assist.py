@@ -60,15 +60,16 @@ class ParseProjectOut(BaseModel):
  note: str = ""
 
 class DocSectionIn(BaseModel):
- """单节文档生成请求"""
- section_title: str  # 节标题,如"一、总论"
- section_key: str  # 节标识,如"general"
- doc_type: str  # 文档类型: bid/proposal/prelim/draw/feas/constr/contract/cost
- stage: str  # 阶段: feasibility/preliminary/construction/building/settlement
- eng_type: str  # 工程类型: pipeline/road/building/water/landscape/mep/other
- project_info: Dict[str, Any]  # 项目信息
- word_count: int = 500  # 目标字数
- context: str = ""  # 前文内容(用于保持风格一致)
+    """单节文档生成请求"""
+    section_title: str  # 节标题,如"一、总论"
+    section_key: str  # 节标识,如"general"
+    doc_type: str  # 文档类型: bid/proposal/prelim/draw/feas/constr/contract/cost
+    stage: str  # 阶段: feasibility/preliminary/construction/building/settlement
+    eng_type: str  # 工程类型: pipeline/road/building/water/landscape/mep/other
+    project_info: Dict[str, Any]  # 项目信息
+    word_count: int = 500  # 目标字数
+    context: str = ""  # 前文内容(用于保持风格一致)
+    has_image: bool = False  # 是否包含配图
 
 class DocSectionOut(BaseModel):
  """单节文档生成响应"""
@@ -837,7 +838,7 @@ _SECTION_DETAIL = {
     "scope": "包含：工程范围界定(承包范围/分包范围/甲供范围)、承包范围(施工总承包/专业承包/劳务分包范围)、甲方供应材料设备范围(甲供材清单/甲供设备清单)、分包范围(专业分包/劳务分包范围及资质要求)",
 }
 
-def _build_section_prompt(section_title, section_key, doc_type, stage, eng_type, project_info, word_count, context) -> str:
+def _build_section_prompt(section_title, section_key, doc_type, stage, eng_type, project_info, word_count, context, has_image=False) -> str:
     stage_name = STAGE_NAME_MAP.get(stage, stage)
     eng_name = ENG_TYPE_NAME_MAP.get(eng_type, eng_type)
     project_name = project_info.get("name", "本项目")
@@ -849,6 +850,9 @@ def _build_section_prompt(section_title, section_key, doc_type, stage, eng_type,
     detail_hint = _SECTION_DETAIL.get(section_key, "")
     if context:
         context_hint = "\n前文内容参考:\n" + context[:500] + "\n请保持与前文一致的写作风格和术语。\n"
+    image_hint = ""
+    if has_image:
+        image_hint = "9. 在本章节末尾添加一张配图说明，格式为：![配图标题](配图描述，如：XXX示意图/流程图/结构图)\n"
     prompt = (
         "你是一位资深造价工程师和工程技术文档撰写专家。\n\n"
         "当前任务：撰写工程文档的单个章节。\n"
@@ -870,8 +874,9 @@ def _build_section_prompt(section_title, section_key, doc_type, stage, eng_type,
         "5. 使用 Markdown 格式输出，包含多级标题(###/####)、表格、列表、加粗等\n"
         "6. 每个章节内再细分2-4个子节，每个子节用 ### 标题\n"
         "7. 重要数据和技术参数用表格呈现\n"
-        "8. 引用具体的规范标准编号（如GB 50010-2010、GB 50500-2013）\n\n"
-        "只输出本章节内容，不要包含其他章节。"
+        "8. 引用具体的规范标准编号（如GB 50010-2010、GB 50500-2013）\n"
+        + image_hint
+        + "\n只输出本章节内容，不要包含其他章节。"
     )
     return prompt
 
@@ -901,9 +906,10 @@ def generate_doc_section(payload: DocSectionIn):
     try:
         client = get_ai_client()
         prompt = _build_section_prompt(
-            payload.section_title, payload.section_key,
-            payload.doc_type, payload.stage, payload.eng_type,
-            payload.project_info, payload.word_count, payload.context
+        payload.section_title, payload.section_key,
+        payload.doc_type, payload.stage, payload.eng_type,
+        payload.project_info, payload.word_count, payload.context,
+        has_image=payload.has_image,
         )
         resp = client.chat(messages=[
             {"role": "system", "content": "你是一位资深造价工程师，擅长撰写各类工程技术文档。请严格按照要求输出。"},

@@ -7,17 +7,17 @@
         <el-button size="small" type="primary" @click="newSession" :icon="Plus">新建</el-button>
       </div>
       <div class="session-list">
-<div
-  v-for="s in sessions"
-  :key="s.id"
-  class="session-item"
-  :class="{ active: s.id === currentId }"
-  @click="switchSession(s.id)"
->
-  <el-icon :size="14"><ChatDotRound /></el-icon>
-  <span class="session-title">{{ s.title || '新会话' }}</span>
-  <el-button size="small" type="danger" link @click.stop="deleteSession(s.id)" :icon="Delete" style="margin-left:auto;padding:0" />
-</div>
+        <div
+          v-for="s in sessions"
+          :key="s.id"
+          class="session-item"
+          :class="{ active: s.id === currentId }"
+          @click="switchSession(s.id)"
+        >
+          <el-icon :size="14"><ChatDotRound /></el-icon>
+          <span class="session-title">{{ s.title || '新会话' }}</span>
+          <el-button size="small" type="danger" link @click.stop="deleteSession(s.id)" :icon="Delete" style="margin-left:auto;padding:0" />
+        </div>
         <el-empty v-if="sessions.length === 0" description="暂无会话" :image-size="50" />
       </div>
     </div>
@@ -42,27 +42,59 @@
         </div>
 
         <template v-else>
+          <!-- 多选操作栏 -->
+          <div class="batch-bar" v-if="selectMode && selectedMessages.length > 0">
+            <span class="batch-info">已选 {{ selectedMessages.length }} 条</span>
+            <el-button size="small" @click="copySelected">📋 复制</el-button>
+            <el-button size="small" type="primary" @click="exportSelectedPDF">📄 导出PDF</el-button>
+            <el-button size="small" type="success" @click="exportSelectedWord">📝 导出Word</el-button>
+            <el-button size="small" @click="selectMode = false; selectedMessages = []">取消</el-button>
+          </div>
+          <div class="batch-bar placeholder" v-else-if="selectMode">
+            <span class="batch-info">点击消息左侧复选框选择多条消息</span>
+            <el-button size="small" @click="selectMode = false">取消多选</el-button>
+          </div>
+
           <div v-if="loading" class="loading-wrap">
             <el-icon class="is-loading" :size="24"><Loading /></el-icon>
           </div>
 
-<div
-  v-for="(msg, i) in messages"
-  :key="i"
-  class="message-row"
-  :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
->
-  <div class="avatar" :class="msg.role">
-    <el-icon v-if="msg.role === 'user'" :size="16"><UserFilled /></el-icon>
-    <el-icon v-else :size="16" color="#409eff"><Monitor /></el-icon>
-  </div>
-  <div class="bubble" :class="msg.role">
-    <div v-if="msg._loading" class="typing-indicator">
-      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-    </div>
-    <div v-else class="msg-content" v-html="renderMarkdown(msg.content)"></div>
-  </div>
-</div>
+          <div
+            v-for="(msg, i) in messages"
+            :key="i"
+            class="message-row"
+            :class="msg.role === 'user' ? 'user-row' : 'assistant-row'"
+            @mouseenter="hoverIdx = i"
+            @mouseleave="hoverIdx = null"
+          >
+            <!-- 多选复选框 -->
+            <div class="select-check" v-if="selectMode" @click.stop="toggleSelect(i)">
+              <el-checkbox :model-value="selectedMessages.includes(i)" size="small" />
+            </div>
+
+            <div class="avatar" :class="msg.role">
+              <el-icon v-if="msg.role === 'user'" :size="16"><UserFilled /></el-icon>
+              <el-icon v-else :size="16" color="#409eff"><Monitor /></el-icon>
+            </div>
+            <div class="bubble" :class="msg.role">
+              <div v-if="msg._loading" class="typing-indicator">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </div>
+              <div v-else class="msg-content" v-html="renderMarkdown(msg.content)"></div>
+              <!-- 操作按钮 -->
+              <div class="msg-actions" v-if="!msg._loading && hoverIdx === i && !selectMode">
+                <el-tooltip content="复制内容" placement="top">
+                  <el-button size="small" circle @click="copyMsg(msg)" :icon="DocumentCopy" />
+                </el-tooltip>
+                <el-tooltip content="导出PDF" placement="top">
+                  <el-button size="small" circle @click="exportMsgPDF(msg, i)" :icon="Monitor" />
+                </el-tooltip>
+                <el-tooltip content="导出Word" placement="top">
+                  <el-button size="small" circle @click="exportMsgWord(msg, i)" :icon="Document" />
+                </el-tooltip>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
 
@@ -70,18 +102,26 @@
       <div class="input-area" v-if="currentId">
         <div class="input-wrapper">
           <el-input
-v-model="inputText"
- type="textarea"
- :rows="2"
- placeholder="输入问题，Ctrl+Enter 发送"
- :disabled="sending"
- v-auto-halfwidth
- @keydown.enter.ctrl="send"
+            v-model="inputText"
+            type="textarea"
+            :rows="2"
+            placeholder="输入问题，Ctrl+Enter 发送"
+            :disabled="sending"
+            v-auto-halfwidth
+            @keydown.enter.ctrl="send"
           />
           <el-button type="primary" :loading="sending" @click="send" circle :icon="Promotion" class="send-btn" />
         </div>
+        <div class="input-toolbar">
+          <el-checkbox v-model="selectMode" size="small" :disabled="messages.length === 0">多选模式</el-checkbox>
+        </div>
       </div>
     </div>
+
+    <!-- 图片预览弹窗 -->
+    <el-dialog v-model="imgPreviewVisible" :title="imgPreviewTitle" width="80%" top="5vh" destroy-on-close>
+      <img :src="imgPreviewSrc" style="max-width:100%;max-height:80vh;display:block;margin:0 auto;" />
+    </el-dialog>
   </div>
 </template>
 
@@ -89,37 +129,45 @@ v-model="inputText"
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ChatAPI } from '@/api'
-import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promotion, Delete } from '@element-plus/icons-vue'
+import { Plus, ChatDotRound, ChatLineSquare, UserFilled, Monitor, Loading, Promotion, Delete, DocumentCopy, Document } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
+import { saveAs } from 'file-saver'
+import { Document as DocxDoc, Packer, Paragraph, TextRun, HeadingLevel } from 'docx'
 
 document.title = '造价通 - AI 智能问答'
 
-// 初始化 markdown-it 渲染器（html: false 防止 XSS）
+// 初始化 markdown-it 渲染器
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   typographer: true,
   breaks: true,
-highlight: (str, lang) => {
- if (lang && hljs.getLanguage(lang)) {
- try {
- return `<pre class="code-block"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
- } catch { /* 渲染异常不影响主体 */ }
- }
- // 无语言识别，自动检测
- try {
- const result = hljs.highlightAuto(str)
- return `<pre class="code-block"><code class="hljs">${result.value}</code></pre>`
- } catch { /* 渲染异常不影响主体 */ }
- return `<pre class="code-block"><code>${md.utils.escapeHtml(str)}</code></pre>`
+  highlight: (str, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return `<pre class="code-block"><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`
+      } catch { }
+    }
+    try {
+      const result = hljs.highlightAuto(str)
+      return `<pre class="code-block"><code class="hljs">${result.value}</code></pre>`
+    } catch { }
+    return `<pre class="code-block"><code>${md.utils.escapeHtml(str)}</code></pre>`
   }
 })
 
-// 自定义引用样式
+// 自定义渲染规则
 md.renderer.rules.blockquote_open = () => '<blockquote class="md-quote">\n'
 md.renderer.rules.table_open = () => '<div class="md-table-wrap"><table class="md-table">\n'
 md.renderer.rules.table_close = () => '</table></div>\n'
+// 图片点击放大
+md.renderer.rules.image = (tokens, idx) => {
+  const token = tokens[idx]
+  const src = md.utils.escapeHtml(token.attrGet('src') || '')
+  const alt = md.utils.escapeHtml(token.content || '配图')
+  return `<img src="${src}" alt="${alt}" class="md-image" onclick="window.__openImgPreview && window.__openImgPreview('${src}','${alt}')" style="cursor:pointer" />`
+}
 
 const sessions = ref([])
 const currentId = ref(null)
@@ -128,6 +176,19 @@ const inputText = ref('')
 const loading = ref(false)
 const sending = ref(false)
 const msgListRef = ref(null)
+const hoverIdx = ref(null)
+const selectMode = ref(false)
+const selectedMessages = ref([])
+const imgPreviewVisible = ref(false)
+const imgPreviewSrc = ref('')
+const imgPreviewTitle = ref('')
+
+// 图片预览函数
+window.__openImgPreview = (src, title) => {
+  imgPreviewSrc.value = src
+  imgPreviewTitle.value = title || '配图'
+  imgPreviewVisible.value = true
+}
 
 function renderMarkdown(text) {
   if (!text) return ''
@@ -177,14 +238,11 @@ async function deleteSession(id) {
     if (currentId.value === id) { currentId.value = null; messages.value = [] }
     ElMessage.success('已删除')
   } catch (e) {
- if (e !== 'cancel') {
- if (e.response?.status === 404) {
- ElMessage.error('会话已被删除')
- } else {
- ElMessage.error('删除失败')
- }
- }
- }
+    if (e !== 'cancel') {
+      if (e.response?.status === 404) { ElMessage.error('会话已被删除') }
+      else { ElMessage.error('删除失败') }
+    }
+  }
 }
 
 async function send() {
@@ -212,6 +270,164 @@ async function send() {
 
 function scrollToBottom() {
   if (msgListRef.value) msgListRef.value.scrollTop = msgListRef.value.scrollHeight
+}
+
+// ---- 消息操作 ----
+
+function toggleSelect(i) {
+  const idx = selectedMessages.value.indexOf(i)
+  if (idx >= 0) selectedMessages.value.splice(idx, 1)
+  else selectedMessages.value.push(i)
+}
+
+async function copyMsg(msg) {
+  try {
+    await navigator.clipboard.writeText(msg.content)
+    ElMessage.success('已复制到剪贴板')
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
+
+async function copySelected() {
+  const texts = selectedMessages.value.map(i => messages.value[i]?.content || '').filter(Boolean)
+  if (!texts.length) { ElMessage.warning('请选择消息'); return }
+  try {
+    await navigator.clipboard.writeText(texts.join('\n\n---\n\n'))
+    ElMessage.success(`已复制 ${texts.length} 条消息`)
+  } catch {
+    ElMessage.error('复制失败')
+  }
+}
+
+// 将Markdown内容转换为docx的Paragraph数组
+function mdToDocxParagraphs(text) {
+  const paragraphs = []
+  const lines = text.split('\n')
+  for (const line of lines) {
+    const trimmed = line.trimEnd()
+    if (!trimmed) {
+      paragraphs.push(new Paragraph({ text: '', spacing: { after: 120 } }))
+      continue
+    }
+    if (trimmed.startsWith('# ')) {
+      paragraphs.push(new Paragraph({ text: trimmed.slice(2), heading: HeadingLevel.HEADING_1, spacing: { before: 240, after: 120 } }))
+    } else if (trimmed.startsWith('## ')) {
+      paragraphs.push(new Paragraph({ text: trimmed.slice(3), heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }))
+    } else if (trimmed.startsWith('### ')) {
+      paragraphs.push(new Paragraph({ text: trimmed.slice(4), heading: HeadingLevel.HEADING_3, spacing: { before: 160, after: 80 } }))
+    } else if (trimmed.startsWith('- ')) {
+      paragraphs.push(new Paragraph({ text: trimmed.slice(2), bullet: { level: 0 }, spacing: { after: 60 } }))
+    } else if (/^\d+\.\s/.test(trimmed)) {
+      paragraphs.push(new Paragraph({ text: trimmed.replace(/^\d+\.\s/, ''), spacing: { after: 60 } }))
+    } else if (trimmed.startsWith('|')) {
+      if (/^\|[\s\-:]+\|/.test(trimmed)) continue
+      paragraphs.push(new Paragraph({ text: trimmed, spacing: { after: 40 } }))
+    } else if (trimmed.startsWith('---') || trimmed.startsWith('***')) {
+      paragraphs.push(new Paragraph({ text: '', spacing: { after: 120 }, thematicBreak: true }))
+    } else {
+      paragraphs.push(new Paragraph({ text: trimmed, spacing: { after: 80 } }))
+    }
+  }
+  return paragraphs
+}
+
+// 导出单条消息Word
+async function exportMsgWord(msg, idx) {
+  const title = `消息${idx + 1}`
+  const children = mdToDocxParagraphs(msg.content)
+  const doc = new DocxDoc({
+    sections: [{ properties: {}, children }],
+  })
+  const blob = await Packer.toBlob(doc)
+  saveAs(blob, `${title}.docx`)
+  ElMessage.success(`已导出 ${title}.docx`)
+}
+
+// 导出选中消息Word
+async function exportSelectedWord() {
+  const texts = selectedMessages.value.map(i => messages.value[i]).filter(Boolean)
+  if (!texts.length) { ElMessage.warning('请选择消息'); return }
+  const children = []
+  for (const msg of texts) {
+    children.push(new Paragraph({ text: msg.role === 'user' ? '用户：' : 'AI：', heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 80 } }))
+    children.push(...mdToDocxParagraphs(msg.content))
+    children.push(new Paragraph({ text: '', spacing: { after: 200 }, thematicBreak: true }))
+  }
+  const doc = new DocxDoc({ sections: [{ properties: {}, children }] })
+  const blob = await Packer.toBlob(doc)
+  saveAs(blob, `对话记录.docx`)
+  ElMessage.success(`已导出 ${texts.length} 条消息`)
+}
+
+// 导出单条消息PDF (html2canvas + jspdf)
+async function exportMsgPDF(msg, idx) {
+  const el = document.querySelectorAll('.message-row')[idx]
+  if (!el) { ElMessage.error('未找到消息元素'); return }
+  try {
+    ElMessage.info('正在生成PDF...')
+    const html2canvas = (await import('html2canvas')).default
+    const { jsPDF } = await import('jspdf')
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdfW = pdf.internal.pageSize.getWidth()
+    const pdfH = (canvas.height * pdfW) / canvas.width
+    let heightLeft = pdfH
+    let position = 0
+    pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH)
+    heightLeft -= pdf.internal.pageSize.getHeight()
+    while (heightLeft > 0) {
+      position = heightLeft - pdfH
+      pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH)
+      heightLeft -= pdf.internal.pageSize.getHeight()
+    }
+    const title = `消息${idx + 1}`
+    pdf.save(`${title}.pdf`)
+    ElMessage.success(`已导出 ${title}.pdf`)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('PDF导出失败: ' + (e.message || '未知错误'))
+  }
+}
+
+// 导出选中消息PDF
+async function exportSelectedPDF() {
+  const indices = selectedMessages.value
+  if (!indices.length) { ElMessage.warning('请选择消息'); return }
+  try {
+    ElMessage.info('正在生成PDF...')
+    const html2canvas = (await import('html2canvas')).default
+    const { jsPDF } = await import('jspdf')
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    let firstPage = true
+    for (const idx of indices) {
+      const el = document.querySelectorAll('.message-row')[idx]
+      if (!el) continue
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+      const imgData = canvas.toDataURL('image/png')
+      const pdfW = pdf.internal.pageSize.getWidth()
+      const pdfH = (canvas.height * pdfW) / canvas.width
+      if (!firstPage) pdf.addPage()
+      else firstPage = false
+      let heightLeft = pdfH
+      let position = 0
+      pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH)
+      heightLeft -= pdf.internal.pageSize.getHeight()
+      while (heightLeft > 0) {
+        position = heightLeft - pdfH
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH)
+        heightLeft -= pdf.internal.pageSize.getHeight()
+      }
+    }
+    pdf.save('对话记录.pdf')
+    ElMessage.success(`已导出 ${indices.length} 条消息`)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('PDF导出失败: ' + (e.message || '未知错误'))
+  }
 }
 
 watch(currentId, () => { nextTick(scrollToBottom) })
@@ -294,15 +510,40 @@ onMounted(loadSessions)
   display: flex;
   flex-direction: column;
   background: var(--bg-base);
-  min-height: 0;     /* 确保 flex 子项可以收缩，防止溢出 */
-  overflow: hidden;  /* 防止 chat-main 整体出滚动条，滚动条在 message-list 内部 */
+  min-height: 0;
+  overflow: hidden;
 }
 
 .message-list {
- flex: 1;
- min-height: 0;  /* 允许 flex 子项收缩，确保滚动条在消息区内 */
- overflow-y: auto;
- padding: var(--space-6);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+/* 批量操作栏 */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  flex-shrink: 0;
+}
+
+.batch-bar.placeholder {
+  background: var(--gray-50);
+  border-color: var(--gray-200);
+}
+
+.batch-info {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--brand-600);
+  margin-right: auto;
 }
 
 /* 欢迎页 */
@@ -375,6 +616,7 @@ onMounted(loadSessions)
   gap: var(--space-3);
   margin-bottom: var(--space-5);
   animation: msgIn 0.3s ease;
+  position: relative;
 }
 
 @keyframes msgIn {
@@ -384,6 +626,12 @@ onMounted(loadSessions)
 
 .user-row {
   flex-direction: row-reverse;
+}
+
+.select-check {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8px;
 }
 
 .avatar {
@@ -414,6 +662,7 @@ onMounted(loadSessions)
   border-radius: var(--radius-lg);
   font-size: var(--text-base);
   line-height: 1.7;
+  position: relative;
 }
 
 .bubble.user {
@@ -433,6 +682,31 @@ onMounted(loadSessions)
 
 .msg-content {
   word-break: break-word;
+}
+
+/* 消息操作按钮 */
+.msg-actions {
+  position: absolute;
+  bottom: -16px;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 2px 4px;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+}
+
+.msg-actions .el-button {
+  width: 24px;
+  height: 24px;
+  --el-button-size: 24px;
+}
+
+.msg-actions .el-button :deep(.el-icon) {
+  font-size: 12px;
 }
 
 /* 打字动画 */
@@ -541,18 +815,23 @@ onMounted(loadSessions)
   font-size: inherit;
 }
 .msg-content :deep(pre.code-block .hljs) { background: transparent; }
-.msg-content :deep(img) {
+/* 图片 */
+.msg-content :deep(img.md-image) {
   max-width: 100%;
   border-radius: var(--radius-md);
   margin: var(--space-3) 0;
+  transition: opacity 0.2s;
+}
+.msg-content :deep(img.md-image:hover) {
+  opacity: 0.85;
 }
 
 /* 输入区 */
 .input-area {
   border-top: 1px solid var(--gray-200);
-  padding: var(--space-3) var(--space-4) var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-2);
   background: var(--bg-surface);
-  flex-shrink: 0;  /* 防止输入框被压缩 */
+  flex-shrink: 0;
 }
 
 .input-wrapper {
@@ -581,5 +860,11 @@ onMounted(loadSessions)
   background: var(--brand-500) !important;
   border-color: var(--brand-500) !important;
   box-shadow: var(--shadow-brand);
+}
+
+.input-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-1) var(--space-1) 0;
 }
 </style>
