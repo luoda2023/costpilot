@@ -19,6 +19,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
+from packages.server.ai.image_client import get_image_client, ImageClientError
 from packages.server.utils.format import to_half_width
 from packages.server.utils.logger import logger
 
@@ -906,10 +907,10 @@ def generate_doc_section(payload: DocSectionIn):
     try:
         client = get_ai_client()
         prompt = _build_section_prompt(
-        payload.section_title, payload.section_key,
-        payload.doc_type, payload.stage, payload.eng_type,
-        payload.project_info, payload.word_count, payload.context,
-        has_image=payload.has_image,
+            payload.section_title, payload.section_key,
+            payload.doc_type, payload.stage, payload.eng_type,
+            payload.project_info, payload.word_count, payload.context,
+            has_image=payload.has_image,
         )
         resp = client.chat(messages=[
             {"role": "system", "content": "你是一位资深造价工程师，擅长撰写各类工程技术文档。请严格按照要求输出。"},
@@ -920,6 +921,31 @@ def generate_doc_section(payload: DocSectionIn):
             content = "\n".join(content.split("\n")[1:])
         if content.endswith("```"):
             content = "\n".join(content.split("\n")[:-1])
+
+        # 如果 has_image=True, 尝试调用图片 AI 生成配图
+        if payload.has_image:
+            try:
+                image_client = get_image_client()
+                image_desc = ""
+                for line in content.split("\n"):
+                    if "![配图" in line or "![" in line:
+                        # 提取中括号内的描述文字
+                        m = re.search(r"\[([^\]]+)\]", line)
+                        if m:
+                            image_desc = m.group(1)
+                            break
+                if not image_desc:
+                    image_desc = f"{payload.section_title}示意图"
+                result = image_client.generate(image_desc)
+                if result.get("url"):
+                    img_line = "\n\n" + f"![{image_desc}]({result['url']})"
+                    content += img_line
+                    logger.info("doc-gen 配图生成成功: %s", payload.section_title)
+            except ImageClientError as e:
+                logger.warning("doc-gen 配图生成失败(跳过): %s", e)
+            except Exception as e:
+                logger.warning("doc-gen 配图生成异常(跳过): %s", e)
+
         actual_words = len(content.replace("\n", "").replace(" ", "").replace("|", ""))
         logger.info("doc-gen 节生成: %s, 字数=%d", payload.section_title, actual_words)
         return DocSectionOut(
@@ -934,3 +960,26 @@ def generate_doc_section(payload: DocSectionIn):
     except Exception as e:
         logger.error("doc-gen 节生成异常: %s", e, exc_info=True)
         raise HTTPException(500, "文档节生成失败，请稍后重试")
+
+
+class ImageGenerateIn(BaseModel):
+    prompt: str
+    size: str = "1024x1024"
+
+@router.post("/generate-image")
+def generate_image(payload: ImageGenerateIn):
+    """通过图片 AI 生成配图, 返回图片 URL"""
+    try:
+        from packages.server.ai.image_client import get_image_client, ImageClientError
+        client = get_image_client()
+        result = client.generate(payload.prompt, payload.size)
+        if result.get("url"):
+            return {"ok": True, "url": result["url"], "revised_prompt": result.get("revised_prompt", "")}
+        elif result.get("b64_json"):
+            return {"ok": True, "b64": result["b64_json"], "revised_prompt": result.get("revised_prompt", "")}
+        else:
+            return {"ok": False, "msg": "图片生成失败，请检查图片 AI 配置"}
+    except ImageClientError as e:
+        return {"ok": False, "msg": str(e)}
+    except Exception as e:
+        return {"ok": False, "msg": "图片生成异常: " + str(e)}
