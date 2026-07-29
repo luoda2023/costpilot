@@ -840,6 +840,9 @@ _SECTION_DETAIL = {
 }
 
 def _build_section_prompt(section_title, section_key, doc_type, stage, eng_type, project_info, word_count, context, has_image=False) -> str:
+    # word_count=0 表示用户未输入，使用默认 2500
+    if not word_count or word_count <= 0:
+        word_count = 2500
     stage_name = STAGE_NAME_MAP.get(stage, stage)
     eng_name = ENG_TYPE_NAME_MAP.get(eng_type, eng_type)
     project_name = project_info.get("name", "本项目")

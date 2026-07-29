@@ -213,17 +213,16 @@
  <el-button size="small" :icon="Bottom" @click="moveSection(index, 1)" :disabled="index === outlineSections.length - 1" circle />
  <el-button size="small" type="danger" :icon="Delete" @click="removeSection(index)" circle />
  </div>
- <div class="outline-item-slider">
- <span class="slider-label">字数：</span>
- <el-slider
- v-model="element.word_count"
- :min="500"
- :max="10000"
- :step="500"
- :show-tooltip="true"
- style="flex:1;margin:0 12px;"
+ <div class="outline-item-wordcount">
+ <span class="wc-label">字数：</span>
+ <el-input
+ v-model.number="element.word_count"
+ type="number"
+ size="small"
+ placeholder="输入字数"
+ style="width:120px;"
+ min="0"
  />
- <span class="slider-value">{{ element.word_count }} 字</span>
  </div>
  </div>
  </div>
@@ -413,10 +412,10 @@ async function goStep3() {
   step.value = 3
   await loadOutline()
   // 确保每个章节有 has_image 和默认字数
-  outlineSections.value = outlineSections.value.map(s => ({
-    ...s,
-    has_image: false,
-    word_count: s.word_count || 2000,
+outlineSections.value = outlineSections.value.map(s => ({
+ ...s,
+ has_image: false,
+ word_count: s.word_count || 0,
   }))
 }
 
@@ -561,8 +560,8 @@ function addSection() {
   outlineSections.value.push({
     title: '新章节',
     key: 'custom_' + Date.now(),
-    word_count: 2000,
-    has_image: false,
+word_count: 0,
+ has_image: false,
   })
 }
 
@@ -968,7 +967,8 @@ onUnmounted(() => {
 .outline-key-tag { font-size: var(--text-xs); }
 .outline-image-switch { margin-left: auto; }
 .outline-image-switch :deep(.el-switch__label) { font-size: var(--text-xs); }
-.outline-item-slider { display: flex; align-items: center; margin-top: var(--space-2); padding-left: 28px; }
+.outline-item-wordcount { display: flex; align-items: center; margin-top: var(--space-2); padding-left: 28px; }
+.outline-item-wordcount .wc-label { font-size: 13px; color: #909399; white-space: nowrap; margin-right: 8px; }
 .slider-label { font-size: var(--text-xs); color: var(--text-tertiary); white-space: nowrap; }
 .slider-value { font-size: var(--text-xs); color: var(--brand-600); font-weight: 600; min-width: 50px; text-align: right; }
 
