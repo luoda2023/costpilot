@@ -273,16 +273,16 @@
  <el-icon><Download /></el-icon>
  导出 {{ form.outputFormat.toUpperCase() }}
  </el-button>
- <el-button size="small" @click="exportPreviewPDF">
- <el-icon><Document /></el-icon>
- 导出 PDF
- </el-button>
+<el-button size="small" @click="exportPreviewPDF">
+	 <el-icon><DocumentIcon /></el-icon>
+	 导出 PDF
+	 </el-button>
  </div>
  </div>
         </template>
 <div class="preview-content">
  <div v-if="!generatedText" class="preview-placeholder">
- <el-icon :size="64" color="#cbd5e1"><Document /></el-icon>
+ <el-icon :size="64" color="#cbd5e1"><DocumentIcon /></el-icon>
  <p>文档预览区域</p>
  <p class="preview-hint">AI 生成的文档将在这里实时展示</p>
  </div>
@@ -315,7 +315,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy, Rank, Top, Bottom, Delete } from '@element-plus/icons-vue'
+import { Check, MagicStick, ArrowRight, ArrowLeft, Download, DocumentCopy, Document as DocumentIcon, Rank, Top, Bottom, Delete } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import { api, DocGenAPI } from '@/api'
