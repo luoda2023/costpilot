@@ -4,10 +4,13 @@
   - GET  /api/v1/ai/config 查看当前 AI 配置(api_key 脱敏)
   - GET  /api/v1/ai/providers 列出内置 Provider
   - POST /api/v1/ai/test 测试连接
-  - POST /api/v1/ai/switch 切换 provider + 重置客户端(持久化到 config.yaml)
+  - POST /api/v1/ai/switch 切换 AI 配置(持久化到 config.yaml)
+  - GET  /api/v1/ai/image-config 查看图片 AI 配置
+  - POST /api/v1/ai/image-switch 切换图片 AI 配置
+  - POST /api/v1/ai/reload 从文件重载
 """
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 import yaml
 
@@ -16,137 +19,169 @@ from packages.server.ai.client import get_ai_client, reset_ai_client, AIClientEr
 
 router = APIRouter()
 
-
 class AIConfigOut(BaseModel):
-    provider: str
-    base_url: str
-    model: str
-    temperature: float
-    max_tokens: int
-    timeout: int
-    api_key_set: bool  # 是否已设置(不返回明文)
-    api_key_preview: str  # 脱敏预览
-    lobechat_url: str = "http://localhost:3210"
+ provider: str
+ base_url: str
+ model: str
+ temperature: float
+ max_tokens: int
+ timeout: int
+ api_key_set: bool
+ api_key_preview: str
+ lobechat_url: str = "http://localhost:3210"
 
+class ImageAIConfigOut(BaseModel):
+ provider: str
+ base_url: str
+ model: str
+ timeout: int
+ api_key_set: bool
+ api_key_preview: str
 
 class SwitchIn(BaseModel):
-    provider: Optional[str] = None
-    base_url: Optional[str] = None
-    api_key: Optional[str] = None
-    model: Optional[str] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    timeout: Optional[int] = None
-    lobechat_url: Optional[str] = None
+ provider: Optional[str] = None
+ base_url: Optional[str] = None
+ api_key: Optional[str] = None
+ model: Optional[str] = None
+ temperature: Optional[float] = None
+ max_tokens: Optional[int] = None
+ timeout: Optional[int] = None
+ lobechat_url: Optional[str] = None
 
+class ImageSwitchIn(BaseModel):
+ provider: Optional[str] = None
+ base_url: Optional[str] = None
+ api_key: Optional[str] = None
+ model: Optional[str] = None
+ timeout: Optional[int] = None
+
+def _mask_key(key: str) -> str:
+ if not key:
+  return "(未设置)"
+ if len(key) > 10:
+  return key[:6] + "***" + key[-4:]
+ return "***"
+
+def _write_yaml_section(raw: dict, section: str, data: dict):
+ """写入 YAML 配置段"""
+ if section not in raw:
+  raw[section] = {}
+ for k, v in data.items():
+  if v is not None:
+   raw[section][k] = v
+ CONFIG_PATH.write_text(yaml.dump(raw, allow_unicode=True, default_flow_style=False), encoding="utf-8")
+ reload_config()
 
 @router.get("/config", response_model=AIConfigOut)
 def get_ai_config():
-    """查看当前 AI 配置(api_key 脱敏)"""
-    cfg = get_config().ai.resolved()
-    key = cfg["api_key"]
-    return AIConfigOut(
-        provider=cfg["provider"],
-        base_url=cfg["base_url"],
-        model=cfg["model"],
-        temperature=cfg["temperature"],
-        max_tokens=cfg["max_tokens"],
-        timeout=cfg["timeout"],
-        api_key_set=bool(key),
-        api_key_preview=(key[:6] + "***" + key[-4:]) if len(key) > 10 else ("***" if key else ""),
-        lobechat_url=cfg.get("lobechat_url", "http://localhost:3210"),
-    )
+ """查看当前 AI 配置(api_key 脱敏)"""
+ cfg = get_config().ai.resolved()
+ key = cfg["api_key"]
+ return AIConfigOut(
+  provider=cfg["provider"],
+  base_url=cfg["base_url"],
+  model=cfg["model"],
+  temperature=cfg["temperature"],
+  max_tokens=cfg["max_tokens"],
+  timeout=cfg["timeout"],
+  api_key_set=bool(key),
+  api_key_preview=_mask_key(key),
+  lobechat_url=cfg.get("lobechat_url", "http://localhost:3210"),
+ )
 
+@router.get("/image-config", response_model=ImageAIConfigOut)
+def get_image_ai_config():
+ """查看图片 AI 配置"""
+ cfg = get_config().image_ai.resolved()
+ key = cfg["api_key"]
+ return ImageAIConfigOut(
+  provider=cfg["provider"],
+  base_url=cfg["base_url"],
+  model=cfg["model"],
+  timeout=cfg["timeout"],
+  api_key_set=bool(key),
+  api_key_preview=_mask_key(key),
+ )
 
 @router.get("/providers")
 def list_providers():
-    """列出所有内置 Provider"""
-    cfg = get_config()
-    return [
-        {
-            "name": name,
-            "base_url": preset.get("base_url", ""),
-            "default_model": preset.get("model", ""),
-            "note": preset.get("note", ""),
-            "needs_api_key": name != "ollama",
-        }
-        for name, preset in cfg.ai.presets.items()
-    ]
-
+ """列出所有内置 Provider"""
+ cfg = get_config()
+ return [
+  {
+   "name": name,
+   "base_url": preset.get("base_url", ""),
+   "default_model": preset.get("model", ""),
+   "note": preset.get("note", ""),
+   "needs_api_key": name != "ollama",
+  }
+  for name, preset in cfg.ai.presets.items()
+ ]
 
 @router.post("/test")
 def test_ai_connection():
-    """测试当前 AI 连接是否可用"""
-    try:
-        client = get_ai_client()
-        return client.test_connection()
-    except (AIConfigError, AIClientError) as e:
-        return {"ok": False, "msg": str(e)}
-    except Exception as e:
-        return {"ok": False, "msg": f"未知异常: {e}"}
-
+ """测试当前 AI 连接是否可用"""
+ try:
+  client = get_ai_client()
+  return client.test_connection()
+ except (AIConfigError, AIClientError) as e:
+  return {"ok": False, "msg": str(e)}
+ except Exception as e:
+  return {"ok": False, "msg": f"未知异常: {e}"}
 
 @router.post("/switch")
 def switch_provider(s: SwitchIn):
-    """切换 provider / 配置项后立即生效(写入 config.yaml 持久化)
+ """切换 AI provider / 配置项后立即生效(写入 config.yaml 持久化)"""
+ if CONFIG_PATH.exists():
+  raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+ else:
+  raw = {}
+ data = {k: v for k, v in {
+  "provider": s.provider,
+  "base_url": s.base_url,
+  "api_key": s.api_key,
+  "model": s.model,
+  "temperature": s.temperature,
+  "max_tokens": s.max_tokens,
+  "timeout": s.timeout,
+  "lobechat_url": s.lobechat_url,
+ }.items() if v is not None}
+ _write_yaml_section(raw, "ai", data)
+ reset_ai_client()
+ try:
+  client = get_ai_client()
+  return {
+   "ok": True,
+   "msg": f"已切换到 {client.provider} / {client.model} (已保存到 config.yaml)",
+   "current": {
+    "provider": client.provider,
+    "base_url": client.base_url,
+    "model": client.model,
+   },
+  }
+ except (AIConfigError, AIClientError) as e:
+  return {"ok": False, "msg": str(e)}
 
-    ① 写入 config.yaml 存盘
-    ② 重新加载配置缓存 reload_config()
-    ③ 重置 AI 客户端单例 reset_ai_client()
-    ④ 创建新客户端验证配置
-    """
-    # 1. 读取当前配置
-    if CONFIG_PATH.exists():
-        raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
-    else:
-        raw = {}
-
-    if "ai" not in raw:
-        raw["ai"] = {}
-
-    # 2. 写入新值（只写非空值，避免前端空字符串覆盖已保存密钥）
-    if s.provider is not None:
-        raw["ai"]["provider"] = s.provider
-    if s.base_url:
-        raw["ai"]["base_url"] = s.base_url
-    if s.api_key:
-        raw["ai"]["api_key"] = s.api_key
-    if s.model:
-        raw["ai"]["model"] = s.model
-    if s.temperature is not None:
-        raw["ai"]["temperature"] = s.temperature
-    if s.max_tokens is not None:
-        raw["ai"]["max_tokens"] = s.max_tokens
-    if s.timeout is not None:
-        raw["ai"]["timeout"] = s.timeout
-    if s.lobechat_url:
-        raw["ai"]["lobechat_url"] = s.lobechat_url
-
-    CONFIG_PATH.write_text(yaml.dump(raw, allow_unicode=True, default_flow_style=False), encoding="utf-8")
-
-    # 3. 重新加载配置缓存 + 重置客户端
-    reload_config()
-    reset_ai_client()
-
-    # 4. 创建新客户端验证
-    try:
-        client = get_ai_client()
-        return {
-            "ok": True,
-            "msg": f"已切换到 {client.provider} / {client.model} (已保存到 config.yaml)",
-            "current": {
-                "provider": client.provider,
-                "base_url": client.base_url,
-                "model": client.model,
-            },
-        }
-    except (AIConfigError, AIClientError) as e:
-        return {"ok": False, "msg": str(e)}
-
+@router.post("/image-switch")
+def switch_image_provider(s: ImageSwitchIn):
+ """切换图片 AI provider / 配置项后立即生效(写入 config.yaml 持久化)"""
+ if CONFIG_PATH.exists():
+  raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+ else:
+  raw = {}
+ data = {k: v for k, v in {
+  "provider": s.provider,
+  "base_url": s.base_url,
+  "api_key": s.api_key,
+  "model": s.model,
+  "timeout": s.timeout,
+ }.items() if v is not None}
+ _write_yaml_section(raw, "image_ai", data)
+ return {"ok": True, "msg": "图片 AI 配置已保存"}
 
 @router.post("/reload")
 def reload_yaml():
-    """重新从 config.yaml 加载配置(用户编辑后调用)"""
-    reload_config()
-    reset_ai_client()
-    return {"ok": True, "msg": "配置已重新加载"}
+ """重新从 config.yaml 加载配置(用户编辑后调用)"""
+ reload_config()
+ reset_ai_client()
+ return {"ok": True, "msg": "配置已重新加载"}

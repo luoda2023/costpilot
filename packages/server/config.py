@@ -93,8 +93,28 @@ class ServerConfig:
 
 
 @dataclass
+class ImageAIConfig:
+    provider: str = "openai"
+    base_url: str = ""
+    api_key: str = ""
+    model: str = "dall-e-3"
+    timeout: int = 120
+    presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
+
+    def resolved(self) -> Dict[str, Any]:
+        preset = self.presets.get(self.provider, {})
+        return {
+            "provider": self.provider,
+            "base_url": self.base_url or preset.get("base_url", ""),
+            "api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", ""),
+            "model": self.model or preset.get("model", ""),
+            "timeout": self.timeout,
+        }
+
+@dataclass
 class AppConfig:
     ai: AIConfig = field(default_factory=AIConfig)
+    image_ai: ImageAIConfig = field(default_factory=ImageAIConfig)
     rag: RAGConfig = field(default_factory=RAGConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
@@ -131,6 +151,14 @@ def load_config() -> AppConfig:
             timeout=raw.get("ai", {}).get("timeout", 120),
             lobechat_url=raw.get("ai", {}).get("lobechat_url", "http://localhost:3210"),
             presets=raw.get("ai", {}).get("presets", {}),
+        ),
+        image_ai=ImageAIConfig(
+            provider=raw.get("image_ai", {}).get("provider", "openai"),
+            base_url=raw.get("image_ai", {}).get("base_url", ""),
+            api_key=raw.get("image_ai", {}).get("api_key", ""),
+            model=raw.get("image_ai", {}).get("model", "dall-e-3"),
+            timeout=raw.get("image_ai", {}).get("timeout", 120),
+            presets=raw.get("image_ai", {}).get("presets", {}),
         ),
         rag=RAGConfig(
             embedding_model=raw.get("rag", {}).get("embedding_model", "BAAI/bge-m3"),
