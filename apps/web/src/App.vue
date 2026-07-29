@@ -55,12 +55,20 @@
  <span class="menu-shortcut">Ctrl+6</span>
           </template>
         </el-menu-item>
-        <el-menu-item index="/preview">
-          <el-icon><FolderOpened /></el-icon>
-          <template #title>
-            <span class="menu-label">文件预览</span>
-          </template>
-        </el-menu-item>
+<el-menu-item index="/preview">
+ <el-icon><FolderOpened /></el-icon>
+ <template #title>
+ <span class="menu-label">文件预览</span>
+ </template>
+ </el-menu-item>
+ <el-menu-item index="/image-gen">
+ <el-icon><PictureFilled /></el-icon>
+ <template #title>
+ <span class="menu-label">图片生成</span>
+ <el-tag size="small" type="danger" effect="plain" class="menu-badge">NEW</el-tag>
+ <span class="menu-shortcut">Ctrl+9</span>
+ </template>
+ </el-menu-item>
  <el-menu-item index="/chat">
  <el-icon><ChatDotRound /></el-icon>
  <template #title>
@@ -192,6 +200,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/quote')) return '/quote'
   if (path.startsWith('/text-gen')) return '/text-gen'
   if (path.startsWith('/preview')) return '/preview'
+  if (path.startsWith('/image-gen')) return '/image-gen'
   if (path.startsWith('/chat')) return '/chat'
   if (path.startsWith('/settings')) return '/settings'
   return '/workspace'
@@ -204,6 +213,7 @@ const pageNameMap = {
   '/quote': '报价',
   '/text-gen': '文本编制',
   '/preview': '文件预览',
+  '/image-gen': '图片生成',
   '/chat': 'AI 助手',
   '/settings': '系统设置'
 }

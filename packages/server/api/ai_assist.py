@@ -16,7 +16,7 @@ import json
 import io
 import re
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from packages.server.ai.client import get_ai_client, AIClientError, AIConfigError
 from packages.server.ai.image_client import get_image_client, ImageClientError
@@ -986,3 +986,69 @@ def generate_image(payload: ImageGenerateIn):
         return {"ok": False, "msg": str(e)}
     except Exception as e:
         return {"ok": False, "msg": "图片生成异常: " + str(e)}
+
+
+@router.post("/image-to-image")
+async def image_to_image(
+    image: UploadFile = File(...),
+    prompt: str = Form(...),
+    size: str = Form("1024x1024"),
+):
+    """图生图：上传参考图片+优化提示词，AI优化改良图片"""
+    try:
+        # 验证文件类型
+        allowed_types = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+        if image.content_type not in allowed_types:
+            return {"ok": False, "msg": f"不支持的图片格式: {image.content_type}，仅支持 jpg/png/webp/gif"}
+
+        # 读取文件内容
+        img_bytes = await image.read()
+        if len(img_bytes) > 5 * 1024 * 1024:
+            return {"ok": False, "msg": "图片文件过大，请控制在5MB以内"}
+
+        # 调用图片AI的 variations/edits 端点
+        from packages.server.ai.image_client import get_image_client, ImageClientError
+        client = get_image_client()
+
+        url = (client.base_url.rstrip("/") + "/images/variations")
+        headers = {
+            "Authorization": f"Bearer {client.api_key}",
+        }
+
+        # 构建 multipart 请求
+        import requests as req_lib
+        files = {
+            "image": (image.filename or "image.png", img_bytes, image.content_type or "image/png"),
+            "prompt": (None, prompt),
+            "n": (None, "1"),
+            "size": (None, size),
+        }
+        try:
+            r = req_lib.post(url, files=files, headers=headers, timeout=client.timeout)
+        except req_lib.RequestException as e:
+            return {"ok": False, "msg": f"图生图 HTTP 请求失败: {e}"}
+
+        if r.status_code != 200:
+            # 如果不支持 variations，回落为文生图：用prompt直接生成
+            logger.warning("图生图API不支持(status=%d)，回落为文生图模式", r.status_code)
+            result = client.generate(prompt, size)
+            if result.get("url"):
+                return {"ok": True, "url": result["url"], "revised_prompt": prompt, "mode": "fallback"}
+            elif result.get("b64_json"):
+                return {"ok": True, "b64": result["b64_json"], "revised_prompt": prompt, "mode": "fallback"}
+            else:
+                return {"ok": False, "msg": "图片生成失败，请检查图片 AI 配置"}
+
+        data = r.json()
+        img_data = data["data"][0]
+        return {
+            "ok": True,
+            "url": img_data.get("url"),
+            "b64_json": img_data.get("b64_json"),
+            "revised_prompt": img_data.get("revised_prompt", prompt),
+            "mode": "image-to-image",
+        }
+    except ImageClientError as e:
+        return {"ok": False, "msg": str(e)}
+    except Exception as e:
+        return {"ok": False, "msg": "图生图异常: " + str(e)}

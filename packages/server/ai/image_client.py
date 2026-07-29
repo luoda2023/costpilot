@@ -78,7 +78,6 @@ class ImageClient:
             "prompt": prompt,
             "n": 1,
             "size": size,
-            "response_format": "b64_json",
         }
         try:
             r = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
@@ -198,34 +197,11 @@ class ImageClient:
 
 _image_client: Optional[ImageClient] = None
 
+
 def get_image_client(**overrides) -> ImageClient:
-    """获取全局图片 AI 客户端单例"""
     global _image_client
-    if _image_client is None or overrides:
-        _image_client = ImageClient(**overrides)
+    if overrides:
+        return ImageClient(**overrides)
+    if _image_client is None:
+        _image_client = ImageClient()
     return _image_client
-
-def reset_image_client():
-    """重置图片 AI 客户端单例"""
-    global _image_client
-    _image_client = None
-
-
-# ---------------------------------------------------------------------------
-# 自测
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("图片 AI 客户端 - 自测")
-    print("=" * 60)
-    try:
-        client = get_image_client()
-        print(f"Provider: {client.provider}")
-        print(f"Model: {client.model}")
-        print("✅ 客户端初始化成功")
-        print("(未调用生成接口, 避免消耗 API 额度)")
-    except ImageClientError as e:
-        print(f"⚠ {e}")
-    except Exception as e:
-        print(f"❌ {e}")

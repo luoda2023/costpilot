@@ -190,5 +190,13 @@ export const DocGenAPI = {
  generateSection: (data) => api.post('/ai/doc-gen/section', data),
 }
 
+export const ImageGenAPI = {
+  generate: (data) => api.post('/ai/generate-image', data),
+  imageToImage: (formData) => api.post('/ai/image-to-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  }),
+}
+
 // 兼容 main.js 中所引用的 'api'
-export default { http, api, PricesAPI, FeesAPI, TemplatesAPI, ProjectsAPI, ChatAPI, DocGenAPI, isBackendOnline }
+export default { http, api, PricesAPI, FeesAPI, TemplatesAPI, ProjectsAPI, ChatAPI, DocGenAPI, ImageGenAPI, isBackendOnline }

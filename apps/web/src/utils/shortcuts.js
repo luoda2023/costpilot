@@ -22,6 +22,7 @@ const shortcuts = [
   { key: '6', ctrl: true, path: '/text-gen', desc: '文本生成' },
   { key: '7', ctrl: true, path: '/preview', desc: '文件预览' },
   { key: '8', ctrl: true, path: '/settings', desc: '系统设置' },
+  { key: '9', ctrl: true, path: '/image-gen', desc: '图片生成' },
 ]
 
 export function useShortcuts() {
