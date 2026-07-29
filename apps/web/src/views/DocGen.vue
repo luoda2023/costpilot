@@ -263,19 +263,23 @@
       <!-- 预览导出 -->
       <el-card class="preview-card" shadow="never" v-if="step === 5">
         <template #header>
-          <div class="preview-header">
-            <span class="preview-title">文档预览</span>
-            <div class="preview-actions">
-              <el-button size="small" @click="step = 2">
-                <el-icon><ArrowLeft /></el-icon>
-                返回修改
-              </el-button>
-              <el-button size="small" type="primary" @click="handleExport">
-                <el-icon><Download /></el-icon>
-                导出 {{ form.outputFormat.toUpperCase() }}
-              </el-button>
-            </div>
-          </div>
+<div class="preview-header">
+ <span class="preview-title">文档预览</span>
+ <div class="preview-actions">
+ <el-button size="small" @click="step = 3">
+ <el-icon><ArrowLeft /></el-icon>
+ 返回修改
+ </el-button>
+ <el-button size="small" type="primary" @click="handleExport">
+ <el-icon><Download /></el-icon>
+ 导出 {{ form.outputFormat.toUpperCase() }}
+ </el-button>
+ <el-button size="small" @click="exportPreviewPDF">
+ <el-icon><Document /></el-icon>
+ 导出 PDF
+ </el-button>
+ </div>
+ </div>
         </template>
 <div class="preview-content">
  <div v-if="!generatedText" class="preview-placeholder">
@@ -616,6 +620,42 @@ async function handleGenerate() {
     return
   }
   await startGeneration()
+}
+
+async function exportPreviewPDF() {
+  if (!generatedText.value) {
+ ElMessage.warning('请先生成文档')
+ return
+  }
+  try {
+ ElMessage.info('正在生成 PDF...')
+ const html2canvas = (await import('html2canvas')).default
+ const { jsPDF } = await import('jspdf')
+ const el = document.querySelector('.preview-rendered')
+ if (!el) { ElMessage.error('未找到预览区域'); return }
+
+ const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+ const imgData = canvas.toDataURL('image/png')
+ const pdf = new jsPDF('p', 'mm', 'a4')
+ const pdfW = pdf.internal.pageSize.getWidth()
+ const pdfH = (canvas.height * pdfW) / canvas.width
+ let heightLeft = pdfH
+ let position = 0
+ pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH)
+ heightLeft -= pdf.internal.pageSize.getHeight()
+ while (heightLeft > 0) {
+  position = heightLeft - pdfH
+  pdf.addPage()
+  pdf.addImage(imgData, 'PNG', 0, position, pdfW, pdfH)
+  heightLeft -= pdf.internal.pageSize.getHeight()
+ }
+ const filename = `${form.name || '文档'}.pdf`
+ pdf.save(filename)
+ ElMessage.success(`已导出 ${filename}`)
+  } catch (e) {
+ console.error('PDF导出失败', e)
+ ElMessage.error('PDF导出失败：' + (e.message || '未知错误'))
+  }
 }
 
 async function handleExport() {

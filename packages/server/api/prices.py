@@ -46,6 +46,19 @@ class TopicPriceOut(BaseModel):
         from_attributes = True
 
 
+class RegionInfoPriceOut(BaseModel):
+    id: int
+    region: str
+    period: str
+    item_name: str
+    unit: str
+    price: float
+    source_file: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # ---------------------------------------------------------------------------
 # 路由
 # ---------------------------------------------------------------------------
@@ -158,3 +171,23 @@ def list_topic_prices(
     if topic:
         q = q.filter(TopicPrice.topic == topic)
     return q.order_by(TopicPrice.id).limit(limit).all()
+
+
+@router.get("/info-price", response_model=List[RegionInfoPriceOut])
+def list_info_price(
+    region: Optional[str] = None,
+    period: Optional[str] = None,
+    keyword: Optional[str] = None,
+    limit: int = Query(50, le=500),
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """省市信息价查询"""
+    q = db.query(RegionInfoPrice)
+    if region:
+        q = q.filter(RegionInfoPrice.region == region)
+    if period:
+        q = q.filter(RegionInfoPrice.period == period)
+    if keyword:
+        q = q.filter(RegionInfoPrice.item_name.like(f"%{keyword}%"))
+    return q.order_by(RegionInfoPrice.id).offset(offset).limit(limit).all()
