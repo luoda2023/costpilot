@@ -91,17 +91,17 @@ function ensureRuntimeFiles() {
     console.log(`[init] 已创建用户数据目录 ${USER_DATA_DIR}`);
   }
 
-// 2. 始终从内置资源复制 config.yaml（覆盖旧版无密钥配置）
+// 2. config.yaml 不存在则从 config.example.yaml 复制
 const cfgPath = path.join(USER_DATA_DIR, 'config.yaml');
 const cfgExamplePath = (() => {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, 'app', 'config.yaml');
+    return path.join(process.resourcesPath, 'app', 'config.example.yaml');
   }
-  return path.join(__dirname, '..', '..', 'config.yaml');
+  return path.join(__dirname, '..', '..', 'config.example.yaml');
 })();
-if (fs.existsSync(cfgExamplePath)) {
+if (!fs.existsSync(cfgPath) && fs.existsSync(cfgExamplePath)) {
   fs.copyFileSync(cfgExamplePath, cfgPath);
-  console.log(`[init] 已复制内置 config.yaml → ${cfgPath}`);
+  console.log(`[init] 已复制 config.example.yaml → ${cfgPath}`);
 }
 
   // 3. data/sqlite 目录

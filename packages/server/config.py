@@ -21,22 +21,22 @@ import yaml
 
 
 def _resolve_config_path() -> Path:
-    """确定 config.yaml 的查找路径
+	"""确定 config.yaml 的查找路径
 
-    ⚠ 卸载重装不丢配置的关键:
-      ① 优先使用 ENGINEERING_ASSISTANT_DATA_DIR 环境变量(由 Electron 主进程设置)
-      ② 打包后: exe 同目录(旧版兼容)
-      ③ 开发模式: 项目根
-    """
-    data_dir = os.environ.get("ENGINEERING_ASSISTANT_DATA_DIR")
-    if data_dir:
-        return Path(data_dir) / "config.yaml"
+	⚠ 卸载重装不丢配置的关键:
+	① 优先使用 ENGINEERING_ASSISTANT_DATA_DIR 环境变量(由 Electron 主进程设置)
+	② 打包后: exe 同目录(旧版兼容)
+	③ 开发模式: 项目根
+	"""
+	data_dir = os.environ.get("ENGINEERING_ASSISTANT_DATA_DIR")
+	if data_dir:
+		return Path(data_dir) / "config.yaml"
 
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        return Path(sys.executable).resolve().parent / "config.yaml"
+	if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+		return Path(sys.executable).resolve().parent / "config.yaml"
 
-    # 开发模式
-    return Path(__file__).resolve().parent.parent.parent / "config.yaml"
+	# 开发模式
+	return Path(__file__).resolve().parent.parent.parent / "config.yaml"
 
 
 CONFIG_PATH = _resolve_config_path()
@@ -44,81 +44,100 @@ CONFIG_PATH = _resolve_config_path()
 
 @dataclass
 class AIConfig:
-    provider: str = "deepseek"
-    base_url: str = ""
-    api_key: str = ""
-    model: str = ""
-    temperature: float = 0.3
-    max_tokens: int = 4096
-    timeout: int = 120
-    lobechat_url: str = "http://localhost:3210"
-    presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
+	provider: str = "deepseek"
+	base_url: str = ""
+	api_key: str = ""
+	model: str = ""
+	temperature: float = 0.3
+	max_tokens: int = 4096
+	timeout: int = 120
+	lobechat_url: str = "http://localhost:3210"
+	presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
-    def resolved(self) -> Dict[str, Any]:
-        """合并预置值与显式覆盖,返回最终生效配置"""
-        preset = self.presets.get(self.provider, {})
-        return {
-            "provider": self.provider,
-            "base_url": self.base_url or preset.get("base_url", ""),
-            "api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", ""),
-            "model": self.model or preset.get("model", ""),
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-            "timeout": self.timeout,
-            "lobechat_url": self.lobechat_url,
-        }
+	# ============================================================
+	# 免费100次试用密钥（硬编码在程序里，config.yaml 丢了也能用）
+	# 用户如需覆盖，在 config.yaml 中填写自己的密钥即可
+	# ============================================================
+	_FREE_TRIAL = {
+		"base_url": "http://47.114.75.115:40000/v1",
+		"api_key": "sk-proxy-local-51f5bd4b9797f2620bc55460946802711cf7312b38c24794",
+		"model": "hermesAPI",
+	}
+
+	def resolved(self) -> Dict[str, Any]:
+		"""合并预置值与显式覆盖,返回最终生效配置"""
+		preset = self.presets.get(self.provider, {})
+		return {
+			"provider": self.provider,
+			"base_url": self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"],
+			"api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "") or self._FREE_TRIAL["api_key"],
+			"model": self.model or preset.get("model", "") or self._FREE_TRIAL["model"],
+			"temperature": self.temperature,
+			"max_tokens": self.max_tokens,
+			"timeout": self.timeout,
+			"lobechat_url": self.lobechat_url,
+		}
 
 
 @dataclass
 class RAGConfig:
-    embedding_model: str = "BAAI/bge-m3"
-    embedding_dim: int = 1024
-    chroma_dir: str = "data/chroma"
-    chunk_size: int = 800
-    chunk_overlap: int = 100
-    chunk_min_size: int = 50
-    top_k: int = 5
-    score_threshold: float = 0.5
+	embedding_model: str = "BAAI/bge-m3"
+	embedding_dim: int = 1024
+	chroma_dir: str = "data/chroma"
+	chunk_size: int = 800
+	chunk_overlap: int = 100
+	chunk_min_size: int = 50
+	top_k: int = 5
+	score_threshold: float = 0.5
 
 
 @dataclass
 class DatabaseConfig:
-    url: str = "sqlite:///data/sqlite/工程助手.db"
+	url: str = "sqlite:///data/sqlite/工程助手.db"
 
 
 @dataclass
 class ServerConfig:
-    host: str = "127.0.0.1"
-    port: int = 8765
+	host: str = "127.0.0.1"
+	port: int = 8765
 
 
 @dataclass
 class ImageAIConfig:
-    provider: str = "openai"
-    base_url: str = ""
-    api_key: str = ""
-    model: str = "dall-e-3"
-    timeout: int = 120
-    presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
+	provider: str = "openai"
+	base_url: str = ""
+	api_key: str = ""
+	model: str = ""
+	timeout: int = 120
+	presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
-    def resolved(self) -> Dict[str, Any]:
-        preset = self.presets.get(self.provider, {})
-        return {
-            "provider": self.provider,
-            "base_url": self.base_url or preset.get("base_url", ""),
-            "api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", ""),
-            "model": self.model or preset.get("model", ""),
-            "timeout": self.timeout,
-        }
+	# ============================================================
+	# 免费试用密钥（硬编码在程序里，config.yaml 丢了也能用）
+	# ============================================================
+	_FREE_TRIAL = {
+		"base_url": "https://apihub.agnes-ai.com/v1",
+		"api_key": "sk-WqlzOkaKLh0QFcfvPfJTnYdPqaj3X6ZJ7wUaVlX3KAiqNcPV",
+		"model": "agnes-image-2.1-flash",
+	}
+
+	def resolved(self) -> Dict[str, Any]:
+		preset = self.presets.get(self.provider, {})
+		return {
+			"provider": self.provider,
+			"base_url": self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"],
+			"api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "") or self._FREE_TRIAL["api_key"],
+			"model": self.model or preset.get("model", "") or self._FREE_TRIAL["model"],
+			"timeout": self.timeout,
+		}
 
 @dataclass
 class AppConfig:
-    ai: AIConfig = field(default_factory=AIConfig)
-    image_ai: ImageAIConfig = field(default_factory=ImageAIConfig)
-    rag: RAGConfig = field(default_factory=RAGConfig)
-    database: DatabaseConfig = field(default_factory=DatabaseConfig)
-    server: ServerConfig = field(default_factory=ServerConfig)
-    knowledge_sources: list = field(default_factory=list)
+	ai: AIConfig = field(default_factory=AIConfig)
+	image_ai: ImageAIConfig = field(default_factory=ImageAIConfig)
+	rag: RAGConfig = field(default_factory=RAGConfig)
+	database: DatabaseConfig = field(default_factory=DatabaseConfig)
+	server: ServerConfig = field(default_factory=ServerConfig)
+	knowledge_sources: list = field(default_factory=list)
 
 
 # 全局单例
@@ -126,66 +145,66 @@ _config: AppConfig = None
 
 
 def get_config() -> AppConfig:
-    """全局配置访问入口"""
-    global _config
-    if _config is None:
-        _config = load_config()
-    return _config
+	"""全局配置访问入口"""
+	global _config
+	if _config is None:
+		_config = load_config()
+	return _config
 
 
 def load_config() -> AppConfig:
-    """读取并解析 config.yaml"""
-    if not CONFIG_PATH.exists():
-        return AppConfig()
+	"""读取并解析 config.yaml"""
+	if not CONFIG_PATH.exists():
+		return AppConfig()
 
-    raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
+	raw = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
 
-    cfg = AppConfig(
-        ai=AIConfig(
-            provider=raw.get("ai", {}).get("provider", "deepseek"),
-            base_url=raw.get("ai", {}).get("base_url", ""),
-            api_key=raw.get("ai", {}).get("api_key", ""),
-            model=raw.get("ai", {}).get("model", ""),
-            temperature=raw.get("ai", {}).get("temperature", 0.3),
-            max_tokens=raw.get("ai", {}).get("max_tokens", 4096),
-            timeout=raw.get("ai", {}).get("timeout", 120),
-            lobechat_url=raw.get("ai", {}).get("lobechat_url", "http://localhost:3210"),
-            presets=raw.get("ai", {}).get("presets", {}),
-        ),
-        image_ai=ImageAIConfig(
-            provider=raw.get("image_ai", {}).get("provider", "openai"),
-            base_url=raw.get("image_ai", {}).get("base_url", ""),
-            api_key=raw.get("image_ai", {}).get("api_key", ""),
-            model=raw.get("image_ai", {}).get("model", "dall-e-3"),
-            timeout=raw.get("image_ai", {}).get("timeout", 120),
-            presets=raw.get("image_ai", {}).get("presets", {}),
-        ),
-        rag=RAGConfig(
-            embedding_model=raw.get("rag", {}).get("embedding_model", "BAAI/bge-m3"),
-            embedding_dim=raw.get("rag", {}).get("embedding_dim", 1024),
-            chroma_dir=raw.get("rag", {}).get("chroma_dir", "data/chroma"),
-            chunk_size=raw.get("rag", {}).get("chunk_size", 800),
-            chunk_overlap=raw.get("rag", {}).get("chunk_overlap", 100),
-            chunk_min_size=raw.get("rag", {}).get("chunk_min_size", 50),
-            top_k=raw.get("rag", {}).get("top_k", 5),
-            score_threshold=raw.get("rag", {}).get("score_threshold", 0.5),
-        ),
-        database=DatabaseConfig(
-            url=raw.get("database", {}).get("url", "sqlite:///data/sqlite/工程助手.db"),
-        ),
-        server=ServerConfig(
-            host=raw.get("server", {}).get("host", "127.0.0.1"),
-            port=raw.get("server", {}).get("port", 8765),
-        ),
-        knowledge_sources=raw.get("knowledge_sources", []),
-    )
-    return cfg
+	cfg = AppConfig(
+		ai=AIConfig(
+			provider=raw.get("ai", {}).get("provider", "deepseek"),
+			base_url=raw.get("ai", {}).get("base_url", ""),
+			api_key=raw.get("ai", {}).get("api_key", ""),
+			model=raw.get("ai", {}).get("model", ""),
+			temperature=raw.get("ai", {}).get("temperature", 0.3),
+			max_tokens=raw.get("ai", {}).get("max_tokens", 4096),
+			timeout=raw.get("ai", {}).get("timeout", 120),
+			lobechat_url=raw.get("ai", {}).get("lobechat_url", "http://localhost:3210"),
+			presets=raw.get("ai", {}).get("presets", {}),
+		),
+		image_ai=ImageAIConfig(
+			provider=raw.get("image_ai", {}).get("provider", "openai"),
+			base_url=raw.get("image_ai", {}).get("base_url", ""),
+			api_key=raw.get("image_ai", {}).get("api_key", ""),
+			model=raw.get("image_ai", {}).get("model", ""),
+			timeout=raw.get("image_ai", {}).get("timeout", 120),
+			presets=raw.get("image_ai", {}).get("presets", {}),
+		),
+		rag=RAGConfig(
+			embedding_model=raw.get("rag", {}).get("embedding_model", "BAAI/bge-m3"),
+			embedding_dim=raw.get("rag", {}).get("embedding_dim", 1024),
+			chroma_dir=raw.get("rag", {}).get("chroma_dir", "data/chroma"),
+			chunk_size=raw.get("rag", {}).get("chunk_size", 800),
+			chunk_overlap=raw.get("rag", {}).get("chunk_overlap", 100),
+			chunk_min_size=raw.get("rag", {}).get("chunk_min_size", 50),
+			top_k=raw.get("rag", {}).get("top_k", 5),
+			score_threshold=raw.get("rag", {}).get("score_threshold", 0.5),
+		),
+		database=DatabaseConfig(
+			url=raw.get("database", {}).get("url", "sqlite:///data/sqlite/工程助手.db"),
+		),
+		server=ServerConfig(
+			host=raw.get("server", {}).get("host", "127.0.0.1"),
+			port=raw.get("server", {}).get("port", 8765),
+		),
+		knowledge_sources=raw.get("knowledge_sources", []),
+	)
+	return cfg
 
 
 def reload_config():
-    """强制重新读取(配置文件改动后调用)"""
-    global _config
-    _config = load_config()
+	"""强制重新读取(配置文件改动后调用)"""
+	global _config
+	_config = load_config()
 
 
 # ---------------------------------------------------------------------------
@@ -193,25 +212,25 @@ def reload_config():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    cfg = get_config()
-    ai = cfg.ai.resolved()
-    print("=" * 60)
-    print("配置文件加载自:", CONFIG_PATH)
-    print("=" * 60)
-    print(f"AI Provider: {ai['provider']}")
-    print(f"AI base_url: {ai['base_url']}")
-    print(f"AI model: {ai['model']}")
-    print(f"AI api_key: {'已设置' if ai['api_key'] else '⚠ 未设置'}")
-    print(f"AI temperature: {ai['temperature']}")
-    print()
-    print(f"RAG embedding:  {cfg.rag.embedding_model}")
-    print(f"RAG dims: {cfg.rag.embedding_dim}")
-    print(f"RAG chunk_size: {cfg.rag.chunk_size}")
-    print(f"RAG top_k: {cfg.rag.top_k}")
-    print()
-    print(f"数据库: {cfg.database.url}")
-    print(f"监听: {cfg.server.host}:{cfg.server.port}")
-    print()
-    print(f"知识库源:")
-    for s in cfg.knowledge_sources:
-        print(f"  - {s.get('path')} | {s.get('description','')}")
+	cfg = get_config()
+	ai = cfg.ai.resolved()
+	print("=" * 60)
+	print("配置文件加载自:", CONFIG_PATH)
+	print("=" * 60)
+	print(f"AI Provider: {ai['provider']}")
+	print(f"AI base_url: {ai['base_url']}")
+	print(f"AI model: {ai['model']}")
+	print(f"AI api_key: {'已设置' if ai['api_key'] else '⚠ 未设置'}")
+	print(f"AI temperature: {ai['temperature']}")
+	print()
+	print(f"RAG embedding:  {cfg.rag.embedding_model}")
+	print(f"RAG dims: {cfg.rag.embedding_dim}")
+	print(f"RAG chunk_size: {cfg.rag.chunk_size}")
+	print(f"RAG top_k: {cfg.rag.top_k}")
+	print()
+	print(f"数据库: {cfg.database.url}")
+	print(f"监听: {cfg.server.host}:{cfg.server.port}")
+	print()
+	print(f"知识库源:")
+	for s in cfg.knowledge_sources:
+		print(f"  - {s.get('path')} | {s.get('description','')}")

@@ -1,5 +1,5 @@
 # 密钥与本地配置(含 api_key,不入库)
-# config.yaml 已入库（含免费100次demo密钥，用户开箱即用）
+config.yaml
 config.local.yaml
 
 # Python

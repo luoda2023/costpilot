@@ -34,7 +34,8 @@
       "packages/**/*",
       "engine-server.exe",
       "alembic.ini",
-      "packages/db-migrations/**/*"
+      "packages/db-migrations/**/*",
+      "config.example.yaml"
     ],
     "asarUnpack": [
       "engine-server.exe"
@@ -53,8 +54,8 @@
         "to": "app/web/dist"
       },
       {
-        "from": "config.yaml",
-        "to": "app/config.yaml"
+        "from": "config.example.yaml",
+        "to": "app/config.example.yaml"
       }
     ],
     "directories": {
