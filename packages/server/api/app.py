@@ -21,7 +21,7 @@ from packages.server.api.files import router as files_router
 app = FastAPI(
 	title="工程助手 API",
 	description="工程助手 - 工程造价智能辅助系统",
-    version="0.1.0",
+    version="0.2.4",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -83,7 +83,7 @@ def on_startup():
     import platform
     logger.info("=" * 50)
     logger.info("🚀 工程助手 API 启动成功")
-    logger.info("  版本: %s", "0.1.0")
+    logger.info("  版本: %s", "0.2.4")
     logger.info("  系统: %s %s", platform.system(), platform.release())
     logger.info("  Python: %s", sys.version.split()[0])
     logger.info("  文档: http://127.0.0.1:8765/docs")

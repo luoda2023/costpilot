@@ -9,7 +9,7 @@ on:
       version:
         description: '版本号 (默认 0.2.1)'
         required: false
-        default: '0.2.1'
+        default: '0.2.4'
 
 jobs:
   build-windows-installer:
@@ -83,19 +83,19 @@ jobs:
         shell: pwsh
         run: Get-ChildItem dist-electron -Recurse | Format-Table Name,Length,FullName
 
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
-        with:
-          tag_name: v1.0.0
-          name: v1.0.0
-          files: |
-            dist-electron/*.exe
-            dist-electron/latest.yml
-          draft: true
-          fail_on_unmatched_files: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+- name: Upload to GitHub Release
+   uses: softprops/action-gh-release@v2
+   if: github.ref == 'refs/heads/main'
+   with:
+     tag_name: v${{ github.event.inputs.version }}
+     name: v${{ github.event.inputs.version }}
+     files: |
+       dist-electron/*.exe
+       dist-electron/latest.yml
+     draft: true
+     fail_on_unmatched_files: false
+   env:
+     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Setup.exe
         uses: actions/upload-artifact@v4

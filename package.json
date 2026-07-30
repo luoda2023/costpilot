@@ -1,9 +1,9 @@
 {
- "name": "engineering-assistant",
- "version": "0.1.0",
- "description": "工程助手 - 工程造价智能辅助系统",
- "private": true,
- "author": "LUODA",
+  "name": "engineering-assistant",
+  "version": "0.2.4",
+  "description": "工程助手 - 工程造价智能辅助系统",
+  "private": true,
+  "author": "LUODA",
   "license": "MIT",
   "main": "apps/desktop/main/index.js",
   "scripts": {
@@ -26,41 +26,41 @@
     "wait-on": "^7.2.0",
     "vite": "^5.3.0"
   },
-"build": {
-"appId": "com.luoda.engineering-assistant",
-	"productName": "工程助手",
-"files": [
-"apps/desktop/**/*",
-"packages/**/*",
-"engine-server.exe",
-"alembic.ini",
-"packages/db-migrations/**/*",
-"config.example.yaml"
-],
-"asarUnpack": [
-"engine-server.exe"
-],
-"extraResources": [
-{
-"from": "engine-server.exe",
-"to": "app/engine-server.exe"
-},
-{
-"from": "data/sqlite",
-"to": "app/data/sqlite"
-},
-{
-"from": "apps/web/dist",
-"to": "app/web/dist"
-},
-{
-"from": "config.example.yaml",
-"to": "app/config.example.yaml"
-}
-],
-"directories": {
-"output": "dist-electron"
-},
+  "build": {
+    "appId": "com.luoda.engineering-assistant",
+    "productName": "工程助手",
+    "files": [
+      "apps/desktop/**/*",
+      "packages/**/*",
+      "engine-server.exe",
+      "alembic.ini",
+      "packages/db-migrations/**/*",
+      "config.example.yaml"
+    ],
+    "asarUnpack": [
+      "engine-server.exe"
+    ],
+    "extraResources": [
+      {
+        "from": "engine-server.exe",
+        "to": "app/engine-server.exe"
+      },
+      {
+        "from": "data/sqlite",
+        "to": "app/data/sqlite"
+      },
+      {
+        "from": "apps/web/dist",
+        "to": "app/web/dist"
+      },
+      {
+        "from": "config.example.yaml",
+        "to": "app/config.example.yaml"
+      }
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
     "win": {
       "target": "nsis",
       "icon": "apps/desktop/build/icon.ico"
@@ -70,7 +70,10 @@
       "icon": "apps/desktop/build/icon.icns"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office"
     },
     "nsis": {
