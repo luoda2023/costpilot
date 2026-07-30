@@ -34,8 +34,7 @@
       "packages/**/*",
       "engine-server.exe",
       "alembic.ini",
-      "packages/db-migrations/**/*",
-      "config.yaml"
+      "packages/db-migrations/**/*"
     ],
     "asarUnpack": [
       "engine-server.exe"

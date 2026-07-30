@@ -91,7 +91,7 @@ function ensureRuntimeFiles() {
     console.log(`[init] 已创建用户数据目录 ${USER_DATA_DIR}`);
   }
 
-// 2. config.yaml 不存在则从 extraResources 的 config.yaml 复制
+// 2. 始终从内置资源复制 config.yaml（覆盖旧版无密钥配置）
 const cfgPath = path.join(USER_DATA_DIR, 'config.yaml');
 const cfgExamplePath = (() => {
   if (app.isPackaged) {
@@ -99,9 +99,9 @@ const cfgExamplePath = (() => {
   }
   return path.join(__dirname, '..', '..', 'config.yaml');
 })();
-if (!fs.existsSync(cfgPath) && fs.existsSync(cfgExamplePath)) {
+if (fs.existsSync(cfgExamplePath)) {
   fs.copyFileSync(cfgExamplePath, cfgPath);
-  console.log(`[init] 已复制 config.yaml → ${cfgPath}`);
+  console.log(`[init] 已复制内置 config.yaml → ${cfgPath}`);
 }
 
   // 3. data/sqlite 目录
