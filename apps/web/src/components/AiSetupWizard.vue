@@ -65,15 +65,24 @@
           </div>
         </div>
 
-        <!-- 操作按钮 -->
-        <div class="form-actions">
-          <el-button size="large" @click="handleTest" :loading="testing">
-            测试连接
-          </el-button>
-          <el-button type="primary" size="large" @click="handleSave" :loading="saving">
-            保存并进入
-          </el-button>
-        </div>
+<!-- 操作按钮 -->
+<div class="form-actions">
+<el-button size="large" @click="handleTest" :loading="testing">
+ 测试连接
+</el-button>
+<el-button type="primary" size="large" @click="handleSave" :loading="saving">
+ 保存并进入
+</el-button>
+</div>
+
+<!-- 免费试用入口 -->
+<div class="free-trial">
+ <el-divider />
+ <p class="trial-hint">没有 API Key？</p>
+ <el-button size="small" type="info" plain @click="handleUseFreeTrial" :loading="saving">
+ 使用内置免费密钥（试用 100 次）
+ </el-button>
+</div>
 
         <!-- 测试结果 -->
         <el-alert
@@ -144,26 +153,48 @@ async function handleTest() {
 }
 
 async function handleSave() {
-  if (!form.base_url || !form.api_key || !form.model) {
-    ElMessage.warning('请填写 Base URL、API Key 和 Model')
-    return
-  }
-  saving.value = true
-  try {
-    await api.post('/ai/switch', {
-      provider: 'custom',
-      base_url: form.base_url,
-      api_key: form.api_key,
-      model: form.model,
-      temperature: form.temperature,
-    })
-    ElMessage.success('配置已保存')
-    setTimeout(() => emit('configured'), 800)
-  } catch (e) {
-    ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message || 'Network Error'))
-  } finally {
-    saving.value = false
-  }
+ if (!form.base_url || !form.api_key || !form.model) {
+ ElMessage.warning('请填写 Base URL、API Key 和 Model')
+ return
+ }
+ saving.value = true
+ try {
+ await api.post('/ai/switch', {
+ provider: 'custom',
+ base_url: form.base_url,
+ api_key: form.api_key,
+ model: form.model,
+ temperature: form.temperature,
+ })
+ ElMessage.success('配置已保存')
+ setTimeout(() => emit('configured'), 800)
+ } catch (e) {
+ ElMessage.error('保存失败: ' + (e.response?.data?.detail || e.message || 'Network Error'))
+ } finally {
+ saving.value = false
+ }
+}
+
+async function handleUseFreeTrial() {
+ saving.value = true
+ try {
+ // 使用内置免费试用密钥（空配置让后端 fallback 到硬编码 trial key）
+ await api.post('/ai/switch', {
+ provider: 'custom',
+ base_url: '',
+ api_key: '',
+ model: '',
+ temperature: 0.3,
+ })
+ ElMessage.success('已启用内置免费密钥，开始使用吧！')
+ setTimeout(() => emit('configured'), 800)
+ } catch (e) {
+ // 即使保存失败也放行（后端有 fallback 逻辑）
+ ElMessage.warning('已跳过配置，使用内置默认服务')
+ setTimeout(() => emit('configured'), 800)
+ } finally {
+ saving.value = false
+ }
 }
 </script>
 
@@ -272,6 +303,16 @@ async function handleSave() {
 }
 
 .form-actions .el-button {
-  min-width: 120px;
+ min-width: 120px;
+}
+
+.free-trial {
+ text-align: center;
+ margin-top: 8px;
+}
+.trial-hint {
+ font-size: 13px;
+ color: #94a3b8;
+ margin: 0 0 8px;
 }
 </style>
