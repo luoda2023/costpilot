@@ -657,12 +657,16 @@ onMounted(loadSessions)
 }
 
 .bubble {
-  max-width: 76%;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-base);
-  line-height: 1.7;
-  position: relative;
+ max-width: 76%;
+ padding: var(--space-3) var(--space-4);
+ border-radius: var(--radius-lg);
+ font-size: var(--text-base);
+ line-height: 1.7;
+ position: relative;
+}
+
+.bubble.assistant {
+ max-width: 100%;
 }
 
 .bubble.user {
@@ -673,11 +677,11 @@ onMounted(loadSessions)
 }
 
 .bubble.assistant {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--gray-200);
-  border-bottom-left-radius: var(--radius-xs);
-  box-shadow: var(--shadow-xs);
+ background: transparent;
+ color: var(--text-primary);
+ border: none;
+ box-shadow: none;
+ padding: 0;
 }
 
 .msg-content {
