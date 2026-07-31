@@ -134,7 +134,8 @@
         <div class="loading-logo">
           <el-icon :size="48" color="#2563eb"><Loading /></el-icon>
         </div>
-        <p class="loading-text">正在检查 AI 配置...</p>
+        <p class="loading-text">正在连接后端服务...</p>
+<p class="loading-sub">首次启动需等待服务就绪，请稍候</p>
       </div>
     </div>
   </el-container>
@@ -750,9 +751,16 @@ html, body, #app {
 }
 
 .loading-text {
-  margin-top: var(--space-4);
-  font-size: var(--text-md);
-  letter-spacing: 1px;
+ margin-top: var(--space-4);
+ font-size: var(--text-md);
+ letter-spacing: 1px;
+}
+
+.loading-sub {
+ margin-top: var(--space-2);
+ font-size: var(--text-xs);
+ color: var(--gray-500);
+ opacity: 0.7;
 }
 
 /* 全局组件级过渡 */
