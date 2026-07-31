@@ -163,7 +163,11 @@ const HEALTH_URL = window.location.protocol === 'file:' ? 'http://127.0.0.1:8765
 
 async function checkHealth() {
  try {
- const r = await fetch(HEALTH_URL)
+ // 2秒超时，避免后端未启动时 fetch 挂起 20-30 秒
+ const controller = new AbortController()
+ const timeoutId = setTimeout(() => controller.abort(), 2000)
+ const r = await fetch(HEALTH_URL, { signal: controller.signal })
+ clearTimeout(timeoutId)
  if (r.ok) {
  backendOnline.value = true
  return r
@@ -176,15 +180,15 @@ async function checkHealth() {
 }
 
 onMounted(async () => {
- // 1. 先等待后端服务就绪（最多 15 秒）
+ // 1. 先等待后端服务就绪（最多约 15 秒，每次 fetch 带 2 秒超时）
  let backendReady = false
- for (let i = 0; i < 30; i++) {
+ for (let i = 0; i < 15; i++) {
  const r = await checkHealth()
  if (r?.ok) {
  backendReady = true
  break
  }
- await new Promise(r => setTimeout(r, 500))
+ await new Promise(r => setTimeout(r, 1000))
  }
 
  // 2. 后端就绪后再检查 AI 配置
