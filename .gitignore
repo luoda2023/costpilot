@@ -40,3 +40,5 @@ fix_*.py
 check_*.py
 *.db
 release-artifacts/usage.json
+logs/
+usage.json
