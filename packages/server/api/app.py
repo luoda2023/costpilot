@@ -28,7 +28,7 @@ from packages.server.api.templates import router as templates_router
 app = FastAPI(
 	title="工程助手 API",
 	description="工程助手 - 工程造价智能辅助系统",
-	version="0.2.6",
+	version="0.2.7",
 	docs_url="/docs",
 	redoc_url="/redoc",
 )
@@ -110,7 +110,7 @@ def on_startup():
 	import platform
 	logger.info("=" * 50)
 	logger.info("🚀 工程助手 API 启动成功")
-	logger.info("  版本: %s", "0.2.6")
+	logger.info("  版本: %s", "0.2.7")
 	logger.info("  系统: %s %s", platform.system(), platform.release())
 	logger.info("  端口: 8765")
 	logger.info("  非核心路由: 后台加载中...")
@@ -161,7 +161,7 @@ def api_status():
 	 import platform
 	 return {
 	 "name": "工程助手 API",
-	 "version": "0.2.6",
+	 "version": "0.2.7",
 	 "system": f"{platform.system()} {platform.release()}",
 	 "python": sys.version.split()[0],
 	 "docs": "/docs",
