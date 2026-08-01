@@ -188,7 +188,10 @@ def reload_yaml():
 
 @router.get("/usage")
 def get_ai_usage():
- """获取 AI 使用情况（免费试用剩余次数）"""
- from packages.server.ai.usage_tracker import UsageTracker
- tracker = UsageTracker()
- return tracker.get_usage()
+	 """获取 AI 使用情况（免费试用剩余次数）"""
+	 try:
+		 from packages.server.ai.usage_tracker import UsageTracker
+		 tracker = UsageTracker()
+		 return tracker.get_usage()
+	 except ImportError:
+		 return {"text_ai_calls": 0, "image_ai_calls": 0, "max_free_calls": 100, "text_remaining": 100, "image_remaining": 100, "note": "使用次数追踪模块未加载"}
