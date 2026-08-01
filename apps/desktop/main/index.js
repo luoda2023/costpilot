@@ -6,7 +6,7 @@
  * - 应用菜单
  */
 const { app, BrowserWindow, Menu, shell } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -31,7 +31,40 @@ let pythonServer = null;
  * 打包后: 用 PyInstaller 产出的 engine-server.exe,无需用户装 Python
  * 开发期: 用 python -m uvicorn
  */
+function killPort(port) {
+	/** 启动前先杀掉旧进程，防止端口占用导致启动失败 */
+	try {
+		if (process.platform === 'win32') {
+			execSync(`netstat -ano | findstr "LISTENING" | findstr ":${port} "`, { stdio: 'pipe', timeout: 3000 });
+			// 有进程在监听，杀掉它
+			const result = execSync(
+				`netstat -ano | findstr ":${port} " | findstr "LISTENING"`,
+				{ encoding: 'utf8', timeout: 3000 }
+			);
+			const lines = result.trim().split('\n');
+			for (const line of lines) {
+				const parts = line.trim().split(/\s+/);
+				const pid = parts[parts.length - 1];
+				if (pid && pid !== '0') {
+					try {
+						execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore', timeout: 2000 });
+						console.log(`[port] 已杀掉端口 ${port} 的旧进程 (PID ${pid})`);
+					} catch (e) {
+						// 可能进程已退出，忽略
+					}
+				}
+			}
+		} else {
+			execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null`, { stdio: 'ignore', timeout: 3000 });
+		}
+	} catch (e) {
+		// 端口未被占用，正常
+	}
+}
+
 function startPythonServer() {
+	// 启动前先杀掉旧端口
+	killPort(SERVER_PORT);
  let cmd, args, cwd;
 
  if (app.isPackaged) {
@@ -187,26 +220,26 @@ function createWindow() {
  * 前端直接从本地加载，无需等待服务器
  */
 function waitForServerAndNotify() {
-  let attempts = 0;
-  const maxAttempts = 60;
-  const check = () => {
-    attempts++;
-    const req = http.get(`${SERVER_URL}/health`, (res) => {
-      if (res.statusCode === 200) {
-        console.log('[app] 后端服务已就绪');
-      } else if (attempts < maxAttempts) {
-        setTimeout(check, 500);
-      }
-    });
-    req.on('error', () => {
-      if (attempts < maxAttempts) setTimeout(check, 500);
-    });
-    req.setTimeout(1000, () => {
-      req.destroy();
-      if (attempts < maxAttempts) setTimeout(check, 500);
-    });
-  };
-  check();
+	let attempts = 0;
+	const maxAttempts = 120; // 最多等 60 秒
+	const check = () => {
+		attempts++;
+		const req = http.get(`${SERVER_URL}/health`, (res) => {
+			if (res.statusCode === 200) {
+				console.log('[app] 后端服务已就绪');
+			} else if (attempts < maxAttempts) {
+				setTimeout(check, 500);
+			}
+		});
+		req.on('error', () => {
+			if (attempts < maxAttempts) setTimeout(check, 500);
+		});
+		req.setTimeout(1000, () => {
+			req.destroy();
+			if (attempts < maxAttempts) setTimeout(check, 500);
+		});
+	};
+	check();
 }
 
 /**

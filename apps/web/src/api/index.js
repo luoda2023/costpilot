@@ -26,22 +26,26 @@ const http = axios.create({
 
 // 后端是否在线
 let _isBackendOnline = true
+let _startupMode = true  // 启动阶段：不弹连接失败通知，静默等待
+// 启动后 8 秒内属于"启动窗口期"，不弹离线通知
+setTimeout(() => { _startupMode = false }, 8000)
 export function isBackendOnline() { return _isBackendOnline }
 
 // 网络错误是否正在提示(防刷屏)
 let _notifying = false
 function notifyOffline() {
-  if (_notifying) return
-  _notifying = true
-  _isBackendOnline = false
-  ElNotification({
-    title: '连接失败',
-    message: '无法连接到后端服务 (127.0.0.1:8765)，请检查服务是否启动',
-    type: 'error',
-    duration: 0,
-    showClose: true,
-  })
-  setTimeout(() => { _notifying = false }, 5000)
+	if (_startupMode) return  // 启动阶段静默，不弹错误提示
+	if (_notifying) return
+	_notifying = true
+	_isBackendOnline = false
+	ElNotification({
+		title: '连接失败',
+		message: '无法连接到后端服务 (127.0.0.1:8765)，请检查服务是否启动',
+		type: 'error',
+		duration: 0,
+		showClose: true,
+	})
+	setTimeout(() => { _notifying = false }, 5000)
 }
 
 function notifyOnline() {

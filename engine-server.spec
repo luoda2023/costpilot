@@ -21,8 +21,19 @@ hidden_imports += collect_submodules('uvicorn')
 hidden_imports += ['uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
  'uvicorn.protocols', 'uvicorn.protocols.http.auto',
  'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan.on']
-# 新增模块(客户端内动态导入, PyInstaller 可能扫描不到)
-hidden_imports += ['packages.server.ai.usage_tracker', 'packages.server.api.ai_custom']
+# 新增模块(后台懒加载 / 动态导入, PyInstaller 可能扫描不到)
+hidden_imports += [
+	'packages.server.ai.usage_tracker',
+	'packages.server.api.ai_custom',
+	'packages.server.api.ai_config',
+	'packages.server.api.ai_match',
+	'packages.server.api.ai_assist',
+	'packages.server.api.knowledge',
+	'packages.server.api.projects',
+	'packages.server.api.chat',
+	'packages.server.api.files',
+	'packages.server.api.quotes',
+]
 
 datas = []
 datas += collect_data_files('alembic')

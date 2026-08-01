@@ -1,6 +1,14 @@
-"""工程助手 - FastAPI 主入口"""
+"""工程助手 - FastAPI 主入口
+
+设计原则:
+- 最小启动: 只加载核心路由(health/prices/fees/templates)，非核心路由后台懒加载
+- 快速启动: on_startup 只做最低限度初始化，数据库备份等放后台线程
+- 容错: 所有 import 都有 try/except，任一模块缺失不影响服务器启动
+"""
 import sys
 import os
+import threading
+import time
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,85 +17,104 @@ from sqlalchemy import text
 from packages.server.db.database import init_db, engine, backup_db
 from packages.server.utils.logger import logger, setup_request_logging
 
-# 显式导入 router(避免子模块导入失败)
+# ============================================================
+# 核心路由 — 模块级加载（启动时必须可用，轻量无依赖）
+# ============================================================
 from packages.server.api.health import router as health_router
 from packages.server.api.prices import router as prices_router
 from packages.server.api.fees import router as fees_router
 from packages.server.api.templates import router as templates_router
-from packages.server.api.projects import router as projects_router
-from packages.server.api.chat import router as chat_router
-from packages.server.api.files import router as files_router
 
 app = FastAPI(
 	title="工程助手 API",
 	description="工程助手 - 工程造价智能辅助系统",
-    version="0.2.6",
-    docs_url="/docs",
-    redoc_url="/redoc",
+	version="0.2.6",
+	docs_url="/docs",
+	redoc_url="/redoc",
 )
 
 # CORS - 桌面端 Electron 渲染进程可访问
 app.add_middleware(
- CORSMiddleware,
- allow_origins=["*"],
- allow_credentials=True,
- allow_methods=["*"],
- allow_headers=["*"],
+	CORSMiddleware,
+	allow_origins=["*"],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
 )
 
 # 请求日志
 setup_request_logging(app)
 
 
+def _register_lazy_routes():
+	"""后台线程：延迟注册非核心路由，不阻塞服务器启动
+
+	服务器启动后约 0.5 秒开始注册，注册完即可用。
+	任一模块缺失只跳过该路由，不影响整体。
+	"""
+	import importlib
+
+	time.sleep(0.5)  # 先让服务器开始监听
+
+	lazy_routes = [
+		("packages.server.api.projects", "router", "/api/v1/projects", ["项目"]),
+		("packages.server.api.chat", "router", "/api/v1/chat", ["AI 聊天"]),
+		("packages.server.api.files", "router", "/api/v1/files", ["文件浏览"]),
+		("packages.server.api.files", "preview_router", "/api/v1/preview", ["文件预览"]),
+		("packages.server.api.ai_config", "router", "/api/v1/ai", ["AI 配置"]),
+		("packages.server.api.ai_custom", "router", "/api/v1/ai/custom-configs", ["自定义 AI 配置"]),
+		("packages.server.api.quotes", "router", "/api/v1/quotes", ["报价生成"]),
+		("packages.server.api.ai_match", "router", "/api/v1/quotes", ["报价生成"]),
+		("packages.server.api.ai_assist", "router", "/api/v1/ai", ["AI 智能辅助"]),
+		("packages.server.api.knowledge", "router", "/api/v1/kb", ["知识库 RAG"]),
+	]
+
+	for mod_path, attr, prefix, tags in lazy_routes:
+		try:
+			mod = importlib.import_module(mod_path)
+			router = getattr(mod, attr, None)
+			if router:
+				app.include_router(router, prefix=prefix, tags=tags)
+				logger.info("✅ 懒加载路由: %s → %s", mod_path, prefix)
+		except Exception as e:
+			logger.warning("⚠️ 懒加载路由跳过 %s: %s", mod_path, e)
+
+
 @app.on_event("startup")
 def on_startup():
-    """启动时执行环境检查"""
-    # 1. 检查数据库
-    try:
-        init_db()
-        # 验证连接是否可用
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        logger.info("✅ 数据库连接正常")
-    except Exception as e:
-        logger.critical("❌ 数据库连接失败: %s", e, exc_info=True)
-        print(f"[FATAL] 数据库连接失败: {e}")
-        print("[FATAL] 请确保已安装 SQLite 或配置正确的数据库路径")
+	"""启动时快速初始化 — 不阻塞监听，耗时操作放后台线程"""
+	# 1. 初始化数据库表（轻量操作，仅建表）
+	try:
+		init_db()
+		with engine.connect() as conn:
+			conn.execute(text("SELECT 1"))
+		logger.info("✅ 数据库连接正常")
+	except Exception as e:
+		logger.critical("❌ 数据库连接失败: %s", e, exc_info=True)
 
-    # 1b. 数据库备份(每天首次启动自动备份)
-    try:
-        backup_path = backup_db()
-        logger.info("✅ 数据库备份完成: %s", backup_path)
-    except Exception as e:
-        logger.warning("⚠️ 数据库备份失败(非致命): %s", e)
+	# 2. 后台线程：注册非核心路由
+	t = threading.Thread(target=_register_lazy_routes, daemon=True)
+	t.start()
 
-    # 2. 检查配置文件
-    config_path = Path(__file__).resolve().parent.parent.parent.parent / "config.yaml"
-    if config_path.exists():
-        logger.info("✅ 配置文件存在: %s", config_path)
-    else:
-        logger.warning("⚠️ 配置文件不存在: %s", config_path)
+	# 3. 后台线程：数据库备份（每天首次）
+	def _backup_worker():
+		time.sleep(2)  # 等服务器完全就绪
+		try:
+			backup_path = backup_db()
+			logger.info("✅ 数据库备份完成: %s", backup_path)
+		except Exception as e:
+			logger.warning("⚠️ 数据库备份失败(非致命): %s", e)
+	threading.Thread(target=_backup_worker, daemon=True).start()
 
-    # 3. 检查前端静态文件
-    static_path = _static_dir()
-    if static_path.exists():
-        logger.info("✅ 前端静态文件已就绪: %s", static_path)
-    else:
-        logger.warning("⚠️ 前端静态文件未构建: %s", static_path)
-
-    # 4. 检查日志目录
-    from packages.server.utils.logger import LOG_DIR
-    logger.info("✅ 日志目录: %s", LOG_DIR)
-
-# 5. 输出启动信息
-    import platform
-    logger.info("=" * 50)
-    logger.info("🚀 工程助手 API 启动成功")
-    logger.info("  版本: %s", "0.2.6")
-    logger.info("  系统: %s %s", platform.system(), platform.release())
-    logger.info("  Python: %s", sys.version.split()[0])
-    logger.info("  文档: http://127.0.0.1:8765/docs")
-    logger.info("=" * 50)
+	# 4. 输出启动信息（简短）
+	import platform
+	logger.info("=" * 50)
+	logger.info("🚀 工程助手 API 启动成功")
+	logger.info("  版本: %s", "0.2.6")
+	logger.info("  系统: %s %s", platform.system(), platform.release())
+	logger.info("  端口: 8765")
+	logger.info("  非核心路由: 后台加载中...")
+	logger.info("=" * 50)
 
 
 @app.on_event("shutdown")
@@ -113,67 +140,33 @@ def on_shutdown():
 
 
 # ============================================================
-# 重要: 所有 API 路由必须在 mount('/') 之前注册!
-# Starlette 的 StaticFiles mount 会 catch-all 所有请求,
-# 如果 mount 先注册, API 路由永远收不到请求。
+# 核心路由注册（模块级加载，启动即可用）
 # ============================================================
-
 app.include_router(health_router, prefix="/health", tags=["健康检查"])
 app.include_router(prices_router, prefix="/api/v1/prices", tags=["价格库"])
 app.include_router(fees_router, prefix="/api/v1/fees", tags=["费率"])
 app.include_router(templates_router, prefix="/api/v1/templates", tags=["模板"])
-app.include_router(projects_router, prefix="/api/v1/projects", tags=["项目"])
-app.include_router(chat_router, prefix="/api/v1/chat", tags=["AI 聊天"])
-app.include_router(files_router, prefix="/api/v1/files", tags=["文件浏览"])
 
-# 文件预览(独立路由)
-from packages.server.api.files import preview_router as files_preview_router
-app.include_router(files_preview_router, prefix="/api/v1/preview", tags=["文件预览"])
-
-# AI 配置管理
-from packages.server.api.ai_config import router as ai_config_router
-app.include_router(ai_config_router, prefix="/api/v1/ai", tags=["AI 配置"])
-
-# 自定义 AI 配置管理（容错：如果模块缺失，服务器仍可启动）
-try:
-	from packages.server.api.ai_custom import router as ai_custom_router
-	app.include_router(ai_custom_router, prefix="/api/v1/ai/custom-configs", tags=["自定义 AI 配置"])
-except ImportError:
-	import logging
-	logging.warning("⚠️ 自定义 AI 配置模块(ai_custom)未找到，跳过注册")
-
-# 报价生成
-from packages.server.api.quotes import router as quotes_router
-app.include_router(quotes_router, prefix="/api/v1/quotes", tags=["报价生成"])
-
-# AI 智能导入匹配
-from packages.server.api.ai_match import router as ai_match_router
-app.include_router(ai_match_router, prefix="/api/v1/quotes", tags=["报价生成"])
-
-# AI 智能辅助(parse-table / fill-fields / parse-project)
-from packages.server.api.ai_assist import router as ai_assist_router
-app.include_router(ai_assist_router, prefix="/api/v1/ai", tags=["AI 智能辅助"])
-
-# 知识库 RAG
-from packages.server.api.knowledge import router as knowledge_router
-app.include_router(knowledge_router, prefix="/api/v1/kb", tags=["知识库 RAG"])
+# ============================================================
+# 非核心路由 — 后台线程懒加载（启动后 ~0.5s 注册）
+# 包括: projects, chat, files, ai_config, ai_custom, quotes,
+#       ai_match, ai_assist, knowledge
+# 在 _register_lazy_routes() 中统一注册
+# ============================================================
 
 
 @app.get("/api/status")
 def api_status():
- """纯 API 信息端点"""
- from packages.server.utils.logger import LOG_DIR
- import platform
- return {
- "name": "工程助手 API",
- "version": "0.2.6",
- "system": f"{platform.system()} {platform.release()}",
- "python": sys.version.split()[0],
- "docs": "/docs",
- "redoc": "/redoc",
- "log_dir": str(LOG_DIR),
- "static_files": str(_static_dir()) if _static_dir().exists() else "未构建",
- }
+	 """纯 API 信息端点"""
+	 import platform
+	 return {
+	 "name": "工程助手 API",
+	 "version": "0.2.6",
+	 "system": f"{platform.system()} {platform.release()}",
+	 "python": sys.version.split()[0],
+	 "docs": "/docs",
+	 "redoc": "/redoc",
+	 }
 
 
 # ============================================================
