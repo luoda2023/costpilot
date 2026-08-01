@@ -44,7 +44,7 @@ CONFIG_PATH = _resolve_config_path()
 
 @dataclass
 class AIConfig:
-	provider: str = "deepseek"
+	provider: str = ""  # 留空 = 使用内置免费试用
 	base_url: str = ""
 	api_key: str = ""
 	model: str = ""
@@ -55,8 +55,9 @@ class AIConfig:
 	presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
 	# ============================================================
-	# 免费100次试用密钥（硬编码在程序里，config.yaml 丢了也能用）
-	# 用户如需覆盖，在 config.yaml 中填写自己的密钥即可
+	# 免费试用密钥（硬编码在程序里，config.yaml 不暴露）
+	# 用户留空 config.yaml 自动使用此内置默认
+	# 用户在 config.yaml 填写自己的密钥则自动覆盖
 	# ============================================================
 	_FREE_TRIAL = {
 		"base_url": "http://47.114.75.115:40000/v1",
@@ -64,11 +65,16 @@ class AIConfig:
 		"model": "hermesAPI",
 	}
 
+	def is_builtin(self) -> bool:
+		"""是否使用内置免费配置（config.yaml 中未填写具体参数）"""
+		return not bool(self.base_url) and not bool(self.api_key) and not bool(self.model)
+
 	def resolved(self) -> Dict[str, Any]:
 		"""合并预置值与显式覆盖,返回最终生效配置"""
 		preset = self.presets.get(self.provider, {})
+		provider = self.provider or "builtin"
 		return {
-			"provider": self.provider,
+			"provider": provider,
 			"base_url": self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"],
 			"api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "") or self._FREE_TRIAL["api_key"],
 			"model": self.model or preset.get("model", "") or self._FREE_TRIAL["model"],
@@ -104,7 +110,7 @@ class ServerConfig:
 
 @dataclass
 class ImageAIConfig:
-	provider: str = "openai"
+	provider: str = ""  # 留空 = 使用内置免费试用
 	base_url: str = ""
 	api_key: str = ""
 	model: str = ""
@@ -112,7 +118,7 @@ class ImageAIConfig:
 	presets: Dict[str, Dict[str, str]] = field(default_factory=dict)
 
 	# ============================================================
-	# 免费试用密钥（硬编码在程序里，config.yaml 丢了也能用）
+	# 免费试用密钥（硬编码在程序里，config.yaml 不暴露）
 	# ============================================================
 	_FREE_TRIAL = {
 		"base_url": "https://apihub.agnes-ai.com/v1",
@@ -120,15 +126,20 @@ class ImageAIConfig:
 		"model": "agnes-image-2.1-flash",
 	}
 
+	def is_builtin(self) -> bool:
+		"""是否使用内置免费配置"""
+		return not bool(self.base_url) and not bool(self.api_key) and not bool(self.model)
+
 	def resolved(self) -> Dict[str, Any]:
 		preset = self.presets.get(self.provider, {})
 		return {
-			"provider": self.provider,
+			"provider": self.provider or "builtin",
 			"base_url": self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"],
 			"api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "") or self._FREE_TRIAL["api_key"],
 			"model": self.model or preset.get("model", "") or self._FREE_TRIAL["model"],
 			"timeout": self.timeout,
 		}
+
 
 @dataclass
 class AppConfig:
@@ -161,7 +172,7 @@ def load_config() -> AppConfig:
 
 	cfg = AppConfig(
 		ai=AIConfig(
-			provider=raw.get("ai", {}).get("provider", "deepseek"),
+			provider=raw.get("ai", {}).get("provider", ""),
 			base_url=raw.get("ai", {}).get("base_url", ""),
 			api_key=raw.get("ai", {}).get("api_key", ""),
 			model=raw.get("ai", {}).get("model", ""),
@@ -172,7 +183,7 @@ def load_config() -> AppConfig:
 			presets=raw.get("ai", {}).get("presets", {}),
 		),
 		image_ai=ImageAIConfig(
-			provider=raw.get("image_ai", {}).get("provider", "openai"),
+			provider=raw.get("image_ai", {}).get("provider", ""),
 			base_url=raw.get("image_ai", {}).get("base_url", ""),
 			api_key=raw.get("image_ai", {}).get("api_key", ""),
 			model=raw.get("image_ai", {}).get("model", ""),

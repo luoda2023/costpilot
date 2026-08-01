@@ -6,27 +6,38 @@
 <el-col :span="16">
 <!-- 默认内置配置 -->
 <el-card shadow="never" class="setting-card">
-<template #header>
-<div class="card-header">
-<span class="card-title">⭐ 默认配置（内置免费试用）</span>
-<el-tag v-if="usage" :type="usage.text_remaining > 10 ? 'success' : (usage.text_remaining > 0 ? 'warning' : 'danger')" size="small">
-{{ usage.text_remaining }}/{{ usage.max_free_calls }} 次
-</el-tag>
-</div>
-</template>
-<el-descriptions :column="1" border size="small">
-<el-descriptions-item label="Model">{{ defaultConfig.model }}</el-descriptions-item>
-<el-descriptions-item label="Base URL">{{ defaultConfig.base_url }}</el-descriptions-item>
-<el-descriptions-item label="API Key">{{ defaultConfig.api_key_preview || '(内置)' }}</el-descriptions-item>
-<el-descriptions-item label="Temperature">{{ defaultConfig.temperature }}</el-descriptions-item>
-<el-descriptions-item label="Max Tokens">{{ defaultConfig.max_tokens }}</el-descriptions-item>
-</el-descriptions>
-<div class="card-actions">
-<el-button size="small" type="primary" @click="testConnection" :loading="testing">测试连接</el-button>
-<el-button size="small" @click="reloadYaml" :loading="reloading">刷新</el-button>
-</div>
-<el-alert v-if="testResult" :title="testResult.msg" :type="testResult.ok ? 'success' : 'error'" closable @close="testResult=null" style="margin-top:12px" />
-</el-card>
+		<template #header>
+			<div class="card-header">
+				<span class="card-title">⭐ 默认配置（系统内置）</span>
+				<el-tag v-if="usage" :type="usage.text_remaining > 10 ? 'success' : (usage.text_remaining > 0 ? 'warning' : 'danger')" size="small">
+					{{ usage.text_remaining }}/{{ usage.max_free_calls }} 次
+				</el-tag>
+			</div>
+		</template>
+		<div v-if="defaultConfig.is_builtin" class="builtin-info">
+			<el-result icon="success" title="系统内置 AI 已启用" sub-title="内置免费试用密钥，打开即用，无需配置">
+				<template #extra>
+					<el-button size="small" type="primary" @click="testConnection" :loading="testing">测试连接</el-button>
+					<el-button size="small" @click="reloadYaml" :loading="reloading">刷新</el-button>
+				</template>
+			</el-result>
+		</div>
+		<div v-else>
+			<el-descriptions :column="1" border size="small">
+				<el-descriptions-item label="Provider">{{ defaultConfig.provider }}</el-descriptions-item>
+				<el-descriptions-item label="Base URL">{{ defaultConfig.base_url }}</el-descriptions-item>
+				<el-descriptions-item label="Model">{{ defaultConfig.model }}</el-descriptions-item>
+				<el-descriptions-item label="API Key">{{ defaultConfig.api_key_preview }}</el-descriptions-item>
+				<el-descriptions-item label="Temperature">{{ defaultConfig.temperature }}</el-descriptions-item>
+				<el-descriptions-item label="Max Tokens">{{ defaultConfig.max_tokens }}</el-descriptions-item>
+			</el-descriptions>
+			<div class="card-actions">
+				<el-button size="small" type="primary" @click="testConnection" :loading="testing">测试连接</el-button>
+				<el-button size="small" @click="reloadYaml" :loading="reloading">刷新</el-button>
+			</div>
+		</div>
+		<el-alert v-if="testResult" :title="testResult.msg" :type="testResult.ok ? 'success' : 'error'" closable @close="testResult=null" style="margin-top:12px" />
+	</el-card>
 
 <!-- 自定义配置列表 -->
 <el-card shadow="never" class="setting-card">
@@ -70,66 +81,76 @@
 </el-card>
 
 <el-card shadow="never" class="setting-card">
-<template #header><span class="card-title">说明</span></template>
-<ul class="notes">
-<li>默认配置内置了免费试用密钥，可直接使用</li>
-<li>免费试用限制 <strong>100 次</strong>，用完请添加自己的 API Key</li>
-<li>点击「+ 新增」可添加任意 OpenAI 兼容的 AI 服务</li>
-<li>API Key 保存后不回显，修改需重新输入</li>
-</ul>
-</el-card>
+		<template #header><span class="card-title">说明</span></template>
+		<ul class="notes">
+			<li>系统内置免费试用密钥，打开即用，无需配置</li>
+			<li>免费试用限制 <strong>100 次</strong>，用完请添加自定义配置</li>
+			<li>点击「+ 新增」可添加任意 OpenAI 兼容的 AI 服务</li>
+			<li>API Key 保存后不回显，修改需重新输入</li>
+		</ul>
+	</el-card>
 </el-col>
 </el-row>
 </el-tab-pane>
 
 <el-tab-pane label="🎨 图片 AI" name="image">
-<el-row :gutter="20">
-<el-col :span="14">
-<el-card shadow="never" class="setting-card">
-<template #header><span class="card-title">图片 AI 服务配置</span></template>
-<el-form :model="imageForm" label-width="100" size="default">
-<el-form-item label="Base URL">
-<el-input v-model="imageForm.base_url" placeholder="https://api.openai.com/v1" v-auto-halfwidth />
-</el-form-item>
-<el-form-item label="API Key">
-<el-input v-model="imageForm.api_key" type="password" show-password placeholder="sk-..." v-auto-halfwidth />
-</el-form-item>
-<el-form-item label="Model">
-<el-input v-model="imageForm.model" placeholder="dall-e-3" v-auto-halfwidth />
-</el-form-item>
-<el-form-item label="Timeout">
-<el-input-number v-model="imageForm.timeout" :min="30" :max="300" :step="10" style="width:100%" />
-</el-form-item>
-<el-form-item>
-<div class="form-actions">
-<el-button type="primary" @click="applyImageChange" :loading="applyingImage">保存配置</el-button>
-</div>
-</el-form-item>
-</el-form>
-</el-card>
-</el-col>
+	<el-row :gutter="20">
+		<el-col :span="14">
+			<el-card shadow="never" class="setting-card">
+				<template #header><span class="card-title">图片 AI 服务配置</span></template>
+				<div v-if="imageCurrent.is_builtin" class="builtin-info">
+					<el-result icon="success" title="内置图片 AI 已启用" sub-title="系统内置免费密钥，打开即用，无需配置">
+						<template #extra>
+							<el-button size="small" type="primary" @click="applyImageChange" :loading="applyingImage">保存配置</el-button>
+						</template>
+					</el-result>
+				</div>
+				<el-form v-else :model="imageForm" label-width="100" size="default">
+					<el-form-item label="Base URL">
+						<el-input v-model="imageForm.base_url" placeholder="https://api.openai.com/v1" v-auto-halfwidth />
+					</el-form-item>
+					<el-form-item label="API Key">
+						<el-input v-model="imageForm.api_key" type="password" show-password placeholder="sk-..." v-auto-halfwidth />
+					</el-form-item>
+					<el-form-item label="Model">
+						<el-input v-model="imageForm.model" placeholder="dall-e-3" v-auto-halfwidth />
+					</el-form-item>
+					<el-form-item label="Timeout">
+						<el-input-number v-model="imageForm.timeout" :min="30" :max="300" :step="10" style="width:100%" />
+					</el-form-item>
+					<el-form-item>
+						<div class="form-actions">
+							<el-button type="primary" @click="applyImageChange" :loading="applyingImage">保存配置</el-button>
+						</div>
+					</el-form-item>
+				</el-form>
+			</el-card>
+		</el-col>
 
-<el-col :span="10">
-<el-card shadow="never" class="setting-card">
-<template #header><span class="card-title">当前图片 AI 配置</span></template>
-<el-descriptions :column="1" border size="small">
-<el-descriptions-item label="base_url">{{ imageCurrent.base_url }}</el-descriptions-item>
-<el-descriptions-item label="model">{{ imageCurrent.model }}</el-descriptions-item>
-<el-descriptions-item label="api_key">{{ imageCurrent.api_key_preview || '(未设置)' }}</el-descriptions-item>
-<el-descriptions-item label="timeout">{{ imageCurrent.timeout }}s</el-descriptions-item>
-</el-descriptions>
-</el-card>
+		<el-col :span="10">
+			<el-card shadow="never" class="setting-card">
+				<template #header><span class="card-title">当前图片 AI 配置</span></template>
+				<div v-if="imageCurrent.is_builtin" class="builtin-info">
+					<el-result icon="success" title="系统内置" />
+				</div>
+				<el-descriptions v-else :column="1" border size="small">
+					<el-descriptions-item label="base_url">{{ imageCurrent.base_url }}</el-descriptions-item>
+					<el-descriptions-item label="model">{{ imageCurrent.model }}</el-descriptions-item>
+					<el-descriptions-item label="api_key">{{ imageCurrent.api_key_preview || '(未设置)' }}</el-descriptions-item>
+					<el-descriptions-item label="timeout">{{ imageCurrent.timeout }}s</el-descriptions-item>
+				</el-descriptions>
+			</el-card>
 
-<el-card shadow="never" class="setting-card">
-<template #header><span class="card-title">图片 AI 说明</span></template>
-<ul class="notes">
-<li>图片 AI 用于在文档生成中生成配图</li>
-<li>支持 OpenAI DALL-E 3 / 通义万相 / 智谱 CogView 等</li>
-<li>需在对应平台申请 API Key</li>
-</ul>
-</el-card>
-</el-col>
-</el-row>
+			<el-card shadow="never" class="setting-card">
+				<template #header><span class="card-title">图片 AI 说明</span></template>
+				<ul class="notes">
+					<li>图片 AI 用于在文档生成中生成配图</li>
+					<li>系统内置免费密钥，可直接使用</li>
+					<li>如需用自己的 API Key，在 config.yaml 中填写即可</li>
+				</ul>
+			</el-card>
+		</el-col>
+	</el-row>
 </el-tab-pane>
 </el-tabs>
 
@@ -370,8 +391,8 @@ margin-bottom: 8px;
 transition: all 0.2s;
 }
 .custom-config-item:hover {
-border-color: var(--brand-500);
-background: #f8faff;
+	border-color: var(--brand-500);
+	background: #f8faff;
 }
 .config-info { flex: 1; min-width: 0; }
 .config-model { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
@@ -379,4 +400,7 @@ background: #f8faff;
 .config-url { font-size: 12px; color: #999; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .config-key { font-size: 12px; color: #bbb; }
 .config-actions { display: flex; gap: 4px; margin-left: 12px; flex-shrink: 0; }
+
+.builtin-info { text-align: center; padding: 8px 0; }
+.builtin-info .el-result { padding: 16px 0; }
 </style>

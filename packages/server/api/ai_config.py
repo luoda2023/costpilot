@@ -19,24 +19,28 @@ from packages.server.ai.client import get_ai_client, reset_ai_client, AIClientEr
 
 router = APIRouter()
 
+
 class AIConfigOut(BaseModel):
- provider: str
- base_url: str
- model: str
- temperature: float
- max_tokens: int
- timeout: int
- api_key_set: bool
- api_key_preview: str
- lobechat_url: str = "http://localhost:3210"
+	provider: str
+	base_url: str
+	model: str
+	temperature: float
+	max_tokens: int
+	timeout: int
+	api_key_set: bool
+	api_key_preview: str
+	lobechat_url: str = "http://localhost:3210"
+	is_builtin: bool = False  # 是否使用内置免费配置
+
 
 class ImageAIConfigOut(BaseModel):
- provider: str
- base_url: str
- model: str
- timeout: int
- api_key_set: bool
- api_key_preview: str
+	provider: str
+	base_url: str
+	model: str
+	timeout: int
+	api_key_set: bool
+	api_key_preview: str
+	is_builtin: bool = False  # 是否使用内置免费配置
 
 class SwitchIn(BaseModel):
  provider: Optional[str] = None
@@ -74,34 +78,41 @@ def _write_yaml_section(raw: dict, section: str, data: dict):
 
 @router.get("/config", response_model=AIConfigOut)
 def get_ai_config():
- """查看当前 AI 配置(api_key 脱敏)"""
- cfg = get_config().ai.resolved()
- key = cfg["api_key"]
- return AIConfigOut(
-  provider=cfg["provider"],
-  base_url=cfg["base_url"],
-  model=cfg["model"],
-  temperature=cfg["temperature"],
-  max_tokens=cfg["max_tokens"],
-  timeout=cfg["timeout"],
-  api_key_set=bool(key),
-  api_key_preview=_mask_key(key),
-  lobechat_url=cfg.get("lobechat_url", "http://localhost:3210"),
- )
+	"""查看当前 AI 配置(api_key 脱敏，内置模式隐藏参数)"""
+	cfg = get_config()
+	raw = cfg.ai.resolved()
+	is_builtin = cfg.ai.is_builtin()
+	key = raw["api_key"]
+	return AIConfigOut(
+		provider=raw["provider"],
+		# 内置模式不暴露具体参数
+		base_url="(系统内置)" if is_builtin else raw["base_url"],
+		model="(系统内置)" if is_builtin else raw["model"],
+		temperature=raw["temperature"],
+		max_tokens=raw["max_tokens"],
+		timeout=raw["timeout"],
+		api_key_set=bool(key),
+		api_key_preview="(系统内置)" if is_builtin else _mask_key(key),
+		lobechat_url=raw.get("lobechat_url", "http://localhost:3210"),
+		is_builtin=is_builtin,
+	)
 
 @router.get("/image-config", response_model=ImageAIConfigOut)
 def get_image_ai_config():
- """查看图片 AI 配置"""
- cfg = get_config().image_ai.resolved()
- key = cfg["api_key"]
- return ImageAIConfigOut(
-  provider=cfg["provider"],
-  base_url=cfg["base_url"],
-  model=cfg["model"],
-  timeout=cfg["timeout"],
-  api_key_set=bool(key),
-  api_key_preview=_mask_key(key),
- )
+	"""查看图片 AI 配置（内置模式隐藏参数）"""
+	cfg = get_config()
+	is_builtin = cfg.image_ai.is_builtin()
+	raw = cfg.image_ai.resolved()
+	key = raw["api_key"]
+	return ImageAIConfigOut(
+		provider=raw["provider"],
+		base_url="(系统内置)" if is_builtin else raw["base_url"],
+		model="(系统内置)" if is_builtin else raw["model"],
+		timeout=raw["timeout"],
+		api_key_set=bool(key),
+		api_key_preview="(系统内置)" if is_builtin else _mask_key(key),
+		is_builtin=is_builtin,
+	)
 
 @router.get("/providers")
 def list_providers():
