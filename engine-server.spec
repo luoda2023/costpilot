@@ -19,8 +19,10 @@ hidden_imports += collect_submodules('openpyxl')
 hidden_imports += collect_submodules('docx')
 hidden_imports += collect_submodules('uvicorn')
 hidden_imports += ['uvicorn.logging', 'uvicorn.loops', 'uvicorn.loops.auto',
-                  'uvicorn.protocols', 'uvicorn.protocols.http.auto',
-                  'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan.on']
+ 'uvicorn.protocols', 'uvicorn.protocols.http.auto',
+ 'uvicorn.protocols.websockets.auto', 'uvicorn.lifespan.on']
+# 新增模块(客户端内动态导入, PyInstaller 可能扫描不到)
+hidden_imports += ['packages.server.ai.usage_tracker', 'packages.server.api.ai_custom']
 
 datas = []
 datas += collect_data_files('alembic')

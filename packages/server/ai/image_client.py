@@ -20,6 +20,13 @@ from urllib3.util.retry import Retry
 from typing import Optional, Dict, Any
 from packages.server.config import get_config
 
+# 使用次数跟踪（允许导入失败——PyInstaller 打包时可能缺失）
+try:
+	from packages.server.ai.usage_tracker import UsageTracker as _UsageTracker
+	_image_usage_tracker = _UsageTracker()
+except ImportError:
+	_image_usage_tracker = None
+
 
 class ImageClientError(Exception):
 	"""图片 AI 调用异常"""
@@ -81,11 +88,10 @@ class ImageClient:
 		{"url": str, "revised_prompt": str, "b64_json": str | None}
 		"""
 		# 检查免费试用次数
-		from packages.server.ai.usage_tracker import UsageTracker
-		tracker = UsageTracker()
-		ok, msg, remaining = tracker.check_and_increment(self.api_key, "image")
-		if not ok:
-			raise ImageClientError(msg)
+		if _image_usage_tracker is not None:
+			ok, msg, remaining = _image_usage_tracker.check_and_increment(self.api_key, "image")
+			if not ok:
+				raise ImageClientError(msg)
 		
 		method_name = f"_generate_{self.provider}"
 		method = getattr(self, method_name, None)

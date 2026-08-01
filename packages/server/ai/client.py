@@ -20,6 +20,13 @@ from urllib3.util.retry import Retry
 
 from packages.server.config import get_config
 
+# 使用次数跟踪（允许导入失败——PyInstaller 打包时可能缺失）
+try:
+	from packages.server.ai.usage_tracker import UsageTracker as _UsageTracker
+	_usage_tracker = _UsageTracker()
+except ImportError:
+	_usage_tracker = None
+
 
 def _create_session(timeout: int = 120) -> requests.Session:
 	"""创建带连接池和重试机制的 Session（复用 TCP 连接，减少资源消耗）"""
@@ -117,11 +124,12 @@ class AIClient:
 		}
 		"""
 		# 检查免费试用次数
-		from packages.server.ai.usage_tracker import UsageTracker
-		tracker = UsageTracker()
-		ok, msg, remaining = tracker.check_and_increment(self.api_key, "text")
-		if not ok:
-			raise AIClientError(msg)
+		if _usage_tracker is not None:
+			ok, msg, remaining = _usage_tracker.check_and_increment(self.api_key, "text")
+			if not ok:
+				raise AIClientError(msg)
+		else:
+			remaining = 9999
 		
 		url = self._endpoint()
 		headers = self._headers()
@@ -173,11 +181,10 @@ class AIClient:
 		print(chunk, end="", flush=True)
 		"""
 		# 检查免费试用次数（流式调用也计数）
-		from packages.server.ai.usage_tracker import UsageTracker
-		tracker = UsageTracker()
-		ok, msg, remaining = tracker.check_and_increment(self.api_key, "text")
-		if not ok:
-			raise AIClientError(msg)
+		if _usage_tracker is not None:
+			ok, msg, remaining = _usage_tracker.check_and_increment(self.api_key, "text")
+			if not ok:
+				raise AIClientError(msg)
 		
 		url = self._endpoint()
 		headers = self._headers()
