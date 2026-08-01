@@ -191,12 +191,24 @@ export const DocGenAPI = {
 }
 
 export const ImageGenAPI = {
-  generate: (data) => api.post('/ai/generate-image', data),
-  imageToImage: (formData) => api.post('/ai/image-to-image', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000,
-  }),
+ generate: (data) => api.post('/ai/generate-image', data),
+ imageToImage: (formData) => api.post('/ai/image-to-image', formData, {
+ headers: { 'Content-Type': 'multipart/form-data' },
+ timeout: 120000,
+ }),
+}
+
+export const UsageAPI = {
+ get: () => api.get('/ai/usage'),
+}
+
+export const CustomAIConfigAPI = {
+ list: () => api.get('/ai/custom-configs'),
+ create: (data) => api.post('/ai/custom-configs', data),
+ update: (id, data) => api.put(`/ai/custom-configs/${id}`, data),
+ delete: (id) => api.delete(`/ai/custom-configs/${id}`),
+ apply: (id) => api.post(`/ai/custom-configs/${id}/apply`),
 }
 
 // 兼容 main.js 中所引用的 'api'
-export default { http, api, PricesAPI, FeesAPI, TemplatesAPI, ProjectsAPI, ChatAPI, DocGenAPI, ImageGenAPI, isBackendOnline }
+export default { http, api, PricesAPI, FeesAPI, TemplatesAPI, ProjectsAPI, ChatAPI, DocGenAPI, ImageGenAPI, UsageAPI, CustomAIConfigAPI, isBackendOnline }

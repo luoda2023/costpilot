@@ -185,3 +185,10 @@ def reload_yaml():
  reload_config()
  reset_ai_client()
  return {"ok": True, "msg": "配置已重新加载"}
+
+@router.get("/usage")
+def get_ai_usage():
+ """获取 AI 使用情况（免费试用剩余次数）"""
+ from packages.server.ai.usage_tracker import UsageTracker
+ tracker = UsageTracker()
+ return tracker.get_usage()

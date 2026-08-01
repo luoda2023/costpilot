@@ -181,32 +181,22 @@ async function checkHealth() {
 }
 
 onMounted(async () => {
- // 1. 先等待后端服务就绪（最多约 15 秒，每次 fetch 带 2 秒超时）
- let backendReady = false
- for (let i = 0; i < 15; i++) {
- const r = await checkHealth()
- if (r?.ok) {
+	 // 1. 先等待后端服务就绪（最多约 15 秒，每次 fetch 带 2 秒超时）
+	 let backendReady = false
+	 for (let i = 0; i < 15; i++) {
+	 const r = await checkHealth()
+	 if (r?.ok) {
  backendReady = true
  break
  }
  await new Promise(r => setTimeout(r, 1000))
  }
 
- // 2. 后端就绪后再检查 AI 配置
- if (backendReady) {
- try {
- const r = await api.get('/ai/config')
- aiConfigured.value = r?.api_key_set === true
- } catch {
- aiConfigured.value = false
- }
- } else {
- // 后端未就绪 -> 不弹配置向导，直接放行（使用内置免费密钥）
- aiConfigured.value = true
- }
+	 // 2. 内置默认配置直接可用，不再阻塞
+	 aiConfigured.value = true
 
- // 3. 启动健康检查轮询
- healthCheckTimer.value = setInterval(checkHealth, 30000)
+	 // 3. 启动健康检查轮询
+	 healthCheckTimer.value = setInterval(checkHealth, 30000)
 })
 
 onUnmounted(() => {
