@@ -39,4 +39,4 @@ logs/*.log
 fix_*.py
 check_*.py
 *.db
-release-artifacts/
+release-artifacts/usage.json
