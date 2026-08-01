@@ -134,9 +134,13 @@ app.include_router(files_preview_router, prefix="/api/v1/preview", tags=["文件
 from packages.server.api.ai_config import router as ai_config_router
 app.include_router(ai_config_router, prefix="/api/v1/ai", tags=["AI 配置"])
 
-# 自定义 AI 配置管理
-from packages.server.api.ai_custom import router as ai_custom_router
-app.include_router(ai_custom_router, prefix="/api/v1/ai/custom-configs", tags=["自定义 AI 配置"])
+# 自定义 AI 配置管理（容错：如果模块缺失，服务器仍可启动）
+try:
+	from packages.server.api.ai_custom import router as ai_custom_router
+	app.include_router(ai_custom_router, prefix="/api/v1/ai/custom-configs", tags=["自定义 AI 配置"])
+except ImportError:
+	import logging
+	logging.warning("⚠️ 自定义 AI 配置模块(ai_custom)未找到，跳过注册")
 
 # 报价生成
 from packages.server.api.quotes import router as quotes_router
