@@ -55,13 +55,13 @@ def _create_session(timeout: int = 120) -> requests.Session:
 class ImageClient:
 	"""
 	统一图片生成客户端
-	
+
 	支持三种后端:
 	- openai: 标准 OpenAI /v1/images/generations
 	- qwen: 阿里云通义万相
 	- zhipu: 智谱 CogView
 	"""
-	
+
 	def __init__(self, **overrides):
 		cfg = get_config().image_ai.resolved()
 		self.provider = overrides.get("provider", cfg["provider"])
@@ -70,20 +70,20 @@ class ImageClient:
 		self.model = overrides.get("model", cfg["model"])
 		self.timeout = overrides.get("timeout", cfg["timeout"])
 		self._session = _create_session(self.timeout)
-		
+
 		if not self.api_key:
 			raise ImageClientError(
 				f"图片 AI api_key 未配置。请在系统设置-图片AI中配置 {self.provider} 的密钥。"
 			)
-	
+
 	def generate(self, prompt: str, size: str = "1024x1024") -> Dict[str, Any]:
 		"""
 		生成图片
-		
+
 		参数:
 		prompt: 图片描述
 		size: 图片尺寸 (1024x1024 / 1024x1792 等)
-		
+
 		返回:
 		{"url": str, "revised_prompt": str, "b64_json": str | None}
 		"""
@@ -92,17 +92,22 @@ class ImageClient:
 			ok, msg, remaining = _image_usage_tracker.check_and_increment(self.api_key, "image")
 			if not ok:
 				raise ImageClientError(msg)
-		
-		method_name = f"_generate_{self.provider}"
+
+		# provider=builtin 时使用 OpenAI 兼容调用
+		provider = self.provider
+		if provider in ("builtin", ""):
+			provider = "openai"
+
+		method_name = f"_generate_{provider}"
 		method = getattr(self, method_name, None)
 		if not method:
-			raise ImageClientError(f"不支持的图片 AI provider: {self.provider}")
+			raise ImageClientError(f"不支持的图片 AI provider: {provider}")
 		return method(prompt, size)
-	
+
 	# -----------------------------------------------------------------------
 	# OpenAI DALL-E 3
 	# -----------------------------------------------------------------------
-	
+
 	def _generate_openai(self, prompt: str, size: str) -> Dict[str, Any]:
 		url = (self.base_url.rstrip("/") + "/images/generations")
 		headers = {
@@ -119,10 +124,10 @@ class ImageClient:
 			r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
 		except requests.RequestException as e:
 			raise ImageClientError(f"图片 AI HTTP 请求失败: {e}") from e
-		
+
 		if r.status_code != 200:
 			raise ImageClientError(f"图片 AI 调用失败 [{r.status_code}]: {r.text[:500]}")
-		
+
 		data = r.json()
 		img_data = data["data"][0]
 		return {
@@ -130,11 +135,11 @@ class ImageClient:
 			"b64_json": img_data.get("b64_json"),
 			"revised_prompt": img_data.get("revised_prompt", prompt),
 		}
-	
+
 	# -----------------------------------------------------------------------
 	# 阿里云通义万相
 	# -----------------------------------------------------------------------
-	
+
 	def _generate_qwen(self, prompt: str, size: str) -> Dict[str, Any]:
 		url = (self.base_url.rstrip("/") + "/api/v1/services/aigc/text2image/image-synthesis")
 		headers = {
@@ -158,16 +163,16 @@ class ImageClient:
 			r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
 		except requests.RequestException as e:
 			raise ImageClientError(f"通义万相 HTTP 请求失败: {e}") from e
-		
+
 		if r.status_code != 200:
 			raise ImageClientError(f"通义万相调用失败 [{r.status_code}]: {r.text[:500]}")
-		
+
 		data = r.json()
 		task_id = data.get("output", {}).get("task_id")
 		if task_id:
 			return self._poll_qwen(task_id, headers)
 		return {"url": None, "b64_json": None, "revised_prompt": prompt}
-	
+
 	def _poll_qwen(self, task_id: str, headers: dict, max_retries: int = 30) -> Dict[str, Any]:
 		"""轮询通义万相异步任务"""
 		import time
@@ -191,11 +196,11 @@ class ImageClient:
 			except requests.RequestException:
 				time.sleep(2)
 		return {"url": None, "b64_json": None, "revised_prompt": ""}
-	
+
 	# -----------------------------------------------------------------------
 	# 智谱 CogView
 	# -----------------------------------------------------------------------
-	
+
 	def _generate_zhipu(self, prompt: str, size: str) -> Dict[str, Any]:
 		url = (self.base_url.rstrip("/") + "/images/generations")
 		headers = {
@@ -212,10 +217,10 @@ class ImageClient:
 			r = self._session.post(url, json=payload, headers=headers, timeout=self.timeout)
 		except requests.RequestException as e:
 			raise ImageClientError(f"智谱 CogView HTTP 请求失败: {e}") from e
-		
+
 		if r.status_code != 200:
 			raise ImageClientError(f"智谱 CogView 调用失败 [{r.status_code}]: {r.text[:500]}")
-		
+
 		data = r.json()
 		img_data = data["data"][0]
 		return {
