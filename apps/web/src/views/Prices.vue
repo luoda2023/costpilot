@@ -135,6 +135,7 @@ const fileInputRef = ref(null)
 	const page = ref(1)
 	const pageSize = ref(200)
 	const total = ref(0)
+	const isSearchMode = ref(false)  // 当前是搜索模式还是列表模式
 	
 	/** 搜索防抖：用户停止输入 300ms 后自动搜索 */
 	function onKeywordInput() {
@@ -142,47 +143,55 @@ const fileInputRef = ref(null)
  searchTimer.value = setTimeout(() => doSearch(), 300)
 	}
 	
-	async function doSearch() {
- if (!keyword.value.trim() && !filterSpecialty.value && !filterUnit.value) { return loadList() }
+	async function fetchData(offset = 0) {
  loading.value = true
- page.value = 1
  try {
- const res = await PricesAPI.search(keyword.value.trim(), filterSpecialty.value || undefined, filterUnit.value || undefined)
- results.value = Array.isArray(res) ? res : (res.items || [])
- total.value = Array.isArray(res) ? res.length : (res.total || 0)
+ let res
+ if (isSearchMode.value && keyword.value.trim()) {
+ res = await PricesAPI.search(
+ keyword.value.trim(),
+ filterSpecialty.value || undefined,
+ filterUnit.value || undefined,
+ pageSize.value,
+ offset
+ )
+ } else {
+ res = await PricesAPI.list({
+ limit: pageSize.value,
+ offset,
+ specialty: filterSpecialty.value || undefined,
+ unit: filterUnit.value || undefined,
+ })
  }
- catch { ElMessage.warning('查询失败，请稍后重试'); results.value = []; total.value = 0 }
+ results.value = res.items || []
+ total.value = res.total || 0
+ } catch { ElMessage.warning('加载失败，请稍后重试'); results.value = []; total.value = 0 }
  finally { loading.value = false }
 	}
 	
-	async function loadList() {
- loading.value = true
+	async function doSearch() {
+ if (!keyword.value.trim() && !filterSpecialty.value && !filterUnit.value) { return loadList() }
+ isSearchMode.value = true
  page.value = 1
- try {
- const res = await PricesAPI.list({ limit: pageSize.value, specialty: filterSpecialty.value || undefined, unit: filterUnit.value || undefined })
- results.value = res.items || []
- total.value = res.total || 0
- }
- catch { ElMessage.warning('加载失败，请稍后重试'); results.value = []; total.value = 0 }
- finally { loading.value = false }
+ await fetchData(0)
+	}
+	
+	async function loadList() {
+ isSearchMode.value = false
+ page.value = 1
+ await fetchData(0)
 	}
 	
 	async function onPageChange(newPage) {
  page.value = newPage
- loading.value = true
- try {
  const offset = (newPage - 1) * pageSize.value
- const res = await PricesAPI.list({ limit: pageSize.value, offset, specialty: filterSpecialty.value || undefined, unit: filterUnit.value || undefined })
- results.value = res.items || []
- total.value = res.total || 0
- } catch { ElMessage.warning('加载失败'); results.value = [] }
- finally { loading.value = false }
+ await fetchData(offset)
 	}
 	
 	async function onPageSizeChange(newSize) {
  pageSize.value = newSize
  page.value = 1
- await loadList()
+ await fetchData(0)
 	}
 
 async function loadTopics() {

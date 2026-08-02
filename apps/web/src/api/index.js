@@ -152,11 +152,11 @@ export const PricesAPI = {
   stats: () => api.get('/prices/stats'),
   specialties: () => api.get('/prices/specialties'),
   list: (params = {}) => api.get('/prices', { params }),
-  search: (q, specialty, unit, limit = 20) => {
-    const params = { q, limit }
-    if (specialty) params.specialty = specialty
-    if (unit) params.unit = unit
-    return api.get('/prices/search', { params })
+search: (q, specialty, unit, limit = 200, offset = 0) => {
+ const params = { q, limit, offset }
+ if (specialty) params.specialty = specialty
+ if (unit) params.unit = unit
+ return api.get('/prices/search', { params })
   },
   topics: (topic) => api.get('/prices/topics' + (topic ? `?topic=${encodeURIComponent(topic)}` : '')),
 }

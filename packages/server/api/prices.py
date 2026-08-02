@@ -142,38 +142,49 @@ def list_prices(
 	)
 
 
-@router.get("/search", response_model=List[PriceUnitOut])
+@router.get("/search", response_model=PriceListOut)
 def search_prices(
-    q: str = Query(..., min_length=1, description="项目名关键词"),
-    limit: int = Query(20, le=100),
-    db: Session = Depends(get_db),
+	q: str = Query(..., min_length=1, description="项目名关键词"),
+	specialty: Optional[str] = None,
+	unit: Optional[str] = None,
+	limit: int = Query(200, le=2000),
+	offset: int = 0,
+	db: Session = Depends(get_db),
 ):
-    """模糊搜索价格(SQL LIKE)
-
-    MVP 阶段用 LIKE;后续 M2 升级为 FTS5 全文索引
-    """
-    # 全角→半角转换, 避免全角字符搜索不到
-    q = to_half_width(q)
-    pattern = f"%{q}%"
-    query = (
-        db.query(PriceUnit, Specialty.name)
-        .join(Specialty, PriceUnit.specialty_id == Specialty.id)
-        .filter(or_(
-            PriceUnit.item_name.like(pattern),
-            PriceUnit.remark.like(pattern),
-            PriceUnit.source_file.like(pattern),
-        ))
-        .order_by(PriceUnit.id)
-        .limit(limit)
-    )
-    results = []
-    for pu, spec_name in query.all():
-        results.append(PriceUnitOut(
-            id=pu.id, specialty=spec_name, item_name=pu.item_name,
-            unit=pu.unit, price=pu.price, region=pu.region,
-            calc_rule=pu.calc_rule, remark=pu.remark, source_file=pu.source_file,
-        ))
-    return results
+	"""模糊搜索价格(支持分页和筛选)"""
+	# 全角→半角转换, 避免全角字符搜索不到
+	q = to_half_width(q)
+	pattern = f"%{q}%"
+	query = (
+		db.query(PriceUnit, Specialty.name)
+		.join(Specialty, PriceUnit.specialty_id == Specialty.id)
+		.filter(or_(
+			PriceUnit.item_name.like(pattern),
+			PriceUnit.remark.like(pattern),
+			PriceUnit.source_file.like(pattern),
+		))
+	)
+	if specialty:
+		query = query.filter(Specialty.name == specialty)
+	if unit:
+		query = query.filter(PriceUnit.unit == unit)
+	# 先算总条数
+	total = query.count()
+	# 再分页取数据
+	query = query.order_by(PriceUnit.id).offset(offset).limit(limit)
+	results = []
+	for pu, spec_name in query.all():
+		results.append(PriceUnitOut(
+			id=pu.id, specialty=spec_name, item_name=pu.item_name,
+			unit=pu.unit, price=pu.price, region=pu.region,
+			calc_rule=pu.calc_rule, remark=pu.remark, source_file=pu.source_file,
+		))
+	return PriceListOut(
+		items=results,
+		total=total,
+		page=offset // limit + 1 if limit > 0 else 1,
+		page_size=limit,
+	)
 
 
 @router.get("/topics", response_model=List[TopicPriceOut])
