@@ -42,3 +42,4 @@ check_*.py
 release-artifacts/usage.json
 logs/
 usage.json
+custom_ai_configs.json
