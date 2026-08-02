@@ -5,7 +5,7 @@
 <div class="sidebar-brand">
       <img src="/icon.png" class="brand-icon-img" alt="工程助手" />
       <div class="brand-text">
-        <span class="brand-name">工程助手</span>
+        <span class="brand-name">工程助手 你不能不动</span>
         <span class="brand-sub">Engineering AI</span>
       </div>
     </div>
