@@ -173,175 +173,176 @@ def parse_table(payload: ParseTableIn):
 
 @router.post("/import-excel")
 async def import_excel(file: UploadFile = File(...)):
-  """
-  AI 读取上传的 Excel 文件,理解全部数据后返回结构化字段
+    """
+    AI 读取上传的 Excel 文件,理解全部数据后返回结构化字段
 
-  流程:
-  1. 接收用户上传的 Excel/CSV 文件
-  2. 用 openpyxl 完整读取全部行
-  3. 本地规则解析表头列映射(优先，快速准确)
-  4. 本地无法识别的列交给 AI 补充
-  5. 返回结构化 JSON 数组
-  """
-  ALLOWED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
-  MAX_FILE_SIZE = 10 * 1024 * 1024
-  MAX_ROWS = 500
-  filename = file.filename or 'file.xlsx'
-  ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-  if ext not in ALLOWED_EXTENSIONS:
-    raise HTTPException(400, f"不支持的文件格式: {ext}，请上传 .xlsx / .xls / .csv 文件")
+    流程:
+    1. 接收用户上传的 Excel/CSV 文件
+    2. 用 openpyxl 完整读取全部行
+    3. 本地规则解析表头列映射(优先，快速准确)
+    4. 本地无法识别的列交给 AI 补充
+    5. 返回结构化 JSON 数组
+    """
+    ALLOWED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    MAX_ROWS = 500
+    filename = file.filename or 'file.xlsx'
+    ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(400, f"不支持的文件格式: {ext}，请上传 .xlsx / .xls / .csv 文件")
 
-  try:
-    raw = await file.read()
-    if len(raw) > MAX_FILE_SIZE:
-      raise HTTPException(413, "文件过大，请上传 10MB 以内的文件")
-  except HTTPException:
-    raise
-  except Exception as e:
-    logger.error("import-excel 文件读取失败: %s", e, exc_info=True)
-    raise HTTPException(400, "文件读取失败，请检查文件是否损坏")
-
-  # --- 读取表格 ---
-  table_rows = []
-  try:
-    if ext == '.csv':
-      import csv
-      content = raw.decode('utf-8-sig', errors='replace')
-      reader = csv.reader(io.StringIO(content))
-      for row in reader:
-        table_rows.append(row)
-    else:
-      wb = openpyxl_load_workbook(raw)
-      ws = wb.active
-      for row in ws.iter_rows(values_only=True):
-        table_rows.append([str(v) if v is not None else '' for v in row])
-  except Exception as e:
-    logger.error("import-excel openpyxl 解析失败: %s", e, exc_info=True)
-    raise HTTPException(422, "Excel 解析失败，请确保文件内容为有效表格格式")
-
-  if len(table_rows) < 2:
-    raise HTTPException(400, "文件内容不足，需要至少包含表头和一行数据")
-
-  # --- Step 1: 本地规则解析表头列映射 ---
-  headers = table_rows[0]
-  data_rows = table_rows[1:]
-
-  # 列名关键词映射表
-  COLUMN_RULES = {
-    'item_name': ['项目名称', '项目名', '材料名称', '材料名', '名称', '清单项目', '项目', '名称规格', '分部分项', '项目特征', '名称及规格', '构件名称', '部位名称'],
-    'qty': ['工程量', '数量', '工程量(m)', '工程量(m2)', '工程量(m3)', '合计数量', '设计数量', '清单工程量', '实算工程量', '单位工程量'],
-    'unit': ['单位', '计量单位', '单位(m3)', '单位(m2)', '单位(m)', '单位(t)', '单位(个)'],
-    'price': ['单价', '综合单价', '预算单价', '信息价', '市场价', '参考价', '合价'],
-    'specialty': ['专业', '专业类别', '工程类别', '专业分类', '分部工程'],
-    'remark': ['备注', '说明', '注释', '描述'],
-  }
-
-  def _match_column(header: str) -> str | None:
-    """根据列名匹配目标字段"""
-    h = header.strip().lower()
-    h_no_space = re.sub(r'[\s\-_/（(）)]', '', h)
-    for field, keywords in COLUMN_RULES.items():
-      for kw in keywords:
-        kw_clean = re.sub(r'[\s\-_/（(）)]', '', kw.lower())
-        if kw_clean in h or kw_clean in h_no_space or h_no_space in kw_clean:
-          return field
-    return None
-
-  col_map = {}  # {field_name: col_index}
-  for i, h in enumerate(headers):
-    field = _match_column(h)
-    if field:
-      # 同一字段优先取第一个匹配
-      if field not in col_map:
-        col_map[field] = i
-
-  logger.info("import-excel 列映射: %s", {k: f"{headers[v]}(列{v})" for k, v in col_map.items()})
-
-  # --- Step 2: 本地解析数据行 ---
-  rows = []
-  for row_data in data_rows:
-    if not any(v.strip() for v in row_data):
-      continue  # 跳过空行
-    r = {
-      'item_name': '',
-      'specialty': '',
-      'unit': '',
-      'qty': 0,
-      'price': 0,
-      'remark': '',
-    }
-    # 通过列映射填充
-    for field, col_idx in col_map.items():
-      if col_idx < len(row_data):
-        val = row_data[col_idx].strip()
-        if field in ('qty', 'price'):
-          # 提取数字
-          num_match = re.search(r'[\d,]+\.?\d*', val.replace(',', ''))
-          r[field] = float(num_match.group()) if num_match else 0
-        else:
-          r[field] = to_half_width(val)
-
-    # 全角→半角清洗
-    for key in r:
-      if isinstance(r[key], str):
-        r[key] = to_half_width(r[key])
-
-    rows.append(r)
-
-  # --- Step 3: 如果本地解析不够好(缺少关键列)，用 AI 补充 ---
-  parsed_count = sum(1 for r in rows if r.get('item_name'))
-  # 判断是否需要 AI 补充: 没有 item_name 列 或 解析结果太少
-  needs_ai = 'item_name' not in col_map or parsed_count < len(rows) * 0.5
-
-  if needs_ai and rows:
     try:
-      client = get_ai_client()
-      # 构建简化表格文本（只发前50行避免超长）
-      sample_rows = rows[:50]
-      sample_text = "表头: " + "\t".join(headers) + "\n"
-      for i, r in enumerate(sample_rows, 1):
-        sample_text += f"第{i}行: {r.get('item_name','?')}\t{r.get('specialty','?')}\t{r.get('unit','?')}\t{r.get('qty',0)}\t{r.get('price',0)}\n"
-
-      system_prompt = """你是一个造价工程师,正在补充解析Excel表格数据。
-部分列已由本地规则识别，请你补全未能识别的列。
-
-表格已有部分字段，如果某行 item_name 为空但表格中有项目名称，请填入。
-请输出严格JSON: {"rows":[{"item_name":"...","specialty":"...","unit":"...","qty":0,"price":0}]}"""
-
-      raw_ai = client.chat(messages=[
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"请补充以下表格中缺失的 item_name 和价格字段:\n\n{sample_text}\n\n已识别列: {list(col_map.keys())}"},
-      ])
-      ai_text = raw_ai.get("content", "")
-      data = json.loads(ai_text)
-      ai_rows = data.get("rows", [])
-      # 合并 AI 结果：只补充空白字段
-      for i, ai_row in enumerate(ai_rows):
-        if i < len(rows):
-          for key in ('item_name', 'specialty', 'unit', 'qty', 'price'):
-            if key in ai_row and ai_row[key] and not rows[i].get(key):
-              rows[i][key] = to_half_width(str(ai_row[key])) if isinstance(ai_row[key], str) else ai_row[key]
-      parsed_count = sum(1 for r in rows if r.get('item_name'))
-      logger.info("import-excel AI 补充后解析 %d/%d 行", parsed_count, len(rows))
-    except (AIClientError, AIConfigError) as e:
-      logger.warning("import-excel AI 补充失败(使用本地结果): %s", e)
+        raw = await file.read()
+        if len(raw) > MAX_FILE_SIZE:
+            raise HTTPException(413, "文件过大，请上传 10MB 以内的文件")
+    except HTTPException:
+        raise
     except Exception as e:
-      logger.warning("import-excel AI 补充异常(使用本地结果): %s", e)
+        logger.error("import-excel 文件读取失败: %s", e, exc_info=True)
+        raise HTTPException(400, "文件读取失败，请检查文件是否损坏")
 
-  # 过滤掉完全空白的行
-  rows = [r for r in rows if r.get('item_name') or r.get('qty') or r.get('price')]
+    # --- 读取表格 ---
+    table_rows = []
+    try:
+        if ext == '.csv':
+            import csv
+            content = raw.decode('utf-8-sig', errors='replace')
+            reader = csv.reader(io.StringIO(content))
+            for row in reader:
+                table_rows.append(row)
+        else:
+            wb = openpyxl_load_workbook(raw)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                table_rows.append([str(v) if v is not None else '' for v in row])
+    except Exception as e:
+        logger.error("import-excel openpyxl 解析失败: %s", e, exc_info=True)
+        raise HTTPException(422, "Excel 解析失败，请确保文件内容为有效表格格式")
 
-  # 限制行数
-  if len(rows) > MAX_ROWS:
-    rows = rows[:MAX_ROWS]
+    if len(table_rows) < 2:
+        raise HTTPException(400, "文件内容不足，需要至少包含表头和一行数据")
 
-  return ParseTableOut(
-    rows=rows,
-    total=len(rows),
-    parsed=sum(1 for r in rows if r.get('item_name')),
-    # 返回列映射信息供前端展示
-    column_mapping={k: headers[v] for k, v in col_map.items()},
-  )
+    # --- Step 1: 本地规则解析表头列映射 ---
+    headers = table_rows[0]
+    data_rows = table_rows[1:]
+
+    # 列名关键词映射表
+    # 注意: 关键词按优先级排序，精确匹配优先于模糊匹配
+    COLUMN_RULES = {
+        'item_name': ['项目名称', '项目名', '材料名称', '材料名', '名称', '清单项目', '项目', '名称规格', '分部分项', '项目特征', '名称及规格', '构件名称', '部位名称'],
+        'unit': ['计量单位', '单位(m3)', '单位(m2)', '单位(m)', '单位(t)', '单位(个)', '单位'],
+        'qty': ['工程量', '数量', '工程量(m)', '工程量(m2)', '工程量(m3)', '合计数量', '设计数量', '清单工程量', '实算工程量'],
+        'price': ['单价', '综合单价', '预算单价', '信息价', '市场价', '参考价', '合价'],
+        'specialty': ['专业', '专业类别', '工程类别', '专业分类', '分部工程'],
+        'remark': ['备注', '说明', '注释', '描述'],
+    }
+
+    def _match_column(header: str) -> str | None:
+        """根据列名匹配目标字段"""
+        h = header.strip().lower()
+        h_no_space = re.sub(r'[\s\-_/（(）)]', '', h)
+        for field, keywords in COLUMN_RULES.items():
+            for kw in keywords:
+                kw_clean = re.sub(r'[\s\-_/（(）)]', '', kw.lower())
+                if kw_clean in h or kw_clean in h_no_space or h_no_space in kw_clean:
+                    return field
+        return None
+
+    col_map = {}  # {field_name: col_index}
+    for i, h in enumerate(headers):
+        field = _match_column(h)
+        if field:
+            # 同一字段优先取第一个匹配
+            if field not in col_map:
+                col_map[field] = i
+
+    logger.info("import-excel 列映射: %s", {k: f"{headers[v]}(列{v})" for k, v in col_map.items()})
+
+    # --- Step 2: 本地解析数据行 ---
+    rows = []
+    for row_data in data_rows:
+        if not any(v.strip() for v in row_data):
+            continue  # 跳过空行
+        r = {
+            'item_name': '',
+            'specialty': '',
+            'unit': '',
+            'qty': 0,
+            'price': 0,
+            'remark': '',
+        }
+        # 通过列映射填充
+        for field, col_idx in col_map.items():
+            if col_idx < len(row_data):
+                val = row_data[col_idx].strip()
+                if field in ('qty', 'price'):
+                    # 提取数字
+                    num_match = re.search(r'[\d,]+\.?\d*', val.replace(',', ''))
+                    r[field] = float(num_match.group()) if num_match else 0
+                else:
+                    r[field] = to_half_width(val)
+
+        # 全角→半角清洗
+        for key in r:
+            if isinstance(r[key], str):
+                r[key] = to_half_width(r[key])
+
+        rows.append(r)
+
+    # --- Step 3: 如果本地解析不够好(缺少关键列)，用 AI 补充 ---
+    parsed_count = sum(1 for r in rows if r.get('item_name'))
+    # 判断是否需要 AI 补充: 没有 item_name 列 或 解析结果太少
+    needs_ai = 'item_name' not in col_map or parsed_count < len(rows) * 0.5
+
+    if needs_ai and rows:
+        try:
+            client = get_ai_client()
+            # 构建简化表格文本（只发前50行避免超长）
+            sample_rows = rows[:50]
+            sample_text = "表头: " + "\t".join(headers) + "\n"
+            for i, r in enumerate(sample_rows, 1):
+                sample_text += f"第{i}行: {r.get('item_name','?')}\t{r.get('specialty','?')}\t{r.get('unit','?')}\t{r.get('qty',0)}\t{r.get('price',0)}\n"
+
+            system_prompt = """你是一个造价工程师,正在补充解析Excel表格数据。
+            部分列已由本地规则识别，请你补全未能识别的列。
+
+            表格已有部分字段，如果某行 item_name 为空但表格中有项目名称，请填入。
+            请输出严格JSON: {"rows":[{"item_name":"...","specialty":"...","unit":"...","qty":0,"price":0}]}"""
+
+            raw_ai = client.chat(messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"请补充以下表格中缺失的 item_name 和价格字段:\n\n{sample_text}\n\n已识别列: {list(col_map.keys())}"},
+            ])
+            ai_text = raw_ai.get("content", "")
+            data = json.loads(ai_text)
+            ai_rows = data.get("rows", [])
+            # 合并 AI 结果：只补充空白字段
+            for i, ai_row in enumerate(ai_rows):
+                if i < len(rows):
+                    for key in ('item_name', 'specialty', 'unit', 'qty', 'price'):
+                        if key in ai_row and ai_row[key] and not rows[i].get(key):
+                            rows[i][key] = to_half_width(str(ai_row[key])) if isinstance(ai_row[key], str) else ai_row[key]
+            parsed_count = sum(1 for r in rows if r.get('item_name'))
+            logger.info("import-excel AI 补充后解析 %d/%d 行", parsed_count, len(rows))
+        except (AIClientError, AIConfigError) as e:
+            logger.warning("import-excel AI 补充失败(使用本地结果): %s", e)
+        except Exception as e:
+            logger.warning("import-excel AI 补充异常(使用本地结果): %s", e)
+
+    # 过滤掉完全空白的行
+    rows = [r for r in rows if r.get('item_name') or r.get('qty') or r.get('price')]
+
+    # 限制行数
+    if len(rows) > MAX_ROWS:
+        rows = rows[:MAX_ROWS]
+
+    return ParseTableOut(
+        rows=rows,
+        total=len(rows),
+        parsed=sum(1 for r in rows if r.get('item_name')),
+        # 返回列映射信息供前端展示
+        column_mapping={k: headers[v] for k, v in col_map.items()},
+    )
 
 
 def openpyxl_load_workbook(raw_bytes):
