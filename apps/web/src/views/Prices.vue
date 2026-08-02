@@ -24,18 +24,30 @@
   <el-button type="primary" @click="doSearch" :loading="loading">查询</el-button>
   <el-button @click="loadList" :disabled="loading">显示全部</el-button>
   <el-button type="success" @click="triggerAiImport" :loading="aiImporting" size="small">AI 导入价格</el-button>
-  <el-tag type="info" effect="plain" class="result-tag">{{ results.length }} 条</el-tag>
-  <input ref="fileInputRef" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onAiImportFile" />
-</div>
-        <el-table :data="results" v-loading="loading" stripe height="calc(100vh - 220px)" class="price-table" empty-text="暂无数据，请点击查询或显示全部">
-          <el-table-column prop="specialty" label="专业" width="100" />
-          <el-table-column prop="item_name" label="项目名称" min-width="240" show-overflow-tooltip />
-          <el-table-column prop="unit" label="单位" width="70" />
-          <el-table-column prop="price" label="综合单价" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="region" label="地区" width="90" />
-          <el-table-column prop="source_file" label="来源" min-width="200" show-overflow-tooltip />
-        </el-table>
-      </el-tab-pane>
+<el-tag type="info" effect="plain" class="result-tag">{{ total }} 条</el-tag>
+	<input ref="fileInputRef" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onAiImportFile" />
+	</div>
+ <el-table :data="results" v-loading="loading" stripe height="calc(100vh - 280px)" class="price-table" empty-text="暂无数据，请点击查询或显示全部">
+ <el-table-column prop="specialty" label="专业" width="100" />
+ <el-table-column prop="item_name" label="项目名称" min-width="240" show-overflow-tooltip />
+ <el-table-column prop="unit" label="单位" width="70" />
+ <el-table-column prop="price" label="综合单价" min-width="200" show-overflow-tooltip />
+ <el-table-column prop="region" label="地区" width="90" />
+ <el-table-column prop="source_file" label="来源" min-width="200" show-overflow-tooltip />
+ </el-table>
+ <div class="pagination-bar" v-if="total > pageSize">
+ <el-pagination
+ v-model:current-page="page"
+ v-model:page-size="pageSize"
+ :page-sizes="[200, 500, 1000, 2000]"
+ :total="total"
+ layout="total, sizes, prev, pager, next, jumper"
+ background
+ @current-change="onPageChange"
+ @size-change="onPageSizeChange"
+ />
+ </div>
+ </el-tab-pane>
 
       <!-- 市政专题 -->
       <el-tab-pane label="市政专题" name="topics">
@@ -120,32 +132,58 @@ const aiImporting = ref(false)
 const fileInputRef = ref(null)
 
 // 分页
-const page = ref(1)
-const pageSize = ref(50)
-const total = ref(0)
-
-/** 搜索防抖：用户停止输入 300ms 后自动搜索 */
-function onKeywordInput() {
-  if (searchTimer.value) clearTimeout(searchTimer.value)
-  searchTimer.value = setTimeout(() => doSearch(), 300)
-}
-
-async function doSearch() {
-  if (!keyword.value.trim() && !filterSpecialty.value && !filterUnit.value) { return loadList() }
-  loading.value = true
-  page.value = 1
-  try { results.value = await PricesAPI.search(keyword.value.trim(), filterSpecialty.value || undefined, filterUnit.value || undefined) }
-  catch { ElMessage.warning('查询失败，请稍后重试'); results.value = [] }
-  finally { loading.value = false }
-}
-
-async function loadList() {
-  loading.value = true
-  page.value = 1
-  try { results.value = await PricesAPI.list({ limit: 200, specialty: filterSpecialty.value || undefined, unit: filterUnit.value || undefined }) }
-  catch { ElMessage.warning('加载失败，请稍后重试'); results.value = [] }
-  finally { loading.value = false }
-}
+	const page = ref(1)
+	const pageSize = ref(200)
+	const total = ref(0)
+	
+	/** 搜索防抖：用户停止输入 300ms 后自动搜索 */
+	function onKeywordInput() {
+ if (searchTimer.value) clearTimeout(searchTimer.value)
+ searchTimer.value = setTimeout(() => doSearch(), 300)
+	}
+	
+	async function doSearch() {
+ if (!keyword.value.trim() && !filterSpecialty.value && !filterUnit.value) { return loadList() }
+ loading.value = true
+ page.value = 1
+ try {
+ const res = await PricesAPI.search(keyword.value.trim(), filterSpecialty.value || undefined, filterUnit.value || undefined)
+ results.value = Array.isArray(res) ? res : (res.items || [])
+ total.value = Array.isArray(res) ? res.length : (res.total || 0)
+ }
+ catch { ElMessage.warning('查询失败，请稍后重试'); results.value = []; total.value = 0 }
+ finally { loading.value = false }
+	}
+	
+	async function loadList() {
+ loading.value = true
+ page.value = 1
+ try {
+ const res = await PricesAPI.list({ limit: pageSize.value, specialty: filterSpecialty.value || undefined, unit: filterUnit.value || undefined })
+ results.value = res.items || []
+ total.value = res.total || 0
+ }
+ catch { ElMessage.warning('加载失败，请稍后重试'); results.value = []; total.value = 0 }
+ finally { loading.value = false }
+	}
+	
+	async function onPageChange(newPage) {
+ page.value = newPage
+ loading.value = true
+ try {
+ const offset = (newPage - 1) * pageSize.value
+ const res = await PricesAPI.list({ limit: pageSize.value, offset, specialty: filterSpecialty.value || undefined, unit: filterUnit.value || undefined })
+ results.value = res.items || []
+ total.value = res.total || 0
+ } catch { ElMessage.warning('加载失败'); results.value = [] }
+ finally { loading.value = false }
+	}
+	
+	async function onPageSizeChange(newSize) {
+ pageSize.value = newSize
+ page.value = 1
+ await loadList()
+	}
 
 async function loadTopics() {
   topicLoading.value = true
@@ -165,13 +203,14 @@ async function loadFees() {
 }
 
 async function loadSpecialties() {
-  try { specialties.value = await PricesAPI.specialties() }
-  catch { ElMessage.warning('加载专业列表失败') }
-  try {
-   const all = await PricesAPI.list({ limit: 500 })
-   units.value = [...new Set(all.map(x => x.unit).filter(Boolean))].sort()
-  } catch { /* 单位列表非必须，静默处理 */ }
-}
+ try { specialties.value = await PricesAPI.specialties() }
+ catch { ElMessage.warning('加载专业列表失败') }
+ try {
+ const res = await PricesAPI.list({ limit: 2000 })
+ const items = res.items || []
+ units.value = [...new Set(items.map(x => x.unit).filter(Boolean))].sort()
+ } catch { /* 单位列表非必须，静默处理 */ }
+	}
 
 function triggerAiImport() { fileInputRef.value?.click() }
 
@@ -232,4 +271,5 @@ onUnmounted(() => { if (searchTimer.value) clearTimeout(searchTimer.value) })
 .search-input { flex:1; min-width:280px; }
 .result-tag { flex-shrink:0; }
 .price-table { width:100%; }
+.pagination-bar { display:flex; justify-content:center; padding:12px 0; background:#fff; }
 </style>

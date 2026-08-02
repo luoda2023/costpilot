@@ -20,43 +20,51 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 class PriceUnitOut(BaseModel):
-    id: int
-    specialty: Optional[str]
-    item_name: str
-    unit: str
-    price: str
-    region: str
-    calc_rule: Optional[str]
-    remark: Optional[str]
-    source_file: Optional[str]
+	id: int
+	specialty: Optional[str]
+	item_name: str
+	unit: str
+	price: str
+	region: str
+	calc_rule: Optional[str]
+	remark: Optional[str]
+	source_file: Optional[str]
 
-    class Config:
-        from_attributes = True
+	class Config:
+		from_attributes = True
+
+
+class PriceListOut(BaseModel):
+	"""价格列表分页响应"""
+	items: List[PriceUnitOut]
+	total: int
+	page: int
+	page_size: int
 
 
 class TopicPriceOut(BaseModel):
-    id: int
-    topic: str
-    item_name: str
-    unit: str
-    price: str
-    source_file: Optional[str]
+	id: int
+	topic: str
+	item_name: str
+	unit: str
+	price: str
+	source_file: Optional[str]
 
-    class Config:
-        from_attributes = True
+	class Config:
+		from_attributes = True
 
 
 class RegionInfoPriceOut(BaseModel):
-    id: int
-    region: str
-    period: str
-    item_name: str
-    unit: str
-    price: float
-    source_file: Optional[str] = None
+	id: int
+	region: str
+	period: str
+	item_name: str
+	unit: str
+	price: float
+	source_file: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+	class Config:
+		from_attributes = True
 
 
 # ---------------------------------------------------------------------------
@@ -95,35 +103,43 @@ def prices_stats(db: Session = Depends(get_db)):
     }
 
 
-@router.get("", response_model=List[PriceUnitOut])
+@router.get("", response_model=PriceListOut)
 def list_prices(
-    specialty: Optional[str] = None,
-    region: Optional[str] = None,
-    keyword: Optional[str] = None,
-    unit: Optional[str] = None,
-    limit: int = Query(50, le=500),
-    offset: int = 0,
-  db: Session = Depends(get_db),
+	specialty: Optional[str] = None,
+	region: Optional[str] = None,
+	keyword: Optional[str] = None,
+	unit: Optional[str] = None,
+	limit: int = Query(200, le=2000),
+	offset: int = 0,
+	db: Session = Depends(get_db),
 ):
-    """列表查价(分页)"""
-    q = db.query(PriceUnit, Specialty.name).join(Specialty, PriceUnit.specialty_id == Specialty.id)
-    if specialty:
-        q = q.filter(Specialty.name == specialty)
-    if region:
-        q = q.filter(PriceUnit.region == region)
-    if keyword:
-        q = q.filter(PriceUnit.item_name.like(f"%{keyword}%"))
-    if unit:
-        q = q.filter(PriceUnit.unit == unit)
-    q = q.order_by(PriceUnit.id).offset(offset).limit(limit)
-    results = []
-    for pu, spec_name in q.all():
-        results.append(PriceUnitOut(
-            id=pu.id, specialty=spec_name, item_name=pu.item_name,
-            unit=pu.unit, price=pu.price, region=pu.region,
-            calc_rule=pu.calc_rule, remark=pu.remark, source_file=pu.source_file,
-        ))
-    return results
+	"""列表查价(分页,返回总条数)"""
+	q = db.query(PriceUnit, Specialty.name).join(Specialty, PriceUnit.specialty_id == Specialty.id)
+	if specialty:
+		q = q.filter(Specialty.name == specialty)
+	if region:
+		q = q.filter(PriceUnit.region == region)
+	if keyword:
+		q = q.filter(PriceUnit.item_name.like(f"%{keyword}%"))
+	if unit:
+		q = q.filter(PriceUnit.unit == unit)
+	# 先算总条数
+	total = q.count()
+	# 再分页取数据
+	q = q.order_by(PriceUnit.id).offset(offset).limit(limit)
+	results = []
+	for pu, spec_name in q.all():
+		results.append(PriceUnitOut(
+			id=pu.id, specialty=spec_name, item_name=pu.item_name,
+			unit=pu.unit, price=pu.price, region=pu.region,
+			calc_rule=pu.calc_rule, remark=pu.remark, source_file=pu.source_file,
+		))
+	return PriceListOut(
+		items=results,
+		total=total,
+		page=offset // limit + 1 if limit > 0 else 1,
+		page_size=limit,
+	)
 
 
 @router.get("/search", response_model=List[PriceUnitOut])

@@ -71,13 +71,27 @@ class AIConfig:
 
 	def resolved(self) -> Dict[str, Any]:
 		"""合并预置值与显式覆盖,返回最终生效配置"""
-		preset = self.presets.get(self.provider, {})
-		provider = self.provider or "builtin"
+		# 先算 api_key（用户显式 > 环境变量）
+		api_key = self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "")
+
+		if api_key:
+			# 用户自己配了密钥 → 用用户配置或 presets 的 base_url/model
+			preset = self.presets.get(self.provider, {})
+			provider = self.provider or "custom"
+			base_url = self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"]
+			model = self.model or preset.get("model", "") or self._FREE_TRIAL["model"]
+		else:
+			# 免费试用 → 整套配置都用免费试用的，不能用 presets（presets 与免费密钥不兼容）
+			provider = "builtin"
+			base_url = self._FREE_TRIAL["base_url"]
+			api_key = self._FREE_TRIAL["api_key"]
+			model = self._FREE_TRIAL["model"]
+
 		return {
 			"provider": provider,
-			"base_url": self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"],
-			"api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "") or self._FREE_TRIAL["api_key"],
-			"model": self.model or preset.get("model", "") or self._FREE_TRIAL["model"],
+			"base_url": base_url,
+			"api_key": api_key,
+			"model": model,
 			"temperature": self.temperature,
 			"max_tokens": self.max_tokens,
 			"timeout": self.timeout,
@@ -131,12 +145,26 @@ class ImageAIConfig:
 		return not bool(self.base_url) and not bool(self.api_key) and not bool(self.model)
 
 	def resolved(self) -> Dict[str, Any]:
-		preset = self.presets.get(self.provider, {})
+		# 先算 api_key（用户显式 > 环境变量）
+		api_key = self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "")
+
+		if api_key:
+			preset = self.presets.get(self.provider, {})
+			provider = self.provider or "custom"
+			base_url = self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"]
+			model = self.model or preset.get("model", "") or self._FREE_TRIAL["model"]
+		else:
+			# 免费试用
+			provider = "builtin"
+			base_url = self._FREE_TRIAL["base_url"]
+			api_key = self._FREE_TRIAL["api_key"]
+			model = self._FREE_TRIAL["model"]
+
 		return {
-			"provider": self.provider or "builtin",
-			"base_url": self.base_url or preset.get("base_url", "") or self._FREE_TRIAL["base_url"],
-			"api_key": self.api_key or os.environ.get("ENGINEERING_ASSISTANT_AI_API_KEY", "") or self._FREE_TRIAL["api_key"],
-			"model": self.model or preset.get("model", "") or self._FREE_TRIAL["model"],
+			"provider": provider,
+			"base_url": base_url,
+			"api_key": api_key,
+			"model": model,
 			"timeout": self.timeout,
 		}
 
