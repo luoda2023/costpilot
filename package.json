@@ -80,7 +80,6 @@
  "oneClick": false,
  "allowToChangeInstallationDirectory": true,
  "createDesktopShortcut": true,
- "installMode": "currentUser",
  "perMachine": false,
  "runAfterFinish": false,
  "include": "apps/desktop/build/installer.nsh"
