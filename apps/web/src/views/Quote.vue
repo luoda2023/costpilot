@@ -149,7 +149,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, PricesAPI } from '@/api'
 
 // 页面标题
-document.title = '造价通 - 报价生成'
+document.title = '工程助手 - 报价生成'
 
 const regions = ['北京市','上海市','天津市','重庆市','广东省','浙江省','江苏省','四川省','山东省','湖北省','湖南省','福建省','河北省','河南省','安徽省','江西省']
   const specialties = ref([])

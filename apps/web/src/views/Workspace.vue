@@ -179,7 +179,7 @@
 	} from '@element-plus/icons-vue'
 
 	// 页面标题
-	document.title = '造价通 - 工作台'
+	document.title = '工程助手 - 工作台'
 
 	const router = useRouter()
 	

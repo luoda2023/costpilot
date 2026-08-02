@@ -190,7 +190,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, UsageAPI, CustomAIConfigAPI } from '@/api'
 import { Monitor, Edit, Delete } from '@element-plus/icons-vue'
 
-document.title = '造价通 - 系统设置'
+document.title = '工程助手 - 系统设置'
 
 const activeTab = ref('text')
 const defaultConfig = ref({})

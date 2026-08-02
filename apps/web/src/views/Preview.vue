@@ -97,7 +97,7 @@ import '@vue-office/docx/lib/v3/index.css'
 import '@vue-office/excel/lib/v3/index.css'
 
 // 页面标题
-document.title = '造价通 - 预览'
+document.title = '工程助手 - 预览'
 
 // 根路径：优先从 localStorage 读取（用户可配置），否则默认
 const rootPath = localStorage.getItem('preview_root_path') || 'H:/AI-model'

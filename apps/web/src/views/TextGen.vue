@@ -98,7 +98,7 @@ import { ElMessage } from 'element-plus'
 import { TemplatesAPI, api } from '@/api'
 
 // 页面标题
-document.title = '造价通 - 文本生成'
+document.title = '工程助手 - 文本生成'
 
 const templateTypes = ref([])
   const selectedTypeId = ref(null)

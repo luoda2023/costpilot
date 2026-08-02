@@ -135,7 +135,7 @@ import hljs from 'highlight.js'
 import { saveAs } from 'file-saver'
 import { Document as DocxDoc, Packer, Paragraph, TextRun, HeadingLevel } from 'docx'
 
-document.title = '造价通 - AI 智能问答'
+document.title = '工程助手 - AI 智能问答'
 
 // 初始化 markdown-it 渲染器
 const md = new MarkdownIt({

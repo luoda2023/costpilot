@@ -327,7 +327,7 @@ import {
 } from 'docx'
 
 // 页面标题
-document.title = '造价通 - 文档生成'
+document.title = '工程助手 - 文档生成'
 
 const md = new MarkdownIt({
   html: false,

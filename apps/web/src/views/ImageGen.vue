@@ -191,7 +191,7 @@ import { ElMessage } from 'element-plus'
 import { EditPen, PictureFilled, Plus, MagicStick, Download, WarningFilled, Loading, InfoFilled } from '@element-plus/icons-vue'
 import { api } from '@/api'
 
-document.title = '造价通 - 图片生成'
+document.title = '工程助手 - 图片生成'
 
 // ============================================================
 // 常量

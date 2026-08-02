@@ -106,7 +106,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { PricesAPI, FeesAPI, api } from '@/api'
 
 // 页面标题
-document.title = '造价通 - 价格查询'
+document.title = '工程助手 - 价格查询'
 
 const activeTab = ref('search')
 const keyword = ref('')
