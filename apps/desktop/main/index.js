@@ -276,20 +276,40 @@ if (!isDev) {
 }
 });
 
-  app.on('window-all-closed', () => {
- if (process.platform !== 'darwin') {
- if (pythonServer) pythonServer.kill();
- app.quit();
- }
-  });
+app.on('window-all-closed', () => {
+	if (process.platform !== 'darwin') {
+		killAllServerProcesses();
+		app.quit();
+	}
+});
 
-  app.on('activate', () => {
- if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+app.on('activate', () => {
+	if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
 
-  app.on('before-quit', () => {
- if (pythonServer) {
- pythonServer.kill('SIGTERM');
- }
-  });
+app.on('before-quit', () => {
+	killAllServerProcesses();
+});
+
+/**
+ * 彻底清除所有 Python 服务进程（包括进程树）
+ * 防止引擎残留后台导致下次安装器提示"请关闭应用"
+ */
+function killAllServerProcesses() {
+	if (pythonServer) {
+		try {
+			// Windows 用 taskkill /T 杀进程树
+			if (process.platform === 'win32') {
+				execSync(`taskkill /F /T /PID ${pythonServer.pid} 2>nul`, { stdio: 'ignore', timeout: 3000 });
+			} else {
+				process.kill(-pythonServer.pid, 'SIGKILL');
+			}
+		} catch (e) {
+			// 进程可能已退出，忽略
+		}
+		pythonServer = null;
+	}
+	// 再补一刀：杀端口 8765 上所有进程
+	killPort(SERVER_PORT);
+}
 }
